@@ -16,6 +16,12 @@ Application settings apply to every workspace and device record.
 
 Application settings must not contain employee, employer, pay, schedule, project, or balance data.
 
+## Language boundary
+
+The active interface language applies to every visible label, message, dialog, menu, status, and validation error. English and Swedish resources stay separate, as they do in Tidverk. Components must use resource keys instead of embedded user-facing text.
+
+Export language is a separate workspace preference because a report can use a different language from the interface. Swedish holidays and tax tables are domain data. They do not select the interface language.
+
 ## Workspace scope
 
 A workspace owns the rules and records for one work context.
