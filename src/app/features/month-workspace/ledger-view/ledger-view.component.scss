@@ -1,0 +1,219 @@
+.m3-table-container {
+  width: 100%;
+  background-color: var(--app-surface-container-lowest);
+  border-radius: 16px;
+  border: none;
+  overflow: hidden;
+}
+
+.m3-ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--app-surface-container-lowest);
+
+  .ledger-header-row {
+    height: 56px;
+    background-color: var(--app-surface-container-low);
+    border-bottom: 1px solid color-mix(in srgb, var(--app-outline-variant) 56%, transparent);
+
+    th {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.8px;
+      color: var(--app-on-surface-variant);
+      padding: 0 16px;
+    }
+  }
+
+  .ledger-data-row {
+    height: 52px;
+    border-bottom: 1px solid color-mix(in srgb, var(--app-outline-variant) 42%, transparent);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    outline: none;
+
+    &:hover {
+      background-color: var(--app-surface-container-low);
+
+      .row-edit-btn {
+        opacity: 1;
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--app-primary);
+      outline-offset: -2px;
+
+      .row-edit-btn {
+        opacity: 1;
+      }
+    }
+
+    &.row-today {
+      background-color: color-mix(in srgb, var(--app-primary-container) 34%, transparent);
+    }
+
+    td {
+      padding: 0 16px;
+      font-size: 13px;
+      color: var(--app-on-surface);
+    }
+  }
+}
+
+// Rigid Date Pill (62px x 26px)
+.date-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 62px;
+  height: 26px;
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--app-on-surface);
+  font-weight: 500;
+  box-sizing: border-box;
+
+  .day-num {
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .day-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--app-on-surface-variant);
+  }
+
+  &.is-today {
+    background-color: var(--app-primary-container);
+    color: var(--app-on-primary-container);
+
+    .day-name {
+      color: var(--app-on-primary-container);
+    }
+  }
+
+  &.is-weekend {
+    background-color: var(--app-surface-container-low);
+    color: var(--app-on-surface-variant);
+
+    .day-num {
+      color: var(--app-on-surface-variant);
+    }
+  }
+}
+
+// Rigid Status Chip (90px x 26px)
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 90px;
+  height: 26px;
+  border-radius: 13px;
+  font-size: 12px;
+  font-weight: 500;
+  box-sizing: border-box;
+
+  .chip-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.worked-chip {
+    background-color: var(--app-success-container);
+    color: var(--app-on-success-container);
+  }
+
+  &.holiday-chip {
+    background-color: var(--app-warning-container);
+    color: var(--app-on-warning-container);
+  }
+
+  &.off-chip {
+    background-color: var(--app-surface-container-high);
+    color: var(--app-on-surface-variant);
+  }
+
+  &.unlogged-chip {
+    background-color: var(--app-surface-container-low);
+    color: var(--app-on-surface-variant);
+    border: none;
+
+    .chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--app-warning);
+    }
+  }
+}
+
+.empty-dash {
+  color: var(--app-on-surface-variant);
+  opacity: 0.6;
+}
+
+.time-range, .hours-val, .lunch-mins {
+  font-weight: 500;
+  color: var(--app-on-surface);
+}
+
+.ot-badge {
+  font-weight: 600;
+  color: var(--app-warning);
+}
+
+.project-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--app-surface-container);
+  padding: 4px 10px;
+  border-radius: 12px;
+  max-width: 180px;
+
+  .project-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .project-name {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.notes-text {
+  display: inline-block;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--app-on-surface-variant);
+}
+
+.col-actions {
+  text-align: right;
+  width: 48px;
+  padding-right: 8px !important;
+}
+
+.row-edit-btn {
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+  color: var(--app-on-surface-variant);
+
+  &:hover, &:focus-visible {
+    opacity: 1;
+    color: var(--app-primary);
+  }
+}

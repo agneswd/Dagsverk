@@ -1,0 +1,71 @@
+<div class="backups-page-container">
+  <div class="page-header-block">
+    <p class="page-desc body-medium">Back up or restore your local Dagsverk database.</p>
+  </div>
+
+  <div class="cards-stack">
+    <!-- Privacy & Storage Info Card -->
+    <mat-card appearance="outlined" class="m3-outlined-card">
+      <mat-card-content class="card-content">
+        <div class="card-header-row">
+          <div class="icon-avatar">
+            <mat-icon>shield</mat-icon>
+          </div>
+          <div class="title-group">
+            <h2 class="title-medium">Local data</h2>
+            <p class="body-small">Your time entries, rates, and projects stay on this device.</p>
+          </div>
+        </div>
+        <p class="body-medium desc-text">
+          Dagsverk works without an account or internet connection. It stores all records in a local SQLite database.
+        </p>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Backup & Restore Actions Card -->
+    <mat-card appearance="outlined" class="m3-outlined-card">
+      <mat-card-content class="card-content">
+        <div class="card-header-row">
+          <div class="icon-avatar">
+            <mat-icon>backup</mat-icon>
+          </div>
+          <div class="title-group">
+            <h2 class="title-medium">Backup and restore</h2>
+            <p class="body-small">Create a portable copy or restore an earlier database.</p>
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <button
+            mat-flat-button
+            color="primary"
+            class="action-btn label-large"
+            (click)="onCreateBackup()"
+          >
+            <mat-icon>save</mat-icon>
+            <span>Create backup</span>
+          </button>
+
+          <button
+            mat-stroked-button
+            class="action-btn restore-btn label-large"
+            (click)="onRestoreBackup()"
+          >
+            <mat-icon>settings_backup_restore</mat-icon>
+            <span>Restore from backup</span>
+          </button>
+        </div>
+
+        @if (lastBackupPath()) {
+          <div class="backup-banner">
+            <mat-icon class="banner-icon">check_circle</mat-icon>
+            <div class="banner-text">
+              <span class="banner-label label-small">LATEST BACKUP CREATED:</span>
+              <span class="banner-path selectable-path numeric">{{ lastBackupPath() }}</span>
+            </div>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

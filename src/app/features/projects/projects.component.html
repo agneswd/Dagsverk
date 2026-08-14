@@ -1,0 +1,119 @@
+<div class="projects-page-container">
+  <div class="page-header-block">
+    <p class="page-desc body-medium">Group time entries by client, contract, or workstream.</p>
+  </div>
+
+  <div class="projects-layout-grid">
+    <!-- LEFT: Add Project Form (320px) -->
+    <mat-card appearance="outlined" class="m3-outlined-card form-card">
+      <mat-card-content class="card-content">
+        <h2 class="card-title title-medium">Add project</h2>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+          <mat-label>Project Name</mat-label>
+          <input
+            matInput
+            [ngModel]="newProjectName()"
+            (ngModelChange)="newProjectName.set($event)"
+            placeholder="e.g. Client Alpha"
+            (keydown.enter)="onAddProject()"
+          >
+        </mat-form-field>
+
+        <div class="color-picker-section">
+          <label class="color-label label-small">COLOR TAG</label>
+          <div class="color-swatches-grid" role="radiogroup" aria-label="Project color selection">
+            @for (c of availableColors; track c.hex) {
+              <button
+                type="button"
+                class="color-swatch-btn"
+                [class.selected]="newProjectColor() === c.hex"
+                [style.background-color]="c.hex"
+                (click)="newProjectColor.set(c.hex)"
+                [attr.aria-label]="c.name + ' project color'"
+                [attr.aria-pressed]="newProjectColor() === c.hex"
+                matTooltip="{{ c.name }}"
+              >
+                @if (newProjectColor() === c.hex) {
+                  <mat-icon class="swatch-check-icon">check</mat-icon>
+                }
+              </button>
+            }
+          </div>
+        </div>
+
+        <button
+          mat-flat-button
+          color="primary"
+          class="add-btn label-large"
+          [disabled]="!newProjectName().trim()"
+          (click)="onAddProject()"
+        >
+          <mat-icon>add</mat-icon>
+          <span>Add Project</span>
+        </button>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- RIGHT: Active Projects List -->
+    <mat-card appearance="outlined" class="m3-outlined-card list-card">
+      <mat-card-content class="card-content">
+        <div class="list-card-header">
+          <h2 class="card-title title-medium">Active projects ({{ state.projects().length }})</h2>
+        </div>
+
+        <div class="projects-list">
+          @for (p of state.projects(); track p.id) {
+            <div class="project-item-row" [class.is-default]="p.isDefault">
+              <div class="project-indicator" [style.background-color]="p.color || '#0B57D0'"></div>
+
+              <div class="project-details">
+                <div class="project-name-line">
+                  <span class="p-name title-small">{{ p.name }}</span>
+                  @if (p.isDefault) {
+                    <span class="default-badge label-small">Default</span>
+                  }
+                </div>
+                <span class="p-status body-small">{{ p.isActive ? 'Active' : 'Archived' }}</span>
+              </div>
+
+              <div class="project-row-actions">
+                @if (!p.isDefault) {
+                  <button
+                    mat-button
+                    class="action-text-btn label-large"
+                    (click)="onSetDefault(p)"
+                    aria-label="Set {{ p.name }} as default project"
+                  >
+                    Set Default
+                  </button>
+                }
+
+                <button
+                  mat-icon-button
+                  (click)="onToggleActive(p)"
+                  [matTooltip]="p.isActive ? 'Archive Project' : 'Activate Project'"
+                  [attr.aria-label]="(p.isActive ? 'Archive ' : 'Activate ') + p.name"
+                >
+                  <mat-icon>{{ p.isActive ? 'archive' : 'unarchive' }}</mat-icon>
+                </button>
+
+                @if (!p.isDefault) {
+                  <button
+                    mat-icon-button
+                    (click)="onDelete(p)"
+                    matTooltip="Delete Project"
+                    [attr.aria-label]="'Delete ' + p.name"
+                    color="warn"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

@@ -1,0 +1,193 @@
+<div class="m3-day-editor">
+  <!-- 56px Side-Sheet Header -->
+  <div class="editor-header">
+    <div class="header-title-box">
+      <h3 class="date-title title-medium">{{ formattedDateTitle }}</h3>
+      @if (holidayName) {
+        <span class="holiday-pill label-small">🎉 {{ holidayName }}</span>
+      }
+    </div>
+    <button
+      mat-icon-button
+      (click)="onClose()"
+      aria-label="Close day editor"
+      class="close-btn"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <!-- Side-Sheet Scrollable Body -->
+  <div class="editor-body">
+    <!-- Status Segmented Toggle (40px) -->
+    <div class="form-section">
+      <label class="section-label label-large">Status</label>
+      <mat-button-toggle-group
+        class="m3-status-toggle"
+        [value]="status()"
+        (change)="status.set($event.value)"
+        hideSingleSelectionIndicator="true"
+        aria-label="Work status"
+      >
+        <mat-button-toggle [value]="WorkEntryStatus.Worked">
+          <mat-icon class="status-toggle-icon">check</mat-icon>
+          <span>Worked</span>
+        </mat-button-toggle>
+        <mat-button-toggle [value]="WorkEntryStatus.Off">
+          <mat-icon class="status-toggle-icon">beach_access</mat-icon>
+          <span>Day Off</span>
+        </mat-button-toggle>
+        <mat-button-toggle [value]="WorkEntryStatus.Incomplete">
+          <mat-icon class="status-toggle-icon">remove</mat-icon>
+          <span>Unlogged</span>
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+
+    <!-- WORKED STATUS FORM -->
+    @if (status() === WorkEntryStatus.Worked) {
+      <!-- Presets Chips -->
+      <div class="form-section">
+        <label class="section-label label-small">Quick Presets</label>
+        <mat-chip-listbox aria-label="Quick time presets" class="presets-chips">
+          @for (preset of timePresets; track preset.label) {
+            <mat-chip-option
+              [selected]="startTime() === preset.start && endTime() === preset.end && lunchMinutes() === preset.lunch"
+              (click)="applyPreset(preset)"
+              class="preset-chip"
+            >
+              {{ preset.label }}
+            </mat-chip-option>
+          }
+        </mat-chip-listbox>
+      </div>
+
+      <!-- Time Range Inputs (12px gap) -->
+      <div class="time-range-grid">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Start Time</mat-label>
+          <input
+            matInput
+            [ngModel]="startTime()"
+            (ngModelChange)="startTime.set($event)"
+            (blur)="onTimeBlur('start', startTime())"
+            placeholder="08:00"
+            class="numeric"
+          >
+          <mat-icon matPrefix class="field-icon">schedule</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>End Time</mat-label>
+          <input
+            matInput
+            [ngModel]="endTime()"
+            (ngModelChange)="endTime.set($event)"
+            (blur)="onTimeBlur('end', endTime())"
+            placeholder="16:30"
+            class="numeric"
+          >
+          <mat-icon matPrefix class="field-icon">update</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <!-- Lunch Duration Chips -->
+      <div class="form-section">
+        <label class="section-label label-small">Lunch Break</label>
+        <mat-chip-listbox aria-label="Lunch break duration" class="lunch-chips">
+          @for (mins of lunchOptions; track mins) {
+            <mat-chip-option
+              [selected]="lunchMinutes() === mins"
+              (click)="lunchMinutes.set(mins)"
+              class="lunch-chip"
+            >
+              {{ mins === 0 ? 'No Lunch' : mins + ' mins' }}
+            </mat-chip-option>
+          }
+        </mat-chip-listbox>
+      </div>
+
+      <!-- Project Selector -->
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+        <mat-label>Project</mat-label>
+        <mat-select [ngModel]="projectName()" (ngModelChange)="projectName.set($event)">
+          @for (p of state.projects(); track p.id) {
+            <mat-option [value]="p.name">{{ p.name }}</mat-option>
+          }
+        </mat-select>
+        <mat-icon matPrefix class="field-icon">folder</mat-icon>
+      </mat-form-field>
+
+      <!-- Pay Breakdown Card -->
+      <div class="pay-summary-card">
+        <div class="pay-row">
+          <span class="body-small">Effective Hours</span>
+          <span class="title-small numeric">{{ workedHours | number:'1.2-2' }}h</span>
+        </div>
+        @if (dailyPay.overtimePay > 0 || dailyPay.obPay > 0) {
+          <div class="pay-row">
+            <span class="body-small">Overtime & OB</span>
+            <span class="title-small numeric">+{{ (dailyPay.overtimePay + dailyPay.obPay) | number:'1.0-0' }} {{ state.settings().currencyPreference }}</span>
+          </div>
+        }
+        <mat-divider></mat-divider>
+        <div class="pay-row total-row">
+          <span class="label-large">Estimated Day Pay</span>
+          <span class="title-medium numeric">{{ dailyPay.total | number:'1.0-0' }} {{ state.settings().currencyPreference }}</span>
+        </div>
+      </div>
+    }
+
+    <!-- DAY OFF STATUS FORM -->
+    @if (status() === WorkEntryStatus.Off) {
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+        <mat-label>Day Off Type</mat-label>
+        <mat-select [ngModel]="notes()" (ngModelChange)="notes.set($event)">
+          @for (reason of dayOffReasons; track reason) {
+            <mat-option [value]="reason">{{ reason }}</mat-option>
+          }
+        </mat-select>
+        <mat-icon matPrefix class="field-icon">beach_access</mat-icon>
+      </mat-form-field>
+    }
+
+    <!-- Notes Field -->
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+      <mat-label>Notes (Optional)</mat-label>
+      <textarea
+        matInput
+        [ngModel]="notes()"
+        (ngModelChange)="notes.set($event)"
+        rows="2"
+        placeholder="Add day notes..."
+      ></textarea>
+      <mat-icon matPrefix class="field-icon">edit_note</mat-icon>
+    </mat-form-field>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <!-- Side-Sheet Actions (40px, Cancel first, Save Entry last) -->
+  <div class="editor-footer">
+    <button
+      mat-button
+      type="button"
+      (click)="onClose()"
+      class="action-btn label-large"
+    >
+      Cancel
+    </button>
+
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="onSave()"
+      class="action-btn save-btn label-large"
+    >
+      Save Entry
+    </button>
+  </div>
+</div>

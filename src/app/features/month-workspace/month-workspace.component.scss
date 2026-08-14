@@ -1,0 +1,42 @@
+.workspace-sidenav-container {
+  height: 100%;
+  width: 100%;
+  background-color: var(--app-bg);
+}
+
+.workspace-main-content {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 28px 40px;
+}
+
+.workspace-content {
+  width: min(100%, 1280px);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.view-surface {
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+// M3 400px Side Sheet
+.m3-day-editor-drawer {
+  width: 416px;
+  max-width: 90vw;
+  background-color: var(--app-surface-container-lowest);
+  border: none;
+  box-shadow: -8px 0 24px color-mix(in srgb, #000000 14%, transparent);
+}
+
+@media (max-width: 720px) {
+  .workspace-main-content {
+    padding: 20px 16px 32px;
+  }
+}

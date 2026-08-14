@@ -1,0 +1,176 @@
+.settings-page-container {
+  height: 100%;
+  width: 100%;
+  padding: 32px 40px 64px;
+  overflow-y: auto;
+  max-width: 1088px;
+  margin: 0 auto;
+}
+
+.settings-header-block {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+
+  .title-meta {
+    .page-title {
+      color: var(--app-on-surface);
+      margin: 0 0 4px 0;
+    }
+
+    .page-desc {
+      color: var(--app-on-surface-variant);
+      margin: 0;
+      font-size: 15px;
+    }
+  }
+
+  .save-btn {
+    height: 40px;
+    border-radius: 20px;
+    padding: 0 20px;
+    flex-shrink: 0;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      margin-right: 6px;
+    }
+  }
+}
+
+.m3-settings-tabs {
+  .tab-body {
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+.m3-outlined-card {
+  background-color: var(--app-surface-container-lowest);
+  border: none;
+  border-radius: 16px;
+  box-shadow: none !important;
+
+  .card-content {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .card-title {
+    color: var(--app-on-surface);
+    margin: 0;
+  }
+
+  .card-desc {
+    color: var(--app-on-surface-variant);
+    margin: -8px 0 8px;
+  }
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .group-label {
+    color: var(--app-on-surface-variant);
+    letter-spacing: 0.8px;
+    font-weight: 600;
+  }
+
+  .weekday-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .weekday-chip {
+      font-size: 13px;
+      height: 36px;
+    }
+  }
+}
+
+.field-icon {
+  color: var(--app-on-surface-variant);
+  margin-right: 6px;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.card-header-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  button {
+    height: 36px;
+    border-radius: 18px;
+  }
+}
+
+.rate-bands-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .m3-expansion-card {
+    border: 1px solid var(--app-outline-variant);
+    border-radius: 8px !important;
+    background-color: var(--app-surface-container-low);
+    box-shadow: none !important;
+
+    .expansion-form-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-top: 12px;
+    }
+
+    .expansion-actions {
+      display: flex;
+      justify-content: flex-end;
+
+      .delete-band-btn {
+        height: 36px;
+      }
+    }
+  }
+}
+
+.empty-bands-placeholder {
+  padding: 16px;
+  border-radius: 8px;
+  background-color: var(--app-surface-container-low);
+  color: var(--app-on-surface-variant);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .settings-page-container {
+    padding: 24px 20px 48px;
+  }
+
+  .form-grid-2, .form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}

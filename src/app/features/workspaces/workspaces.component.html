@@ -1,0 +1,133 @@
+<div class="workspaces-page-container">
+  <div class="page-header-block">
+    <div class="header-titles">
+      <p class="page-desc body-medium">Keep time, projects, and settings separate for each job or client.</p>
+    </div>
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="isAdding.set(!isAdding())"
+      class="add-ws-btn label-large"
+    >
+      <mat-icon>{{ isAdding() ? 'close' : 'add' }}</mat-icon>
+      <span>{{ isAdding() ? 'Cancel' : 'Add Workspace' }}</span>
+    </button>
+  </div>
+
+  <!-- ADD WORKSPACE FORM (Collapsible) -->
+  @if (isAdding()) {
+    <mat-card appearance="outlined" class="m3-outlined-card add-card">
+      <mat-card-content class="card-content">
+        <h2 class="card-title title-medium">Create workspace</h2>
+
+        <div class="form-grid-2">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Workspace Name</mat-label>
+            <input
+              matInput
+              [ngModel]="newWorkspaceName()"
+              (ngModelChange)="newWorkspaceName.set($event)"
+              placeholder="e.g. Acme Corp"
+            >
+            <mat-icon matPrefix class="field-icon">business</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Employer / Company</mat-label>
+            <input
+              matInput
+              [ngModel]="newWorkspaceEmployer()"
+              (ngModelChange)="newWorkspaceEmployer.set($event)"
+              placeholder="e.g. Acme AB"
+            >
+            <mat-icon matPrefix class="field-icon">domain</mat-icon>
+          </mat-form-field>
+        </div>
+
+        <div class="color-picker-row">
+          <label class="color-label label-small">COLOR ACCENT</label>
+          <div class="color-swatches-grid">
+            @for (c of availableColors; track c) {
+              <button
+                type="button"
+                class="color-swatch-btn"
+                [class.selected]="newWorkspaceColor() === c"
+                [style.background-color]="c"
+                (click)="newWorkspaceColor.set(c)"
+                aria-label="Workspace color"
+              >
+                @if (newWorkspaceColor() === c) {
+                  <mat-icon class="swatch-check-icon">check</mat-icon>
+                }
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button
+            mat-flat-button
+            color="primary"
+            class="save-btn label-large"
+            [disabled]="!newWorkspaceName().trim()"
+            (click)="onAddWorkspace()"
+          >
+            <mat-icon>check</mat-icon>
+            <span>Create Workspace</span>
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <!-- WORKSPACES LIST (72px Rows) -->
+  <mat-card appearance="outlined" class="m3-outlined-card list-card">
+    <mat-card-content class="card-content">
+      <h2 class="card-title title-medium">Available workspaces ({{ state.workspaces().length }})</h2>
+
+      <div class="workspaces-list">
+        @for (ws of state.workspaces(); track ws.id) {
+          <div class="ws-row" [class.is-active]="ws.id === state.activeWorkspaceId()">
+            <div class="ws-avatar" [style.background-color]="ws.color || '#0B57D0'">
+              <mat-icon class="avatar-icon">business</mat-icon>
+            </div>
+
+            <div class="ws-details">
+              <div class="ws-name-line">
+                <span class="ws-title title-medium">{{ ws.name }}</span>
+                @if (ws.id === state.activeWorkspaceId()) {
+                  <span class="active-badge label-small">Active</span>
+                }
+              </div>
+              <span class="ws-subtitle body-small">{{ ws.employerName || 'No Employer Specified' }}</span>
+            </div>
+
+            <div class="ws-actions">
+              @if (ws.id !== state.activeWorkspaceId()) {
+                <button
+                  mat-stroked-button
+                  (click)="onSelectWorkspace(ws)"
+                  class="switch-btn label-large"
+                >
+                  Switch To
+                </button>
+              }
+
+              @if (state.workspaces().length > 1) {
+                <button
+                  mat-icon-button
+                  (click)="onDeleteWorkspace(ws)"
+                  color="warn"
+                  matTooltip="Delete Workspace"
+                  [attr.aria-label]="'Delete ' + ws.name"
+                >
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

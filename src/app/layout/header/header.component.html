@@ -1,0 +1,185 @@
+<mat-toolbar class="app-top-toolbar" [class.is-electron]="bridge.isRunningInElectron">
+  <!-- 1. TIMESHEET VIEW HEADER -->
+  @if (currentRoute().startsWith('/timesheet')) {
+    <!-- LEFT: Month Navigation -->
+    <div class="toolbar-left">
+      <div class="month-navigator">
+        <button
+          mat-icon-button
+          (click)="state.previousMonth()"
+          aria-label="Previous month"
+          matTooltip="Previous Month (Alt+Left)"
+          class="nav-arrow-btn"
+        >
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+
+        <button
+          mat-button
+          [matMenuTriggerFor]="monthMenu"
+          class="month-selector-btn"
+          aria-label="Select month and year"
+        >
+          <span class="month-label title-medium">{{ state.formattedMonthTitle() }}</span>
+          <mat-icon iconPositionEnd class="dropdown-icon">arrow_drop_down</mat-icon>
+        </button>
+
+        <mat-menu #monthMenu="matMenu" class="m3-month-menu">
+          <div class="year-selector-row">
+            <button mat-icon-button (click)="$event.stopPropagation(); onSelectYear(-1)" aria-label="Previous year">
+              <mat-icon>chevron_left</mat-icon>
+            </button>
+            <span class="year-num title-small">{{ state.currentYear() }}</span>
+            <button mat-icon-button (click)="$event.stopPropagation(); onSelectYear(1)" aria-label="Next year">
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </div>
+          <mat-divider></mat-divider>
+          <div class="months-grid">
+            @for (m of monthsList; track m.num) {
+              <button
+                mat-menu-item
+                [class.active-month]="m.num === state.currentMonth()"
+                (click)="onSelectMonth(m.num)"
+              >
+                {{ m.name }}
+              </button>
+            }
+          </div>
+        </mat-menu>
+
+        <button
+          mat-icon-button
+          (click)="state.nextMonth()"
+          aria-label="Next month"
+          matTooltip="Next Month (Alt+Right)"
+          class="nav-arrow-btn"
+        >
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+
+        <button mat-stroked-button (click)="state.goToToday()" class="today-btn label-large">
+          Today
+        </button>
+      </div>
+    </div>
+
+    <!-- CENTER: View Toggle (40px high, 20px radius) -->
+    <div class="toolbar-center">
+      <mat-button-toggle-group
+        class="m3-view-toggle"
+        [value]="state.activeView()"
+        (change)="state.setView($event.value)"
+        hideSingleSelectionIndicator="true"
+        aria-label="View toggle"
+      >
+        <mat-button-toggle [value]="MonthViewPreference.Ledger">
+          <mat-icon class="toggle-icon">table_rows</mat-icon>
+          <span>Ledger</span>
+        </mat-button-toggle>
+        <mat-button-toggle [value]="MonthViewPreference.Calendar">
+          <mat-icon class="toggle-icon">calendar_month</mat-icon>
+          <span>Calendar</span>
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+
+    <!-- RIGHT: Actions -->
+    <div class="toolbar-right">
+      <!-- Catch Up Slot -->
+      <div class="catchup-slot">
+        @if (state.missingDaysCount() > 0) {
+          <button
+            mat-flat-button
+            color="primary"
+            class="catchup-btn label-large"
+            (click)="state.quickCatchUp()"
+            matTooltip="Auto-fill {{ state.missingDaysCount() }} unlogged past workdays"
+          >
+            <mat-icon>auto_fix_high</mat-icon>
+            <span>Catch Up ({{ state.missingDaysCount() }})</span>
+          </button>
+        }
+      </div>
+
+      <!-- Export to Excel -->
+      <button
+        mat-icon-button
+        (click)="state.exportExcel()"
+        aria-label="Export to Excel"
+        matTooltip="Export to Excel (.xlsx)"
+      >
+        <mat-icon>download</mat-icon>
+      </button>
+
+      <!-- Theme Switcher -->
+      <button
+        mat-icon-button
+        (click)="state.toggleTheme()"
+        aria-label="Toggle theme"
+        matTooltip="Toggle Dark / Light Mode"
+      >
+        <mat-icon>{{ state.isDarkTheme() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
+
+      <!-- Electron Window Controls -->
+      @if (bridge.isRunningInElectron) {
+        <div class="window-controls no-drag">
+          <button class="win-btn win-min" (click)="onMinimize()" aria-label="Minimize window">
+            <mat-icon>remove</mat-icon>
+          </button>
+          <button class="win-btn win-max" (click)="onMaximize()" aria-label="Maximize window">
+            <mat-icon>crop_square</mat-icon>
+          </button>
+          <button class="win-btn win-close" (click)="onClose()" aria-label="Close window">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+  } @else {
+    <!-- 2. ROUTE PAGE HEADERS (Workspaces, Projects, Settings, Database) -->
+    <div class="toolbar-left">
+      <h1 class="route-page-title title-large">
+        @if (currentRoute().startsWith('/workspaces')) {
+          Workspaces
+        } @else if (currentRoute().startsWith('/projects')) {
+          Projects
+        } @else if (currentRoute().startsWith('/settings')) {
+          Settings
+        } @else if (currentRoute().startsWith('/backups')) {
+          Data & backups
+        }
+      </h1>
+    </div>
+
+    <div class="toolbar-center"></div>
+
+    <div class="toolbar-right">
+      <!-- Theme Switcher -->
+      <button
+        mat-icon-button
+        (click)="state.toggleTheme()"
+        aria-label="Toggle theme"
+        matTooltip="Toggle Dark / Light Mode"
+      >
+        <mat-icon>{{ state.isDarkTheme() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
+
+      <!-- Electron Window Controls -->
+      @if (bridge.isRunningInElectron) {
+        <div class="window-controls no-drag">
+          <button class="win-btn win-min" (click)="onMinimize()" aria-label="Minimize window">
+            <mat-icon>remove</mat-icon>
+          </button>
+          <button class="win-btn win-max" (click)="onMaximize()" aria-label="Maximize window">
+            <mat-icon>crop_square</mat-icon>
+          </button>
+          <button class="win-btn win-close" (click)="onClose()" aria-label="Close window">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+  }
+</mat-toolbar>

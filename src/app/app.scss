@@ -1,0 +1,30 @@
+.app-shell-container {
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--app-bg);
+  overflow: hidden;
+}
+
+.app-shell-drawer {
+  width: 256px;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: var(--app-surface-container-low);
+  overflow: hidden;
+}
+
+.app-shell-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--app-bg);
+}
+
+.app-main-viewport {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--app-bg);
+}

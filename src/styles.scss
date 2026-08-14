@@ -1,0 +1,324 @@
+@use '@angular/material' as mat;
+
+// Offline Fonts
+@import '@fontsource/roboto/300.css';
+@import '@fontsource/roboto/400.css';
+@import '@fontsource/roboto/500.css';
+@import '@fontsource/roboto/700.css';
+@import '@fontsource/material-icons/index.css';
+@import '@fontsource/material-symbols-outlined/index.css';
+@import '@fontsource-variable/material-symbols-outlined/index.css';
+
+.mat-icon, mat-icon {
+  font-family: 'Material Symbols Outlined Variable', 'Material Symbols Outlined', 'Material Icons' !important;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+@include mat.core();
+
+// Material 3 Themes (Single Source of Truth)
+$light-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$azure-palette,
+    tertiary: mat.$blue-palette,
+  ),
+  typography: (
+    plain-family: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    brand-family: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  ),
+  density: (
+    scale: 0,
+  )
+));
+
+$dark-theme: mat.define-theme((
+  color: (
+    theme-type: dark,
+    primary: mat.$azure-palette,
+    tertiary: mat.$blue-palette,
+  ),
+  typography: (
+    plain-family: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    brand-family: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  ),
+  density: (
+    scale: 0,
+  )
+));
+
+html {
+  @include mat.all-component-themes($light-theme);
+  color-scheme: light;
+  height: 100%;
+}
+
+html.dark-theme, body.dark-theme {
+  @include mat.all-component-colors($dark-theme);
+  color-scheme: dark;
+}
+
+// Light Theme Tokens (reading directly from Angular Material M3 tokens with semantic custom accents)
+:root {
+  --app-bg: #f8fafd;
+  --app-surface: #f8fafd;
+  --app-surface-container-lowest: #ffffff;
+  --app-surface-container-low: #f1f4f9;
+  --app-surface-container: #e9eef6;
+  --app-surface-container-high: #e2e8f0;
+  --app-surface-container-highest: #d9e1ec;
+
+  --app-primary: #5f875f;
+  --app-on-primary: #ffffff;
+  --app-primary-container: #dce8d8;
+  --app-on-primary-container: #1b351d;
+
+  --app-secondary-container: #dce8d8;
+  --app-on-secondary-container: #1b351d;
+
+  --app-on-surface: #1f1f1f;
+  --app-on-surface-variant: #5f6368;
+  --app-outline: #747775;
+  --app-outline-variant: #d9dde5;
+
+  // Semantic Alert Tokens (M3 doesn't bundle success/warning)
+  --app-success: #137333;
+  --app-success-container: #CEEAD6;
+  --app-on-success-container: #0C5223;
+
+  --app-warning: #B06000;
+  --app-warning-container: #FFE0B2;
+  --app-on-warning-container: #4E2600;
+
+  --app-error: var(--mat-sys-error, #BA1A1A);
+  --app-error-container: var(--mat-sys-error-container, #FFDAD6);
+  --app-on-error-container: var(--mat-sys-on-error-container, #410002);
+}
+
+// Dark Theme Tokens
+html.dark-theme, body.dark-theme {
+  --app-bg: #111318;
+  --app-surface: #181a20;
+  --app-surface-container-lowest: #1d2026;
+  --app-surface-container-low: #22252c;
+  --app-surface-container: #292c34;
+  --app-surface-container-high: #30343c;
+  --app-surface-container-highest: #383c45;
+
+  --app-primary: #a7caa4;
+  --app-on-primary: #17351b;
+  --app-primary-container: #36543a;
+  --app-on-primary-container: #dce8d8;
+
+  --app-secondary-container: #344d38;
+  --app-on-secondary-container: #dce8d8;
+
+  --app-on-surface: #e3e7ee;
+  --app-on-surface-variant: #bdc3cc;
+  --app-outline: #8d939d;
+  --app-outline-variant: #41464f;
+
+  --app-success: #81C995;
+  --app-success-container: #0F5223;
+  --app-on-success-container: #CEEAD6;
+
+  --app-warning: #FDD663;
+  --app-warning-container: #5C3800;
+  --app-on-warning-container: #FFE0B2;
+
+  --app-error: var(--mat-sys-error, #F2B8B5);
+  --app-error-container: var(--mat-sys-error-container, #8C1D18);
+  --app-on-error-container: var(--mat-sys-on-error-container, #F9DEDC);
+}
+
+// Keep Angular Material components and application surfaces on one palette.
+:root,
+html.dark-theme,
+body.dark-theme {
+  --mat-sys-background: var(--app-bg);
+  --mat-sys-surface: var(--app-surface);
+  --mat-sys-surface-container-lowest: var(--app-surface-container-lowest);
+  --mat-sys-surface-container-low: var(--app-surface-container-low);
+  --mat-sys-surface-container: var(--app-surface-container);
+  --mat-sys-surface-container-high: var(--app-surface-container-high);
+  --mat-sys-surface-container-highest: var(--app-surface-container-highest);
+  --mat-sys-primary: var(--app-primary);
+  --mat-sys-on-primary: var(--app-on-primary);
+  --mat-sys-primary-container: var(--app-primary-container);
+  --mat-sys-on-primary-container: var(--app-on-primary-container);
+  --mat-sys-secondary-container: var(--app-secondary-container);
+  --mat-sys-on-secondary-container: var(--app-on-secondary-container);
+  --mat-sys-on-surface: var(--app-on-surface);
+  --mat-sys-on-surface-variant: var(--app-on-surface-variant);
+  --mat-sys-outline: var(--app-outline);
+  --mat-sys-outline-variant: var(--app-outline-variant);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  height: 100%;
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--app-bg);
+  color: var(--app-on-surface);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mat-mdc-snack-bar-container {
+  --mat-snack-bar-container-color: var(--app-surface-container-highest);
+  --mat-snack-bar-supporting-text-color: var(--app-on-surface);
+  --mat-snack-bar-button-color: var(--app-primary);
+}
+
+.mat-mdc-menu-panel.m3-workspace-menu {
+  min-width: 248px;
+  margin-top: 8px;
+  border-radius: 16px !important;
+  background: var(--app-surface-container-high) !important;
+  box-shadow: 0 8px 24px color-mix(in srgb, #000000 22%, transparent) !important;
+
+  .mat-mdc-menu-content {
+    padding: 8px;
+  }
+
+  .mat-mdc-menu-item {
+    min-height: 52px;
+    border-radius: 12px;
+  }
+
+  .mat-mdc-menu-item-text {
+    width: 100%;
+  }
+}
+
+button,
+a,
+input,
+textarea,
+[tabindex] {
+  &:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--app-primary) 72%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+::selection {
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+.no-select, .app-chrome, .app-top-bar, .app-sidebar-drawer {
+  user-select: none;
+}
+
+// Tabular Numerals for Numerical Consistency
+.numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+// M3 Typography Scale Helpers
+.headline-small {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 400;
+}
+
+.title-large {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+}
+
+.title-medium {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.title-small {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.label-large {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.body-medium {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+.body-small {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+}
+
+.label-small {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+// Material Symbols Variable Icon Font
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined Variable', 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+
+  &.filled {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+}
+
+// Custom Scrollbar
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--app-outline-variant);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-outline);
+}

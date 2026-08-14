@@ -1,0 +1,76 @@
+<div class="m3-summary-banner">
+  <!-- 1. Worked Time -->
+  <div class="metric-item">
+    <div class="metric-icon-box">
+      <mat-icon>schedule</mat-icon>
+    </div>
+    <div class="metric-data">
+      <span class="metric-label label-small">Worked Time</span>
+      <div class="metric-val-row">
+        <span class="metric-value title-medium numeric">{{ state.summary().workedHours | number:'1.2-2' }}</span>
+        <span class="metric-qualifier body-small numeric">/ {{ state.summary().expectedHours | number:'1.2-2' }}h</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Overtime & OB -->
+  <div class="metric-item">
+    <div class="metric-icon-box">
+      <mat-icon>more_time</mat-icon>
+    </div>
+    <div class="metric-data">
+      <span class="metric-label label-small">Overtime & OB</span>
+      <div class="metric-val-row">
+        <span class="metric-value title-medium numeric">{{ state.summary().overtimeHours | number:'1.2-2' }}h</span>
+        <span class="metric-qualifier body-small">
+          @if (state.settings().overtimeCompensation.mode === OvertimeCompensationMode.CompTime) {
+            Comp-Time
+          } @else {
+            Paid
+          }
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Time Balance -->
+  <div class="metric-item">
+    <div class="metric-icon-box">
+      <mat-icon>balance</mat-icon>
+    </div>
+    <div class="metric-data">
+      <span class="metric-label label-small">Time Balance</span>
+      <div class="metric-val-row">
+        <span
+          class="metric-value title-medium numeric"
+          [class.positive]="state.summary().closingBalanceMinutes > 0"
+          [class.negative]="state.summary().closingBalanceMinutes < 0"
+        >
+          {{ formatMinutes(state.summary().closingBalanceMinutes) }}
+        </span>
+        <span class="metric-qualifier body-small numeric">
+          (Δ {{ formatMinutes(state.summary().monthlyDifferenceMinutes) }})
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Estimated Net Pay -->
+  <div class="metric-item">
+    <div class="metric-icon-box">
+      <mat-icon>payments</mat-icon>
+    </div>
+    <div class="metric-data">
+      <span class="metric-label label-small">Estimated Net Pay</span>
+      <div class="metric-val-row">
+        @if (state.taxEstimate().isAvailable) {
+          <span class="metric-value title-medium numeric">{{ state.taxEstimate().estimatedNetPay | number:'1.0-0' }} {{ state.settings().currencyPreference }}</span>
+          <span class="metric-qualifier body-small numeric">Gross: {{ state.taxEstimate().grossPay | number:'1.0-0' }}</span>
+        } @else {
+          <span class="metric-value title-medium numeric">{{ state.summary().grossSalary | number:'1.0-0' }} {{ state.settings().currencyPreference }}</span>
+          <span class="metric-qualifier body-small">Gross</span>
+        }
+      </div>
+    </div>
+  </div>
+</div>

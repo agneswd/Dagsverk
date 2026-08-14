@@ -1,0 +1,85 @@
+.m3-summary-banner {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  background-color: var(--app-surface-container-lowest);
+  border: none;
+  border-radius: 16px;
+  padding: 18px 20px;
+  align-items: center;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+
+  .metric-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background-color: var(--app-primary-container);
+    color: var(--app-on-primary-container);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .metric-data {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .metric-label {
+      color: var(--app-on-surface-variant);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .metric-val-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      .metric-value {
+        font-size: 16px;
+        line-height: 24px;
+        font-weight: 500;
+        color: var(--app-on-surface);
+
+        &.positive {
+          color: var(--app-success);
+        }
+
+        &.negative {
+          color: var(--app-error);
+        }
+      }
+
+      .metric-qualifier {
+        color: var(--app-on-surface-variant);
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+@media (max-width: 1024px) {
+  .m3-summary-banner {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}

@@ -1,0 +1,83 @@
+<aside class="app-sidebar-drawer">
+  <!-- Brand Header -->
+  <div class="sidebar-brand-header">
+    <div class="brand-logo-box">
+      <mat-icon class="brand-icon">schedule</mat-icon>
+    </div>
+    <div class="brand-text">
+      <span class="brand-title headline-small">Dagsverk</span>
+      <span class="brand-tag label-small">Work & Time</span>
+    </div>
+  </div>
+
+  <!-- Workspace Switcher (56px) -->
+  <div class="workspace-switcher-wrapper">
+    <button
+      type="button"
+      matRipple
+      class="workspace-switcher-btn"
+      [matMenuTriggerFor]="workspaceMenu"
+      aria-label="Switch active workspace"
+    >
+      <div class="ws-avatar">
+        <mat-icon class="ws-avatar-icon">business</mat-icon>
+      </div>
+
+      <div class="ws-info">
+        <span class="ws-name title-small">{{ state.activeWorkspace().name }}</span>
+        <span class="ws-employer body-small">{{ state.activeWorkspace().employerName || 'Default Employer' }}</span>
+      </div>
+
+      <mat-icon class="ws-arrow">expand_more</mat-icon>
+    </button>
+
+    <mat-menu #workspaceMenu="matMenu" class="m3-workspace-menu" xPosition="after">
+      <div class="menu-heading label-small">Switch workspace</div>
+      @for (ws of state.workspaces(); track ws.id) {
+        <button
+          mat-menu-item
+          (click)="onSelectWorkspace(ws)"
+          class="ws-menu-item"
+          [class.is-active]="ws.id === state.activeWorkspaceId()"
+        >
+          <div class="ws-menu-row">
+            <span class="ws-menu-dot" [style.background-color]="ws.color || '#0B57D0'"></span>
+            <span class="ws-menu-name body-medium">{{ ws.name }}</span>
+            @if (ws.id === state.activeWorkspaceId()) {
+              <mat-icon class="ws-menu-check">check</mat-icon>
+            }
+          </div>
+        </button>
+      }
+
+      <button mat-menu-item (click)="onManageWorkspaces()" class="manage-ws-item">
+        <mat-icon>settings</mat-icon>
+        <span class="body-medium">Manage workspaces</span>
+      </button>
+    </mat-menu>
+  </div>
+
+  <!-- Navigation Destinations (56px) -->
+  <mat-nav-list class="m3-nav-list">
+    @for (item of navItems; track item.route) {
+      <a
+        mat-list-item
+        [routerLink]="item.route"
+        routerLinkActive="m3-nav-active"
+        #rla="routerLinkActive"
+        [activated]="rla.isActive"
+        class="m3-nav-item"
+      >
+        <mat-icon
+          matListItemIcon
+          class="nav-icon"
+          [class.filled]="rla.isActive"
+        >
+          {{ item.icon }}
+        </mat-icon>
+        <span matListItemTitle class="nav-title label-large">{{ item.label }}</span>
+      </a>
+    }
+  </mat-nav-list>
+
+</aside>

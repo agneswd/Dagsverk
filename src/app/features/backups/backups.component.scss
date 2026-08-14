@@ -1,0 +1,151 @@
+.backups-page-container {
+  height: 100%;
+  width: 100%;
+  padding: 32px 40px 64px;
+  overflow-y: auto;
+  max-width: 1088px;
+  margin: 0 auto;
+}
+
+.page-header-block {
+  margin-bottom: 20px;
+
+  .page-title {
+    color: var(--app-on-surface);
+    margin: 0 0 4px 0;
+  }
+
+  .page-desc {
+    color: var(--app-on-surface-variant);
+    margin: 0;
+    font-size: 15px;
+  }
+}
+
+.cards-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.m3-outlined-card {
+  background-color: var(--app-surface-container-lowest);
+  border: none;
+  border-radius: 16px;
+  box-shadow: none !important;
+
+  .card-content {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .card-header-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .icon-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background-color: var(--app-primary-container);
+      color: var(--app-on-primary-container);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+
+      mat-icon {
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+      }
+    }
+
+    .title-group {
+      display: flex;
+      flex-direction: column;
+
+      h3 {
+        color: var(--app-on-surface);
+        margin: 0 0 2px 0;
+      }
+
+      p {
+        color: var(--app-on-surface-variant);
+        margin: 0;
+      }
+    }
+  }
+
+  .desc-text {
+    color: var(--app-on-surface-variant);
+    line-height: 1.5;
+  }
+
+  .actions-row {
+    display: flex;
+    gap: 16px;
+
+    .action-btn {
+      height: 40px;
+      border-radius: 20px;
+      padding: 0 20px;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        margin-right: 6px;
+      }
+    }
+  }
+
+  .backup-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background-color: var(--app-success-container);
+    color: var(--app-on-success-container);
+
+    .banner-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: var(--app-success);
+    }
+
+    .banner-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+
+      .banner-label {
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+
+      .selectable-path {
+        user-select: text;
+        font-size: 12px;
+        word-break: break-all;
+      }
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .backups-page-container {
+    padding: 24px 20px 48px;
+  }
+
+  .actions-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

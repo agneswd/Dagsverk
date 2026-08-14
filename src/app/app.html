@@ -1,0 +1,14 @@
+<mat-sidenav-container class="app-shell-container" [hasBackdrop]="false">
+  <!-- Full-Height Navigation Drawer (240px) -->
+  <mat-sidenav mode="side" opened="true" class="app-shell-drawer">
+    <app-sidebar></app-sidebar>
+  </mat-sidenav>
+
+  <!-- Shell Main Content Column (Toolbar + Route View) -->
+  <mat-sidenav-content class="app-shell-content">
+    <app-header></app-header>
+    <main class="app-main-viewport">
+      <router-outlet></router-outlet>
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

@@ -1,0 +1,157 @@
+<div class="m3-table-container">
+  <table
+    mat-table
+    [dataSource]="rows()"
+    class="m3-ledger-table"
+    aria-label="Monthly timesheet ledger"
+  >
+    <!-- 1. DATE COLUMN -->
+    <ng-container matColumnDef="date">
+      <th mat-header-cell *matHeaderCellDef class="col-date label-medium">DATE</th>
+      <td mat-cell *matCellDef="let row" class="col-date">
+        <div
+          class="date-pill"
+          [class.is-today]="row.isToday"
+          [class.is-weekend]="row.isWeekend"
+        >
+          <span class="day-num numeric">{{ formatDayNum(row.dayOfMonth) }}</span>
+          <span class="day-name">{{ row.weekdayName | uppercase }}</span>
+        </div>
+      </td>
+    </ng-container>
+
+    <!-- 2. STATUS COLUMN -->
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef class="col-status label-medium">STATUS</th>
+      <td mat-cell *matCellDef="let row" class="col-status">
+        @if (row.holidayName) {
+          <div class="status-chip holiday-chip" matTooltip="{{ row.holidayName }}">
+            <mat-icon class="chip-icon">celebration</mat-icon>
+            <span class="chip-label">Holiday</span>
+          </div>
+        } @else if (row.status === WorkEntryStatus.Worked) {
+          <div class="status-chip worked-chip">
+            <mat-icon class="chip-icon">check</mat-icon>
+            <span class="chip-label">Worked</span>
+          </div>
+        } @else if (row.status === WorkEntryStatus.Off) {
+          <div class="status-chip off-chip" matTooltip="{{ row.notes || 'Day Off' }}">
+            <mat-icon class="chip-icon">beach_access</mat-icon>
+            <span class="chip-label">Day Off</span>
+          </div>
+        } @else if (row.isScheduledWorkday) {
+          <div class="status-chip unlogged-chip">
+            <span class="chip-dot"></span>
+            <span class="chip-label">Unlogged</span>
+          </div>
+        } @else {
+          <span class="empty-dash">—</span>
+        }
+      </td>
+    </ng-container>
+
+    <!-- 3. LOGGED INTERVAL COLUMN -->
+    <ng-container matColumnDef="interval">
+      <th mat-header-cell *matHeaderCellDef class="col-interval label-medium">LOGGED HOURS</th>
+      <td mat-cell *matCellDef="let row" class="col-interval">
+        @if (row.status === WorkEntryStatus.Worked && row.startTime && row.endTime) {
+          <span class="time-range numeric">{{ row.startTime }} – {{ row.endTime }}</span>
+        } @else {
+          <span class="empty-dash">—</span>
+        }
+      </td>
+    </ng-container>
+
+    <!-- 4. LUNCH COLUMN -->
+    <ng-container matColumnDef="lunch">
+      <th mat-header-cell *matHeaderCellDef class="col-lunch label-medium">LUNCH</th>
+      <td mat-cell *matCellDef="let row" class="col-lunch">
+        @if (row.status === WorkEntryStatus.Worked && row.lunchMinutes > 0) {
+          <span class="lunch-mins numeric">{{ row.lunchMinutes }}m</span>
+        } @else {
+          <span class="empty-dash">—</span>
+        }
+      </td>
+    </ng-container>
+
+    <!-- 5. EFFECTIVE HOURS COLUMN -->
+    <ng-container matColumnDef="hours">
+      <th mat-header-cell *matHeaderCellDef class="col-hours label-medium">HOURS</th>
+      <td mat-cell *matCellDef="let row" class="col-hours">
+        @if (row.status === WorkEntryStatus.Worked && row.workedHours > 0) {
+          <span class="hours-val numeric">{{ row.workedHours | number:'1.2-2' }}h</span>
+        } @else {
+          <span class="empty-dash">—</span>
+        }
+      </td>
+    </ng-container>
+
+    <!-- 6. OVERTIME COLUMN -->
+    <ng-container matColumnDef="overtime">
+      <th mat-header-cell *matHeaderCellDef class="col-overtime label-medium">OVERTIME</th>
+      <td mat-cell *matCellDef="let row" class="col-overtime">
+        @if (row.status === WorkEntryStatus.Worked && row.overtimeHours > 0) {
+          <span class="ot-badge numeric">+{{ row.overtimeHours | number:'1.2-2' }}h</span>
+        } @else {
+          <span class="empty-dash">—</span>
+        }
+      </td>
+    </ng-container>
+
+    <!-- 7. PROJECT COLUMN -->
+    <ng-container matColumnDef="project">
+      <th mat-header-cell *matHeaderCellDef class="col-project label-medium">PROJECT</th>
+      <td mat-cell *matCellDef="let row" class="col-project">
+        @if (row.status === WorkEntryStatus.Worked && row.projectName) {
+          <div class="project-pill">
+            <span class="project-dot" [style.background-color]="getProjectColor(row.projectName)"></span>
+            <span class="project-name">{{ row.projectName }}</span>
+          </div>
+        } @else {
+          <span class="empty-dash">—</span>
+        }
+      </td>
+    </ng-container>
+
+    <!-- 8. NOTES COLUMN -->
+    <ng-container matColumnDef="notes">
+      <th mat-header-cell *matHeaderCellDef class="col-notes label-medium">NOTES</th>
+      <td mat-cell *matCellDef="let row" class="col-notes">
+        @if (row.notes) {
+          <span class="notes-text" matTooltip="{{ row.notes }}">{{ row.notes }}</span>
+        } @else {
+          <span class="empty-dash">—</span>
+        }
+      </td>
+    </ng-container>
+
+    <!-- 9. ACTIONS COLUMN -->
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef class="col-actions label-medium" aria-label="Row actions"></th>
+      <td mat-cell *matCellDef="let row" class="col-actions">
+        <button
+          mat-icon-button
+          class="row-edit-btn"
+          (click)="$event.stopPropagation(); onRowClick(row)"
+          [attr.aria-label]="'Edit ' + formatAccessibleDate(row)"
+          matTooltip="Edit Day (Enter)"
+        >
+          <mat-icon>edit</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <!-- Header & Row Definitions (56px header, 52px rows) -->
+    <tr mat-header-row *matHeaderRowDef="displayedColumns" class="ledger-header-row"></tr>
+    <tr
+      mat-row
+      *matRowDef="let row; columns: displayedColumns;"
+      class="ledger-data-row"
+      [class.row-today]="row.isToday"
+      tabindex="0"
+      (click)="onRowClick(row)"
+      (keydown)="onRowKeyDown($event, row)"
+      [attr.aria-label]="formatAccessibleDate(row)"
+    ></tr>
+  </table>
+</div>

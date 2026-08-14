@@ -1,0 +1,29 @@
+<mat-sidenav-container class="workspace-sidenav-container" [hasBackdrop]="!isWideScreen() && state.isEditorOpen()">
+  <!-- Main Workspace Views -->
+  <mat-sidenav-content class="workspace-main-content">
+    <div class="workspace-content">
+      <!-- M3 Metric Summary Banner -->
+      <app-summary-cards></app-summary-cards>
+
+      <!-- Active View: Ledger or Calendar -->
+      <div class="view-surface">
+        @if (state.activeView() === MonthViewPreference.Ledger) {
+          <app-ledger-view></app-ledger-view>
+        } @else {
+          <app-calendar-view></app-calendar-view>
+        }
+      </div>
+    </div>
+  </mat-sidenav-content>
+
+  <!-- M3 Day Editor Side Sheet (400px) -->
+  <mat-sidenav
+    position="end"
+    [mode]="isWideScreen() ? 'side' : 'over'"
+    [opened]="state.isEditorOpen()"
+    (closed)="state.closeEditor()"
+    class="m3-day-editor-drawer"
+  >
+    <app-day-editor></app-day-editor>
+  </mat-sidenav>
+</mat-sidenav-container>

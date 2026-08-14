@@ -1,0 +1,87 @@
+<div class="m3-calendar-container">
+  <!-- Weekday Header Row -->
+  <div class="calendar-header-row">
+    @for (day of weekdays; track day) {
+      <div class="weekday-header-cell label-small">{{ day }}</div>
+    }
+  </div>
+
+  <!-- Calendar Month Grid (7 Columns) -->
+  <div class="calendar-grid" role="grid" aria-label="Month calendar view">
+    @for (cell of calendarCells(); track cell.date) {
+      <div
+        role="gridcell"
+        class="calendar-day-cell"
+        [class.other-month]="!cell.isCurrentMonth"
+        [class.is-today]="cell.isToday"
+        [class.is-weekend]="cell.isWeekend"
+        [class.is-selected]="cell.date === state.selectedDate()"
+        [tabindex]="cell.isCurrentMonth ? 0 : -1"
+        (click)="onCellClick(cell)"
+        (keydown)="onCellKeyDown($event, cell)"
+        [attr.aria-label]="formatAccessibleCellName(cell)"
+      >
+        <!-- Cell Top Row: Day Number + Add Button -->
+        <div class="cell-top-bar">
+          <span
+            class="day-number-pill numeric"
+            [class.today-circle]="cell.isToday"
+          >
+            {{ cell.dayOfMonth }}
+          </span>
+
+          @if (cell.isCurrentMonth) {
+            <button
+              mat-icon-button
+              class="add-entry-btn"
+              (click)="$event.stopPropagation(); onCellClick(cell)"
+              aria-label="Add entry for {{ cell.date }}"
+            >
+              <mat-icon>add</mat-icon>
+            </button>
+          }
+        </div>
+
+        <!-- Unlogged indicator directly under day number -->
+        @if (cell.isCurrentMonth && cell.status === WorkEntryStatus.Incomplete && cell.isScheduledWorkday) {
+          <div class="unlogged-banner">
+            <span class="unlogged-dot"></span>
+            <span class="unlogged-label label-small">Unlogged</span>
+          </div>
+        }
+
+        <!-- Cell Content: Holiday or Event Chips (32px high) -->
+        <div class="cell-content">
+          @if (cell.holidayName) {
+            <div class="calendar-chip holiday-chip" matTooltip="{{ cell.holidayName }}">
+              <mat-icon class="chip-icon">celebration</mat-icon>
+              <span class="chip-text label-small">{{ cell.holidayName }}</span>
+            </div>
+          }
+
+          @if (cell.status === WorkEntryStatus.Worked) {
+            <div class="calendar-chip worked-chip">
+              <div class="chip-main-row">
+                <span class="chip-time numeric">{{ cell.startTime }}–{{ cell.endTime }}</span>
+                <span class="chip-hours numeric">{{ cell.workedHours | number:'1.2-2' }}h</span>
+              </div>
+              @if (cell.projectName) {
+                <div class="chip-sub-row">
+                  <span class="proj-dot" [style.background-color]="getProjectColor(cell.projectName)"></span>
+                  <span class="proj-name label-small">{{ cell.projectName }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          @if (cell.status === WorkEntryStatus.Off) {
+            <div class="calendar-chip off-chip" matTooltip="{{ cell.notes || 'Day Off' }}">
+              <mat-icon class="chip-icon">beach_access</mat-icon>
+              <span class="chip-text label-small">{{ cell.notes || 'Day Off' }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
