@@ -154,8 +154,8 @@
 .editor-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 0;
   height: 64px;
   min-height: 64px;
   padding: 0 16px;
@@ -163,13 +163,15 @@
   border-top: 1px solid color-mix(in srgb, var(--app-outline-variant) 24%, transparent);
 
   .action-btn {
+    flex: 1 1 0;
+    min-width: 0;
     height: 40px;
     border-radius: 20px;
-    padding: 0 12px;
+    padding: 0 4px;
     white-space: nowrap;
   }
 
   .save-btn {
-    min-width: 136px;
+    flex: 0 0 136px;
   }
 }
