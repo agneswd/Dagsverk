@@ -49,11 +49,22 @@
 }
 
 .m3-settings-tabs {
+  ::ng-deep .mat-mdc-tab-header {
+    overflow: hidden;
+    border-bottom: 1px solid var(--app-grid-line);
+    border-radius: 16px 16px 0 0;
+    background-color: var(--app-surface-container-low);
+  }
+
   .tab-body {
-    padding: 24px 0;
+    padding: 0 0 24px;
     display: flex;
     flex-direction: column;
     gap: 24px;
+
+    > .m3-outlined-card:first-child {
+      border-radius: 0 0 16px 16px;
+    }
   }
 }
 
