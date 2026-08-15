@@ -49,20 +49,7 @@
 .form-card {
   .full-width {
     width: 100%;
-    margin-bottom: 16px;
-  }
-
-  .color-picker-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
     margin-bottom: 24px;
-
-    .color-label {
-      color: var(--app-on-surface-variant);
-      letter-spacing: 0.8px;
-      font-weight: 600;
-    }
   }
 
   .add-btn {
