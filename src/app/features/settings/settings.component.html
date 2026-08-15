@@ -21,22 +21,8 @@
       <div class="tab-body">
         <mat-card appearance="outlined" class="m3-outlined-card">
           <mat-card-content class="card-content">
-            <h3 class="card-title title-medium">Employee & Company Details</h3>
-            <p class="card-desc body-small">Information used in generated employer timesheet reports.</p>
-
-            <div class="form-grid-2">
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Employee Name</mat-label>
-                <input matInput [(ngModel)]="model.employeeName" placeholder="e.g. Agnes Larsson">
-                <mat-icon matPrefix class="field-icon">badge</mat-icon>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Employer / Company</mat-label>
-                <input matInput [(ngModel)]="model.employerName" placeholder="e.g. Acme AB">
-                <mat-icon matPrefix class="field-icon">domain</mat-icon>
-              </mat-form-field>
-            </div>
+            <h3 class="card-title title-medium">Workspace defaults</h3>
+            <p class="card-desc body-small">Projects and report preferences for the active workspace. Manage names and organization details on the Workspaces page.</p>
 
             <div class="form-grid-2">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">

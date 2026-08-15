@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ElectronBridgeService } from './electron-bridge.service';
-import { WorkEntry, WorkEntryStatus, Workspace } from './models';
+import { WorkEntry, WorkEntryStatus, Workspace, WorkspaceType } from './models';
 
 describe('Workspace Isolation & Multi-Tenancy', () => {
   let bridge: ElectronBridgeService;
@@ -14,7 +14,8 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
       id: 'ws-job-1',
       name: 'Primary Job',
       color: '#0B57D0',
-      employerName: 'Acme AB',
+      type: WorkspaceType.Employment,
+      organizationName: 'Acme AB',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -23,7 +24,8 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
       id: 'ws-job-2',
       name: 'Consulting',
       color: '#34A853',
-      employerName: 'Beta AB',
+      type: WorkspaceType.Contract,
+      organizationName: 'Beta AB',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
