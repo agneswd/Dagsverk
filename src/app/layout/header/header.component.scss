@@ -103,6 +103,11 @@
     margin: 0;
   }
 
+  .subpage-back-btn {
+    margin-right: 8px;
+    color: var(--app-on-surface-variant);
+  }
+
   .month-navigator {
     display: flex;
     align-items: center;

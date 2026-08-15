@@ -178,6 +178,10 @@ export class HeaderComponent {
     this.bridge.close();
   }
 
+  public onBackToSettings(): void {
+    void this.router.navigate(['/settings']);
+  }
+
   public async onExport(): Promise<void> {
     const format = await firstValueFrom(
       this.dialog
