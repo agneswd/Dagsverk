@@ -1,6 +1,7 @@
 import { Component, DestroyRef, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -46,6 +47,7 @@ import { ConfirmDialogComponent } from '../../core/confirm-dialog.component';
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     MatTabsModule,
     MatCardModule,
     MatFormFieldModule,

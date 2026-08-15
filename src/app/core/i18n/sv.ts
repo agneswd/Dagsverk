@@ -253,6 +253,10 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Save balance': 'Spara balans',
   'Close day editor': 'Stäng dagredigeraren',
   'Export to Excel': 'Exportera till Excel',
+  'Data and backups': 'Data och säkerhetskopior',
+  'Manage data and backups': 'Hantera data och säkerhetskopior',
+  'Back up or restore the local Dagsverk database for all workspaces.':
+    'Säkerhetskopiera eller återställ den lokala Dagsverk-databasen för alla arbetsytor.',
   'Export to Excel (.xlsx)': 'Exportera till Excel (.xlsx)',
   'Add at least one time entry before exporting': 'Lägg till minst en tidspost innan du exporterar',
   'Month calendar view': 'Månadskalender',

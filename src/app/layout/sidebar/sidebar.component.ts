@@ -48,7 +48,6 @@ export class SidebarComponent {
     { route: '/timesheet', label: 'Timesheet', icon: 'schedule' },
     { route: '/projects', label: 'Projects', icon: 'folder' },
     { route: '/settings', label: 'Settings', icon: 'settings' },
-    { route: '/backups', label: 'Data & backups', icon: 'backup' },
   ];
 
   public onSelectWorkspace(ws: Workspace): void {

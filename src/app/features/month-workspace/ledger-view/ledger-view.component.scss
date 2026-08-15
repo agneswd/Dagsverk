@@ -34,7 +34,11 @@
     outline: none;
 
     &:hover {
-      background-color: var(--app-surface-container-low);
+      background-color: color-mix(
+        in srgb,
+        var(--app-on-surface) 8%,
+        var(--app-surface-container-low)
+      );
 
       .row-edit-btn {
         opacity: 1;
