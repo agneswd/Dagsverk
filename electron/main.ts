@@ -1,14 +1,18 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { GithubSource, UpdateInfo, UpdateManager, VelopackApp } from 'velopack';
 import * as path from 'path';
 import * as fs from 'fs';
 import { DatabaseService } from './database.service';
 import { ExcelExportService } from './excel-export.service';
 import { OdsExportService } from './ods-export.service';
 
+VelopackApp.build().run();
+
 let mainWindow: BrowserWindow | null = null;
 let dbService: DatabaseService | null = null;
 let updateState: Record<string, unknown> = { status: 'idle' };
+let updateManager: UpdateManager | null = null;
+let pendingUpdate: UpdateInfo | null = null;
 
 function log(message: string, error?: unknown): void {
   try {
@@ -47,7 +51,7 @@ function sendUpdateState(state: Record<string, unknown>): void {
   mainWindow?.webContents.send('update:state', updateState);
 }
 
-function configureUpdates(): void {
+async function checkForUpdates(manual: boolean): Promise<void> {
   if (!app.isPackaged) {
     sendUpdateState({
       status: 'unavailable',
@@ -55,29 +59,39 @@ function configureUpdates(): void {
     });
     return;
   }
-  autoUpdater.autoDownload = true;
-  autoUpdater.on('checking-for-update', () => sendUpdateState({ status: 'checking' }));
-  autoUpdater.on('update-not-available', () => sendUpdateState({ status: 'current' }));
-  autoUpdater.on('update-available', (info) =>
-    sendUpdateState({ status: 'available', availableVersion: info.version }),
-  );
-  autoUpdater.on('download-progress', (progress) =>
-    sendUpdateState({ status: 'downloading', progress: Math.round(progress.percent) }),
-  );
-  autoUpdater.on('update-downloaded', (info) =>
-    sendUpdateState({ status: 'ready', availableVersion: info.version, progress: 100 }),
-  );
-  autoUpdater.on('error', (error) => {
+
+  try {
+    updateManager ??= new UpdateManager(
+      new GithubSource('https://github.com/agneswd/Dagsverk'),
+    );
+    sendUpdateState({ status: 'checking', message: undefined, progress: undefined });
+    pendingUpdate = await updateManager.checkForUpdatesAsync();
+    if (!pendingUpdate) {
+      sendUpdateState({ status: 'current', availableVersion: undefined });
+      return;
+    }
+
+    sendUpdateState({
+      status: 'available',
+      availableVersion: pendingUpdate.TargetFullRelease.Version,
+    });
+    await updateManager.downloadUpdateAsync(pendingUpdate, (progress) =>
+      sendUpdateState({ status: 'downloading', progress: Math.round(progress) }),
+    );
+    sendUpdateState({ status: 'ready', progress: 100 });
+  } catch (error) {
     log('Update error.', error);
-    sendUpdateState({ status: 'error', message: error.message });
-  });
-  setTimeout(
-    () =>
-      void autoUpdater
-        .checkForUpdates()
-        .catch((error) => log('Automatic update check failed.', error)),
-    3000,
-  );
+    pendingUpdate = null;
+    sendUpdateState(
+      manual
+        ? { status: 'error', message: error instanceof Error ? error.message : String(error) }
+        : { status: 'idle', message: undefined },
+    );
+  }
+}
+
+function configureUpdates(): void {
+  setTimeout(() => void checkForUpdates(false), 3000);
 }
 
 function createWindow() {
@@ -167,14 +181,13 @@ function registerIpcHandlers() {
     currentVersion: app.getVersion(),
   }));
   ipcMain.handle('update:check', async () => {
-    if (!app.isPackaged)
-      return sendUpdateState({
-        status: 'unavailable',
-        message: 'Updates are available in packaged builds.',
-      });
-    await autoUpdater.checkForUpdates();
+    await checkForUpdates(true);
   });
-  ipcMain.on('update:restart', () => autoUpdater.quitAndInstall());
+  ipcMain.on('update:restart', () => {
+    if (!updateManager || !pendingUpdate) return;
+    updateManager.waitExitThenApplyUpdate(pendingUpdate);
+    app.quit();
+  });
 
   ipcMain.handle('export:excel', async (_, request, outputPath) => {
     if (path.extname(outputPath).toLowerCase() === '.ods') {
