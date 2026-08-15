@@ -8,9 +8,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { HeaderComponent } from './layout/header/header.component';
 import { SidebarComponent } from './layout/sidebar/sidebar.component';
 import { AppStateService } from './core/app-state.service';
+import { ElectronBridgeService } from './core/electron-bridge.service';
 import { LanguagePreference, MonthViewPreference, SalaryType, WorkspaceType } from './core/models';
 
 @Component({
@@ -156,7 +158,14 @@ export class SetupDialogComponent {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, MatSidenavModule, HeaderComponent, SidebarComponent],
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    MatSidenavModule,
+    MatSnackBarModule,
+    HeaderComponent,
+    SidebarComponent,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -165,7 +174,10 @@ export class App {
   private dialog = inject(MatDialog);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
+  private bridge = inject(ElectronBridgeService);
+  private snackBar = inject(MatSnackBar);
   private setupOpened = false;
+  private notifiedUpdateVersion?: string;
   private isNarrowWindow = window.innerWidth < 1200;
   public sidebarCollapsed = signal(this.isNarrowWindow);
 
@@ -177,6 +189,19 @@ export class App {
     };
     window.addEventListener('resize', handleResize);
     this.destroyRef.onDestroy(() => window.removeEventListener('resize', handleResize));
+
+    effect(() => {
+      const update = this.bridge.updateState();
+      if (update.status !== 'ready' || update.availableVersion === this.notifiedUpdateVersion)
+        return;
+      this.notifiedUpdateVersion = update.availableVersion;
+      const notification = this.snackBar.open(
+        `Dagsverk ${update.availableVersion || ''} is ready to install.`,
+        'Restart now',
+        { duration: 0 },
+      );
+      notification.onAction().subscribe(() => this.bridge.restartToUpdate());
+    });
 
     effect(() => {
       if (

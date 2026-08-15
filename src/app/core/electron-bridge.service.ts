@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import {
   AppPreferences,
   AppSettings,
@@ -77,6 +77,15 @@ declare global {
 export class ElectronBridgeService {
   private isElectron = typeof window !== 'undefined' && Boolean(window.electronAPI);
   private memoryStorage = new Map<string, string>();
+  public readonly updateState = signal<UpdateState>({
+    status: this.isElectron ? 'idle' : 'unavailable',
+    currentVersion: this.isElectron ? '' : 'development',
+  });
+
+  public constructor() {
+    void this.getUpdateState().then((state) => this.updateState.set(state));
+    this.onUpdateState((state) => this.updateState.set(state));
+  }
 
   public get isRunningInElectron(): boolean {
     return this.isElectron;

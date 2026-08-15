@@ -20,8 +20,7 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   'Paste copied month?': 'Paste copied month?',
   'Paste entries': 'Paste entries',
   'Reset this month?': 'Reset this month?',
-  'All scheduled workdays already have entries.':
-    'All scheduled workdays already have entries.',
+  'All scheduled workdays already have entries.': 'All scheduled workdays already have entries.',
   'There are no copied entries to paste.': 'There are no copied entries to paste.',
   'Add your default hours to {0} empty scheduled workdays? Existing entries will be kept.':
     'Add your default hours to {0} empty scheduled workdays? Existing entries will be kept.',
@@ -120,6 +119,10 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   'Application updates': 'Application updates',
   'Check for updates': 'Check for updates',
   'Restart now': 'Restart now',
+  'Restart to update': 'Restart to update',
+  'Retry update': 'Retry update',
+  'Update available': 'Update available',
+  'Dagsverk could not check for updates.': 'Dagsverk could not check for updates.',
   'Open data folder': 'Open data folder',
   'Database location': 'Database location',
   Close: 'Close',
