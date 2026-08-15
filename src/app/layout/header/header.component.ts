@@ -26,22 +26,64 @@ import { MonthViewPreference } from '../../core/models';
   imports: [CommonModule, MatButtonModule, MatDialogModule, MatIconModule],
   template: `
     <h2 mat-dialog-title>Export monthly report</h2>
-    <mat-dialog-content>
-      <p>{{ data.workspaceName }} - {{ data.month }}</p>
-      <p>
+    <mat-dialog-content class="report-dialog-content">
+      <p class="report-context">{{ data.workspaceName }} - {{ data.month }}</p>
+      <p class="report-summary">
         {{ data.entryCount }} saved entries and {{ data.workedHours | number: '1.2-2' }} worked
         hours.
       </p>
       @if (data.missingCount > 0) {
-        <p>
-          <mat-icon>warning</mat-icon> {{ data.missingCount }} past workdays are still unlogged.
+        <p class="report-warning">
+          <mat-icon aria-hidden="true">warning</mat-icon>
+          <span>{{ data.missingCount }} past workdays are still unlogged.</span>
         </p>
       }
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
+    <mat-dialog-actions align="end" class="report-dialog-actions">
       <button mat-button type="button" (click)="dialogRef.close(false)">Cancel</button>
       <button mat-flat-button type="button" (click)="dialogRef.close(true)">Choose file</button>
     </mat-dialog-actions>
+  `,
+  styles: `
+    .report-dialog-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-top: 0;
+    }
+
+    .report-dialog-content p {
+      margin: 0;
+    }
+
+    .report-context {
+      color: var(--app-on-surface);
+      font-weight: 500;
+    }
+
+    .report-summary,
+    .report-warning {
+      color: var(--app-on-surface-variant);
+    }
+
+    .report-warning {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px !important;
+    }
+
+    .report-warning mat-icon {
+      flex: 0 0 20px;
+      width: 20px;
+      height: 20px;
+      font-size: 20px;
+    }
+
+    .report-dialog-actions {
+      gap: 8px;
+      padding: 16px 24px 24px;
+    }
   `,
 })
 export class ReportPreviewDialogComponent {
