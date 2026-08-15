@@ -1,6 +1,6 @@
 .m3-calendar-container {
   width: 100%;
-  background-color: var(--app-surface-container-lowest);
+  background-color: var(--app-surface-container-low);
   border-radius: 16px;
   border: none;
   overflow: hidden;
@@ -11,8 +11,8 @@
 .calendar-header-row {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  background-color: var(--app-surface-container-low);
-  border-bottom: 1px solid var(--app-outline-variant);
+  background-color: var(--app-surface-container);
+  border-bottom: 1px solid var(--app-grid-line);
   height: 40px;
 
   .weekday-header-cell {
@@ -29,13 +29,13 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-auto-rows: minmax(110px, 1fr);
-  background-color: color-mix(in srgb, var(--app-outline-variant) 56%, transparent);
+  background-color: var(--app-grid-line);
   gap: 1px;
 }
 
 .calendar-day-cell {
-  background-color: var(--app-surface-container-lowest);
-  padding: 10px;
+  background-color: var(--app-surface-container-low);
+  padding: 12px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -62,11 +62,11 @@
   }
 
   &.is-weekend {
-    background-color: var(--app-surface-container-lowest);
+    background-color: var(--app-surface-container-low);
   }
 
   &.other-month {
-    background-color: var(--app-surface-container-low);
+    background-color: var(--app-surface-container);
     cursor: default;
 
     .day-number-pill {
@@ -75,7 +75,11 @@
   }
 
   &.is-selected {
-    background-color: color-mix(in srgb, var(--app-primary-container) 54%, var(--app-surface-container-lowest));
+    background-color: color-mix(
+      in srgb,
+      var(--app-primary-container) 54%,
+      var(--app-surface-container-low)
+    );
   }
 
   .cell-top-bar {
@@ -86,7 +90,7 @@
     margin-bottom: 4px;
 
     .day-number-pill {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 500;
       color: var(--app-on-surface);
       width: 24px;
@@ -127,7 +131,7 @@
     border-radius: 4px;
     background-color: transparent;
     color: var(--app-on-surface-variant);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 
     .unlogged-dot {
       width: 6px;
@@ -172,7 +176,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    margin-top: 2px;
+    margin-top: 4px;
 
     .proj-dot {
       width: 6px;
@@ -181,7 +185,8 @@
     }
 
     .proj-name {
-      font-size: 10px;
+      font-size: 11px;
+      line-height: 16px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;

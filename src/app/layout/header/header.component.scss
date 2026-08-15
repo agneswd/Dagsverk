@@ -11,6 +11,33 @@
   z-index: 10;
   box-sizing: border-box;
 
+  &.route-header {
+    position: relative;
+    padding: 0;
+
+    .toolbar-left {
+      position: absolute;
+      left: max(32px, calc((100% - 1088px) / 2 + 32px));
+    }
+
+    .toolbar-center {
+      grid-column: 2;
+    }
+
+    .toolbar-right {
+      grid-column: 3;
+      padding-right: 24px;
+    }
+  }
+
+  &:not(.route-header) {
+    position: relative;
+
+    .toolbar-right {
+      grid-column: 3;
+    }
+  }
+
   &.is-electron {
     -webkit-app-region: drag;
 
@@ -20,6 +47,38 @@
     .window-controls {
       -webkit-app-region: no-drag;
     }
+  }
+}
+
+.timesheet-controls-plane {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  transition: margin-right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+  .toolbar-left {
+    position: absolute;
+    left: max(32px, calc((100% - 1280px) / 2));
+  }
+
+  .toolbar-center {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-top-toolbar:not(.route-header) {
+    .toolbar-left {
+      left: 16px;
+    }
+  }
+}
+
+@media (min-width: 1600px) {
+  .app-top-toolbar.editor-open .timesheet-controls-plane {
+    margin-right: 416px;
   }
 }
 
@@ -41,22 +100,35 @@
     .month-selector-btn {
       color: var(--app-on-surface);
       height: 40px;
-      padding: 0 8px 0 12px;
+      width: 164px;
+      padding: 0 12px;
       border-radius: 20px;
+      justify-content: center;
+
+      .month-selector-content {
+        display: grid;
+        grid-template-columns: 20px minmax(0, 1fr) 20px;
+        align-items: center;
+        width: 100%;
+
+        &::before {
+          content: '';
+        }
+      }
 
       .month-label {
-        display: inline-block;
-        min-width: 130px;
-        text-align: left;
+        grid-column: 2;
+        min-width: 0;
+        text-align: center;
       }
 
       .dropdown-icon {
+        grid-column: 3;
         font-size: 20px;
         width: 20px;
         height: 20px;
         color: var(--app-on-surface-variant);
-        margin-left: 2px;
-        order: 2;
+        margin: 0;
       }
     }
 
@@ -64,7 +136,7 @@
       height: 40px;
       border-radius: 20px;
       padding: 0 16px;
-      margin-left: 6px;
+      margin-left: 8px;
       border-color: var(--app-outline-variant);
       color: var(--app-on-surface);
     }
@@ -90,7 +162,7 @@
         font-size: 18px;
         width: 18px;
         height: 18px;
-        margin-right: 6px;
+        margin-right: 8px;
         vertical-align: middle;
       }
 
@@ -125,7 +197,7 @@
         font-size: 18px;
         width: 18px;
         height: 18px;
-        margin-right: 6px;
+        margin-right: 8px;
       }
     }
   }
@@ -164,7 +236,7 @@
     }
 
     &.win-close:hover {
-      background-color: #BA1A1A;
+      background-color: #ba1a1a;
       color: #ffffff;
     }
   }

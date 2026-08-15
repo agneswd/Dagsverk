@@ -2,11 +2,28 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
-  background-color: var(--app-surface-container-lowest);
+  background-color: var(--app-surface-container-low);
   border: none;
   border-radius: 16px;
-  padding: 18px 20px;
+  padding: 16px 20px;
   align-items: center;
+}
+
+.metric-button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    .metric-label {
+      color: var(--app-on-surface);
+    }
+  }
 }
 
 .metric-item {
@@ -49,7 +66,7 @@
     .metric-val-row {
       display: flex;
       align-items: baseline;
-      gap: 6px;
+      gap: 8px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;

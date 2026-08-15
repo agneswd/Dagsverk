@@ -12,6 +12,11 @@
   box-shadow: none !important;
   background-color: var(--app-surface-container-low);
   overflow: hidden;
+  transition: width 180ms ease !important;
+
+  &.collapsed {
+    width: 80px;
+  }
 }
 
 .app-shell-content {
@@ -19,7 +24,16 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background-color: var(--app-bg);
+  background-color: var(--app-surface);
+  transition: margin-left 180ms ease !important;
+}
+
+.app-shell-drawer ~ .app-shell-content {
+  margin-left: 256px !important;
+}
+
+.app-shell-drawer.collapsed ~ .app-shell-content {
+  margin-left: 80px !important;
 }
 
 .app-main-viewport {
@@ -27,4 +41,5 @@
   overflow: hidden;
   position: relative;
   background-color: var(--app-bg);
+  border-radius: 24px 0 0 0;
 }
