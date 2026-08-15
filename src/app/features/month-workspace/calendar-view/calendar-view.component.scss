@@ -65,10 +65,6 @@
     }
   }
 
-  &.is-weekend {
-    background-color: var(--app-surface-container-low);
-  }
-
   &.other-month {
     background-color: var(--app-surface-container);
     cursor: default;
