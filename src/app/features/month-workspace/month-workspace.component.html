@@ -1,9 +1,23 @@
-<mat-sidenav-container class="workspace-sidenav-container" [hasBackdrop]="!isWideScreen() && state.isEditorOpen()">
+<mat-sidenav-container
+  class="workspace-sidenav-container"
+  [hasBackdrop]="!isWideScreen() && state.isEditorOpen()"
+>
   <!-- Main Workspace Views -->
   <mat-sidenav-content class="workspace-main-content">
     <div class="workspace-content">
       <!-- M3 Metric Summary Banner -->
       <app-summary-cards></app-summary-cards>
+
+      @if (state.isMonthUnstarted()) {
+        <div class="month-notice">
+          <div class="notice-icon"><mat-icon>calendar_add_on</mat-icon></div>
+          <div class="notice-copy">
+            <span class="title-small">This month has not started</span>
+            <span class="body-small">Add the first entry to begin tracking this month.</span>
+          </div>
+          <button mat-button type="button" (click)="state.startMonth()">Add first entry</button>
+        </div>
+      }
 
       <!-- Active View: Ledger or Calendar -->
       <div class="view-surface">

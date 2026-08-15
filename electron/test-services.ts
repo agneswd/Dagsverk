@@ -40,7 +40,7 @@ async function runTests() {
     lunchMinutes: 30,
     projectName: 'General',
     notes: 'Unit test work',
-    scheduledMinutesOverride: null
+    scheduledMinutesOverride: null,
   });
 
   const entries = db.getWorkEntries(2026, 8);
@@ -48,6 +48,11 @@ async function runTests() {
     throw new Error('WorkEntry save/get failed');
   }
   console.log('✔ WorkEntry CRUD verified');
+  const history = db.getBalanceHistory(2026, 9);
+  if (history.length !== 1 || history[0].entries.length !== 1) {
+    throw new Error('Balance history did not return the tracked month');
+  }
+  console.log('✔ Time balance history verified');
 
   // Test Projects
   const projects = db.getProjects();
@@ -76,10 +81,10 @@ async function runTests() {
     lunchMinutes: 30,
     projectName: 'General',
     notes: 'Created after backup',
-    scheduledMinutesOverride: null
+    scheduledMinutesOverride: null,
   });
   await db.restoreBackup(backupFile);
-  if (db.getWorkEntries(2026, 8).some(entry => entry.date === '2026-08-18')) {
+  if (db.getWorkEntries(2026, 8).some((entry) => entry.date === '2026-08-18')) {
     throw new Error('Valid backup did not replace the current database');
   }
   console.log('✔ Valid backup restore verified');
@@ -104,7 +109,9 @@ async function runTests() {
   for (let index = 0; index < 7; index++) {
     await db.createBackup(__dirname, `retention-${index}`);
   }
-  const retained = fs.readdirSync(__dirname).filter(file => file.startsWith('dagsverk-backup-') && file.endsWith('.db'));
+  const retained = fs
+    .readdirSync(__dirname)
+    .filter((file) => file.startsWith('dagsverk-backup-') && file.endsWith('.db'));
   if (retained.length !== 5) {
     throw new Error(`Backup retention kept ${retained.length} files instead of 5`);
   }
@@ -128,8 +135,8 @@ async function runTests() {
         lunchMinutes: 30,
         projectName: 'Design Sprint',
         notes: 'Testing excel export',
-        scheduledMinutesOverride: null
-      }
+        scheduledMinutesOverride: null,
+      },
     ],
     summary: {
       workedMinutes: 510,
@@ -137,11 +144,11 @@ async function runTests() {
       overtimeMinutes: 30,
       obHours: 0,
       expectedHours: 168,
-      openingBalanceMinutes: 60
+      openingBalanceMinutes: 60,
     },
     language: 1, // English
     overtimeMode: 0, // Comp-Time
-    dailyOvertimeThresholdHours: 8
+    dailyOvertimeThresholdHours: 8,
   };
 
   await ExcelExportService.exportToFile(req, testExcelPath);
@@ -161,10 +168,13 @@ async function runTests() {
 
   let invalidExportRejected = false;
   try {
-    await ExcelExportService.exportToFile({
-      ...req,
-      entries: [{ ...req.entries[0], date: '2026-09-17' }]
-    }, testExcelPath);
+    await ExcelExportService.exportToFile(
+      {
+        ...req,
+        entries: [{ ...req.entries[0], date: '2026-09-17' }],
+      },
+      testExcelPath,
+    );
   } catch {
     invalidExportRejected = true;
   }
@@ -177,14 +187,16 @@ async function runTests() {
   fs.unlinkSync(tempDbPath);
   fs.unlinkSync(testExcelPath);
   fs.rmSync(unrelatedPath, { force: true });
-  for (const file of fs.readdirSync(__dirname).filter(file => file.startsWith('dagsverk-backup-') && file.endsWith('.db'))) {
+  for (const file of fs
+    .readdirSync(__dirname)
+    .filter((file) => file.startsWith('dagsverk-backup-') && file.endsWith('.db'))) {
     fs.rmSync(path.join(__dirname, file), { force: true });
   }
 
   console.log('--- ALL BACKEND TESTS PASSED SUCCESSFULLY ---');
 }
 
-runTests().catch(err => {
+runTests().catch((err) => {
   console.error('❌ Test failed:', err);
   process.exit(1);
 });

@@ -14,8 +14,14 @@ export interface ElectronAPI {
   getWorkEntries: (year: number, month: number, workspaceId?: string) => Promise<any[]>;
   saveWorkEntry: (entry: any, workspaceId?: string) => Promise<void>;
   deleteWorkEntry: (date: string, workspaceId?: string) => Promise<void>;
-  getMonthRecord: (year: number, month: number, defaultOpening?: number, workspaceId?: string) => Promise<any>;
+  getMonthRecord: (
+    year: number,
+    month: number,
+    defaultOpening?: number,
+    workspaceId?: string,
+  ) => Promise<any>;
   saveMonthRecord: (record: any, workspaceId?: string) => Promise<void>;
+  getBalanceHistory: (year: number, month: number, workspaceId?: string) => Promise<any[]>;
   getProjects: (workspaceId?: string) => Promise<any[]>;
   saveProject: (project: any, workspaceId?: string) => Promise<void>;
   deleteProject: (id: string, workspaceId?: string) => Promise<void>;
@@ -23,6 +29,12 @@ export interface ElectronAPI {
   // Utilities
   createBackup: (destinationFolder?: string) => Promise<string>;
   restoreBackup: (filePath: string) => Promise<void>;
+  getDatabasePath: () => Promise<string>;
+  openDataFolder: () => Promise<void>;
+  getUpdateState: () => Promise<any>;
+  checkForUpdates: () => Promise<void>;
+  restartToUpdate: () => void;
+  onUpdateState: (callback: (state: any) => void) => () => void;
   exportExcel: (request: any, outputPath: string) => Promise<void>;
   showSaveDialog: (options: any) => Promise<any>;
   showOpenDialog: (options: any) => Promise<any>;
@@ -40,25 +52,42 @@ const electronAPI: ElectronAPI = {
   saveAppPreferences: (prefs) => ipcRenderer.invoke('db:save-preferences', prefs),
 
   getSettings: (workspaceId) => ipcRenderer.invoke('db:get-settings', workspaceId),
-  saveSettings: (settings, workspaceId) => ipcRenderer.invoke('db:save-settings', settings, workspaceId),
-  getWorkEntries: (year, month, workspaceId) => ipcRenderer.invoke('db:get-entries', year, month, workspaceId),
+  saveSettings: (settings, workspaceId) =>
+    ipcRenderer.invoke('db:save-settings', settings, workspaceId),
+  getWorkEntries: (year, month, workspaceId) =>
+    ipcRenderer.invoke('db:get-entries', year, month, workspaceId),
   saveWorkEntry: (entry, workspaceId) => ipcRenderer.invoke('db:save-entry', entry, workspaceId),
   deleteWorkEntry: (date, workspaceId) => ipcRenderer.invoke('db:delete-entry', date, workspaceId),
-  getMonthRecord: (year, month, defaultOpening, workspaceId) => ipcRenderer.invoke('db:get-month', year, month, defaultOpening, workspaceId),
-  saveMonthRecord: (record, workspaceId) => ipcRenderer.invoke('db:save-month', record, workspaceId),
+  getMonthRecord: (year, month, defaultOpening, workspaceId) =>
+    ipcRenderer.invoke('db:get-month', year, month, defaultOpening, workspaceId),
+  saveMonthRecord: (record, workspaceId) =>
+    ipcRenderer.invoke('db:save-month', record, workspaceId),
+  getBalanceHistory: (year, month, workspaceId) =>
+    ipcRenderer.invoke('db:get-balance-history', year, month, workspaceId),
   getProjects: (workspaceId) => ipcRenderer.invoke('db:get-projects', workspaceId),
-  saveProject: (project, workspaceId) => ipcRenderer.invoke('db:save-project', project, workspaceId),
+  saveProject: (project, workspaceId) =>
+    ipcRenderer.invoke('db:save-project', project, workspaceId),
   deleteProject: (id, workspaceId) => ipcRenderer.invoke('db:delete-project', id, workspaceId),
 
   createBackup: (folder) => ipcRenderer.invoke('db:backup', folder),
   restoreBackup: (filePath) => ipcRenderer.invoke('db:restore', filePath),
+  getDatabasePath: () => ipcRenderer.invoke('db:get-path'),
+  openDataFolder: () => ipcRenderer.invoke('db:open-folder'),
+  getUpdateState: () => ipcRenderer.invoke('update:get-state'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  restartToUpdate: () => ipcRenderer.send('update:restart'),
+  onUpdateState: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, state: any) => callback(state);
+    ipcRenderer.on('update:state', listener);
+    return () => ipcRenderer.removeListener('update:state', listener);
+  },
   exportExcel: (request, outputPath) => ipcRenderer.invoke('export:excel', request, outputPath),
   showSaveDialog: (options) => ipcRenderer.invoke('dialog:save-file', options),
   showOpenDialog: (options) => ipcRenderer.invoke('dialog:open-file', options),
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   maximizeWindow: () => ipcRenderer.send('window:maximize'),
   closeWindow: () => ipcRenderer.send('window:close'),
-  isMaximized: () => ipcRenderer.invoke('window:is-maximized')
+  isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

@@ -8,17 +8,30 @@
     <mat-card appearance="outlined" class="m3-outlined-card">
       <mat-card-content class="card-content">
         <div class="card-header-row">
-          <div class="icon-avatar">
-            <mat-icon>shield</mat-icon>
-          </div>
           <div class="title-group">
             <h2 class="title-medium">Local data</h2>
             <p class="body-small">Your time entries, rates, and projects stay on this device.</p>
           </div>
         </div>
         <p class="body-medium desc-text">
-          Dagsverk works without an account or internet connection. It stores all records in a local SQLite database.
+          Dagsverk works without an account or internet connection. It stores all records in a local
+          SQLite database.
         </p>
+        <div class="data-location">
+          <div>
+            <span class="label-small">Database location</span>
+            <span class="body-small selectable-path numeric">{{ databasePath() }}</span>
+          </div>
+          <button
+            mat-button
+            type="button"
+            (click)="onOpenDataFolder()"
+            [disabled]="!bridge.isRunningInElectron"
+          >
+            <mat-icon>folder_open</mat-icon>
+            <span>Open data folder</span>
+          </button>
+        </div>
       </mat-card-content>
     </mat-card>
 
@@ -26,9 +39,6 @@
     <mat-card appearance="outlined" class="m3-outlined-card">
       <mat-card-content class="card-content">
         <div class="card-header-row">
-          <div class="icon-avatar">
-            <mat-icon>backup</mat-icon>
-          </div>
           <div class="title-group">
             <h2 class="title-medium">Backup and restore</h2>
             <p class="body-small">Create a portable copy or restore an earlier database.</p>
@@ -46,11 +56,7 @@
             <span>Create backup</span>
           </button>
 
-          <button
-            mat-stroked-button
-            class="action-btn restore-btn label-large"
-            (click)="onRestoreBackup()"
-          >
+          <button mat-button class="action-btn restore-btn label-large" (click)="onRestoreBackup()">
             <mat-icon>settings_backup_restore</mat-icon>
             <span>Restore from backup</span>
           </button>

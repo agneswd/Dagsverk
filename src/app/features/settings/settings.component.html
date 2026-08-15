@@ -4,15 +4,19 @@
     <div class="title-meta">
       <p class="page-desc body-medium">Set your schedule, pay, tax, and timesheet defaults.</p>
     </div>
-    <button
-      mat-flat-button
-      color="primary"
-      (click)="onSave()"
-      class="save-btn label-large"
-    >
-      <mat-icon>save</mat-icon>
-      <span>Save Settings</span>
-    </button>
+    <div class="settings-actions">
+      <button mat-button type="button" (click)="onDiscard()" [disabled]="!isDirty">Discard</button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="onSave()"
+        class="save-btn label-large"
+        [disabled]="!isDirty"
+      >
+        <mat-icon>save</mat-icon>
+        <span>Save Settings</span>
+      </button>
+    </div>
   </div>
 
   <mat-tab-group animationDuration="0ms" class="m3-settings-tabs">
@@ -22,12 +26,15 @@
         <mat-card appearance="outlined" class="m3-outlined-card">
           <mat-card-content class="card-content">
             <h3 class="card-title title-medium">Workspace defaults</h3>
-            <p class="card-desc body-small">Projects and report preferences for the active workspace. Manage names and organization details on the Workspaces page.</p>
+            <p class="card-desc body-small">
+              Projects and report preferences for the active workspace. Manage identity details from
+              the workspace menu.
+            </p>
 
             <div class="form-grid-2">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Default Project</mat-label>
-                <input matInput [(ngModel)]="model.defaultProject" placeholder="e.g. General">
+                <input matInput [(ngModel)]="model.defaultProject" placeholder="e.g. General" />
                 <mat-icon matPrefix class="field-icon">folder</mat-icon>
               </mat-form-field>
 
@@ -45,21 +52,6 @@
             </div>
           </mat-card-content>
         </mat-card>
-
-        <mat-card appearance="outlined" class="m3-outlined-card">
-          <mat-card-content class="card-content">
-            <h3 class="card-title title-medium">Opening Time Balance</h3>
-            <p class="card-desc body-small">Brought-forward comp/flex balance in minutes before tracking begins.</p>
-
-            <div class="form-grid-2">
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Opening Minutes</mat-label>
-                <input matInput type="number" [(ngModel)]="model.openingBalanceMinutes" class="numeric">
-                <span matTextSuffix>mins</span>
-              </mat-form-field>
-            </div>
-          </mat-card-content>
-        </mat-card>
       </div>
     </mat-tab>
 
@@ -69,12 +61,20 @@
         <mat-card appearance="outlined" class="m3-outlined-card">
           <mat-card-content class="card-content">
             <h3 class="card-title title-medium">Expected Work Schedule</h3>
-            <p class="card-desc body-small">Define baseline working hours used to compute daily targets and flex balances.</p>
+            <p class="card-desc body-small">
+              Define baseline working hours used to compute daily targets and flex balances.
+            </p>
 
             <div class="form-grid-2">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Target Hours / Workday</mat-label>
-                <input matInput type="number" step="0.5" [(ngModel)]="model.expectedHours.hoursPerWorkday" class="numeric">
+                <input
+                  matInput
+                  type="number"
+                  step="0.5"
+                  [(ngModel)]="model.expectedHours.hoursPerWorkday"
+                  class="numeric"
+                />
                 <span matTextSuffix>hours</span>
                 <mat-icon matPrefix class="field-icon">timer</mat-icon>
               </mat-form-field>
@@ -82,7 +82,11 @@
 
             <div class="field-group">
               <label class="group-label label-small">SCHEDULED WORKDAYS</label>
-              <mat-chip-listbox multiple="true" aria-label="Scheduled working weekdays" class="weekday-chips">
+              <mat-chip-listbox
+                multiple="true"
+                aria-label="Scheduled working weekdays"
+                class="weekday-chips"
+              >
                 @for (d of dayOptions; track d.value) {
                   <mat-chip-option
                     [selected]="isWeekdaySelected(d.value)"
@@ -106,24 +110,41 @@
         <mat-card appearance="outlined" class="m3-outlined-card">
           <mat-card-content class="card-content">
             <h3 class="card-title title-medium">Default Day Timers</h3>
-            <p class="card-desc body-small">Standard prefill values when creating a new worked day entry.</p>
+            <p class="card-desc body-small">
+              Standard prefill values when creating a new worked day entry.
+            </p>
 
             <div class="form-grid-3">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Default Start</mat-label>
-                <input matInput [(ngModel)]="model.defaultStartTime" placeholder="08:00" class="numeric">
+                <input
+                  matInput
+                  [(ngModel)]="model.defaultStartTime"
+                  placeholder="08:00"
+                  class="numeric"
+                />
                 <mat-icon matPrefix class="field-icon">schedule</mat-icon>
               </mat-form-field>
 
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Default End</mat-label>
-                <input matInput [(ngModel)]="model.defaultEndTime" placeholder="16:30" class="numeric">
+                <input
+                  matInput
+                  [(ngModel)]="model.defaultEndTime"
+                  placeholder="16:30"
+                  class="numeric"
+                />
                 <mat-icon matPrefix class="field-icon">update</mat-icon>
               </mat-form-field>
 
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Default Lunch</mat-label>
-                <input matInput type="number" [(ngModel)]="model.defaultLunchMinutes" class="numeric">
+                <input
+                  matInput
+                  type="number"
+                  [(ngModel)]="model.defaultLunchMinutes"
+                  class="numeric"
+                />
                 <span matTextSuffix>mins</span>
                 <mat-icon matPrefix class="field-icon">restaurant</mat-icon>
               </mat-form-field>
@@ -139,23 +160,89 @@
         <mat-card appearance="outlined" class="m3-outlined-card">
           <mat-card-content class="card-content">
             <h3 class="card-title title-medium">Overtime Baseline Policy</h3>
-            <p class="card-desc body-small">How excess worked time is treated and credited in monthly summaries.</p>
+            <p class="card-desc body-small">
+              How excess worked time is treated and credited in monthly summaries.
+            </p>
 
             <div class="form-grid-2">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Compensation Mode</mat-label>
                 <mat-select [(ngModel)]="model.overtimeCompensation.mode">
-                  <mat-option [value]="OvertimeCompensationMode.CompTime">Comp-Time / Flex Time</mat-option>
-                  <mat-option [value]="OvertimeCompensationMode.Paid">Direct Salary Payout</mat-option>
+                  <mat-option [value]="OvertimeCompensationMode.CompTime"
+                    >Comp-Time / Flex Time</mat-option
+                  >
+                  <mat-option [value]="OvertimeCompensationMode.Paid"
+                    >Direct Salary Payout</mat-option
+                  >
                 </mat-select>
               </mat-form-field>
 
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Daily Overtime Threshold</mat-label>
-                <input matInput type="number" step="0.5" [(ngModel)]="model.overtimeCompensation.dailyThresholdHours" class="numeric">
-                <span matTextSuffix>hours</span>
+                <mat-label>Overtime threshold</mat-label>
+                <mat-select [(ngModel)]="model.overtimeCompensation.thresholdMode">
+                  <mat-option [value]="OvertimeThresholdMode.FixedDailyHours"
+                    >Fixed daily hours</mat-option
+                  >
+                  <mat-option [value]="OvertimeThresholdMode.ScheduledHours"
+                    >Scheduled hours</mat-option
+                  >
+                </mat-select>
               </mat-form-field>
             </div>
+            @if (
+              model.overtimeCompensation.thresholdMode === OvertimeThresholdMode.FixedDailyHours
+            ) {
+              <div class="form-grid-2">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Daily Overtime Threshold</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    step="0.5"
+                    [(ngModel)]="model.overtimeCompensation.dailyThresholdHours"
+                    class="numeric"
+                  />
+                  <span matTextSuffix>hours</span>
+                </mat-form-field>
+              </div>
+              <a
+                mat-button
+                class="tax-guide-link"
+                href="https://www.skatteverket.se/privat/skatter/arbeteochinkomst/askattsedelochskattetabeller.4.18e1b10334ebe8bc80005221.html"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <mat-icon>open_in_new</mat-icon>
+                Find my tax table
+              </a>
+            }
+            @if (model.overtimeCompensation.mode === OvertimeCompensationMode.Paid) {
+              <div class="form-grid-2">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Default overtime rate</mat-label>
+                  <mat-select [(ngModel)]="model.overtimeCompensation.defaultRateType">
+                    <mat-option [value]="CompensationRateType.HourlyPremiumPercent"
+                      >Hourly premium percent</mat-option
+                    >
+                    <mat-option [value]="CompensationRateType.FixedHourlyAmount"
+                      >Fixed hourly amount</mat-option
+                    >
+                    <mat-option [value]="CompensationRateType.FullTimeMonthlySalaryDivisor"
+                      >Monthly salary divisor</mat-option
+                    >
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Rate value</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    [(ngModel)]="model.overtimeCompensation.defaultRateValue"
+                    class="numeric"
+                  />
+                </mat-form-field>
+              </div>
+            }
           </mat-card-content>
         </mat-card>
 
@@ -164,12 +251,26 @@
             <div class="card-header-action">
               <div>
                 <h3 class="card-title title-medium">Differential Overtime & OB Bands</h3>
-                <p class="card-desc body-small">Specific time-of-day or day-category compensation multipliers.</p>
+                <p class="card-desc body-small">
+                  Specific time-of-day or day-category compensation multipliers.
+                </p>
               </div>
-              <button mat-stroked-button (click)="onAddRateBand()" class="label-large">
-                <mat-icon>add</mat-icon>
-                <span>Add OB Band</span>
-              </button>
+              <div class="header-actions">
+                <button
+                  mat-button
+                  (click)="onAddRateBand(CompensationRuleType.Overtime)"
+                  class="label-large"
+                >
+                  Add overtime rule
+                </button>
+                <button
+                  mat-button
+                  (click)="onAddRateBand(CompensationRuleType.Ob)"
+                  class="label-large"
+                >
+                  Add OB rule
+                </button>
+              </div>
             </div>
 
             @if (model.overtimeCompensation.rateBands?.length) {
@@ -181,15 +282,28 @@
                         {{ band.name || 'Untitled Band' }}
                       </mat-panel-title>
                       <mat-panel-description class="body-small">
-                        {{ getDayCategoryLabel(band.dayCategory) }} • {{ band.startTime }}–{{ band.endTime }} • +{{ band.rateValue }}%
+                        {{ getDayCategoryLabel(band.dayCategory) }} • {{ band.startTime }}-{{
+                          band.endTime
+                        }}
+                        • {{ band.rateValue }}
                       </mat-panel-description>
                     </mat-expansion-panel-header>
 
                     <div class="expansion-form-grid">
                       <div class="form-grid-2">
                         <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                          <mat-label>Rule type</mat-label>
+                          <mat-select [(ngModel)]="band.compensationType">
+                            <mat-option [value]="CompensationRuleType.Overtime"
+                              >Overtime</mat-option
+                            >
+                            <mat-option [value]="CompensationRuleType.Ob">OB</mat-option>
+                          </mat-select>
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline" subscriptSizing="dynamic">
                           <mat-label>Band Name</mat-label>
-                          <input matInput [(ngModel)]="band.name">
+                          <input matInput [(ngModel)]="band.name" />
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -202,21 +316,52 @@
                         </mat-form-field>
                       </div>
 
+                      <div class="form-grid-2">
+                        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                          <mat-label>Rate type</mat-label>
+                          <mat-select [(ngModel)]="band.rateType">
+                            <mat-option [value]="CompensationRateType.HourlyPremiumPercent"
+                              >Hourly premium percent</mat-option
+                            >
+                            <mat-option [value]="CompensationRateType.FixedHourlyAmount"
+                              >Fixed hourly amount</mat-option
+                            >
+                            <mat-option [value]="CompensationRateType.FullTimeMonthlySalaryDivisor"
+                              >Monthly salary divisor</mat-option
+                            >
+                          </mat-select>
+                        </mat-form-field>
+                      </div>
+
                       <div class="form-grid-3">
                         <mat-form-field appearance="outline" subscriptSizing="dynamic">
                           <mat-label>Start Time</mat-label>
-                          <input matInput [(ngModel)]="band.startTime" placeholder="18:00" class="numeric">
+                          <input
+                            matInput
+                            [(ngModel)]="band.startTime"
+                            placeholder="18:00"
+                            class="numeric"
+                          />
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" subscriptSizing="dynamic">
                           <mat-label>End Time</mat-label>
-                          <input matInput [(ngModel)]="band.endTime" placeholder="22:00" class="numeric">
+                          <input
+                            matInput
+                            [(ngModel)]="band.endTime"
+                            placeholder="22:00"
+                            class="numeric"
+                          />
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                          <mat-label>Premium %</mat-label>
-                          <input matInput type="number" [(ngModel)]="band.rateValue" class="numeric">
-                          <span matTextSuffix>%</span>
+                          <mat-label>Rate value</mat-label>
+                          <input
+                            matInput
+                            type="number"
+                            [(ngModel)]="band.rateValue"
+                            class="numeric"
+                          />
                         </mat-form-field>
                       </div>
 
@@ -251,7 +396,9 @@
         <mat-card appearance="outlined" class="m3-outlined-card">
           <mat-card-content class="card-content">
             <h3 class="card-title title-medium">Salary Structure</h3>
-            <p class="card-desc body-small">Base remuneration mode used for monthly pay calculations.</p>
+            <p class="card-desc body-small">
+              Base remuneration mode used for monthly pay calculations.
+            </p>
 
             <div class="form-grid-2">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -265,16 +412,40 @@
               @if (model.salary.type === SalaryType.Hourly) {
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-label>Hourly Rate</mat-label>
-                  <input matInput type="number" [(ngModel)]="model.salary.hourlyRate" class="numeric">
+                  <input
+                    matInput
+                    type="number"
+                    [(ngModel)]="model.salary.hourlyRate"
+                    class="numeric"
+                  />
                   <span matTextSuffix>{{ model.currencyPreference }}</span>
                   <mat-icon matPrefix class="field-icon">payments</mat-icon>
                 </mat-form-field>
               } @else {
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-label>Monthly Salary</mat-label>
-                  <input matInput type="number" [(ngModel)]="model.salary.monthlySalary" class="numeric">
+                  <input
+                    matInput
+                    type="number"
+                    [(ngModel)]="model.salary.monthlySalary"
+                    class="numeric"
+                  />
                   <span matTextSuffix>{{ model.currencyPreference }}</span>
                   <mat-icon matPrefix class="field-icon">payments</mat-icon>
+                </mat-form-field>
+              }
+              @if (model.salary.type === SalaryType.Monthly) {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Employment percent</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="1"
+                    max="100"
+                    [(ngModel)]="model.salary.employmentPercent"
+                    class="numeric"
+                  />
+                  <span matTextSuffix>%</span>
                 </mat-form-field>
               }
             </div>
@@ -283,7 +454,7 @@
 
         <mat-card appearance="outlined" class="m3-outlined-card">
           <mat-card-content class="card-content">
-            <h3 class="card-title title-medium">Skatteverket Preliminary Tax</h3>
+            <h3 class="card-title title-medium">Swedish preliminary tax</h3>
             <p class="card-desc body-small">Official Swedish tax table bracket deduction engine.</p>
 
             <div class="form-grid-2">
@@ -291,8 +462,12 @@
                 <mat-label>Tax Engine Mode</mat-label>
                 <mat-select [(ngModel)]="model.taxSettings.mode">
                   <mat-option [value]="TaxMode.Disabled">Disabled (Gross Pay Only)</mat-option>
-                  <mat-option [value]="TaxMode.PrimaryIncomeTaxTable">Primary Income (Tax Table)</mat-option>
-                  <mat-option [value]="TaxMode.SecondaryIncomeThirtyPercent">Secondary Income (Flat 30%)</mat-option>
+                  <mat-option [value]="TaxMode.PrimaryIncomeTaxTable"
+                    >Primary Income (Tax Table)</mat-option
+                  >
+                  <mat-option [value]="TaxMode.SecondaryIncomeThirtyPercent"
+                    >Secondary Income (Flat 30%)</mat-option
+                  >
                   <mat-option [value]="TaxMode.ManualMonthlyDeduction">Manual Deduction</mat-option>
                 </mat-select>
               </mat-form-field>
@@ -301,8 +476,6 @@
                 <mat-label>Tax Year</mat-label>
                 <mat-select [(ngModel)]="model.taxSettings.taxYear">
                   <mat-option [value]="2026">2026</mat-option>
-                  <mat-option [value]="2025">2025</mat-option>
-                  <mat-option [value]="2024">2024</mat-option>
                 </mat-select>
               </mat-form-field>
             </div>
@@ -310,21 +483,130 @@
             @if (model.taxSettings.mode === TaxMode.PrimaryIncomeTaxTable) {
               <div class="form-grid-2">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>Table Number (Tabell)</mat-label>
-                  <input matInput type="number" [(ngModel)]="model.taxSettings.tableNumber" class="numeric">
+                  <mat-label>Table Number</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    [(ngModel)]="model.taxSettings.tableNumber"
+                    class="numeric"
+                  />
                   <mat-icon matPrefix class="field-icon">table_chart</mat-icon>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>Column (Kolumn)</mat-label>
+                  <mat-label>Column</mat-label>
                   <mat-select [(ngModel)]="model.taxSettings.column">
-                    <mat-option [value]="1">Kolumn 1 (Standard)</mat-option>
-                    <mat-option [value]="2">Kolumn 2 (Age 66+)</mat-option>
-                    <mat-option [value]="3">Kolumn 3 (Pension)</mat-option>
+                    <mat-option [value]="1">Column 1 (Standard)</mat-option>
+                    <mat-option [value]="2">Column 2 (Age 66+)</mat-option>
+                    <mat-option [value]="3">Column 3 (Pension)</mat-option>
+                    <mat-option [value]="4">Column 4</mat-option>
+                    <mat-option [value]="5">Column 5</mat-option>
+                    <mat-option [value]="6">Column 6</mat-option>
                   </mat-select>
                 </mat-form-field>
               </div>
             }
+            @if (model.taxSettings.mode === TaxMode.ManualMonthlyDeduction) {
+              <div class="form-grid-2">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Manual monthly deduction</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="0"
+                    [(ngModel)]="model.taxSettings.manualMonthlyDeduction"
+                    class="numeric"
+                  />
+                  <span matTextSuffix>{{ model.currencyPreference }}</span>
+                </mat-form-field>
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Application">
+      <div class="tab-body">
+        <mat-card appearance="outlined" class="m3-outlined-card">
+          <mat-card-content class="card-content">
+            <h3 class="card-title title-medium">Appearance and language</h3>
+            <p class="card-desc body-small">These preferences apply to every workspace.</p>
+            <div class="form-grid-2">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Theme</mat-label>
+                <mat-select [(ngModel)]="preferencesModel.themePreference">
+                  <mat-option [value]="ThemePreference.System">System</mat-option>
+                  <mat-option [value]="ThemePreference.Light">Light</mat-option>
+                  <mat-option [value]="ThemePreference.Dark">Dark</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Interface language</mat-label>
+                <mat-select [(ngModel)]="preferencesModel.languagePreference">
+                  <mat-option [value]="LanguagePreference.System">System</mat-option>
+                  <mat-option [value]="LanguagePreference.English">English</mat-option>
+                  <mat-option [value]="LanguagePreference.Swedish">Swedish</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <div class="form-grid-2">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Interface scale</mat-label>
+                <mat-select [(ngModel)]="preferencesModel.interfaceScalePercent">
+                  @for (scale of scaleOptions; track scale) {
+                    <mat-option [value]="scale">{{ scale }}%</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Export language</mat-label>
+                <mat-select [(ngModel)]="model.exportLanguagePreference">
+                  <mat-option [value]="ExportLanguagePreference.System">System</mat-option>
+                  <mat-option [value]="ExportLanguagePreference.English">English</mat-option>
+                  <mat-option [value]="ExportLanguagePreference.Swedish">Swedish</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card appearance="outlined" class="m3-outlined-card">
+          <mat-card-content class="card-content">
+            <h3 class="card-title title-medium">Application updates</h3>
+            <p class="card-desc body-small">{{ updateStatusText() }}</p>
+            @if (updateState().status === 'downloading') {
+              <div
+                class="update-progress"
+                role="progressbar"
+                [attr.aria-valuenow]="updateState().progress || 0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <span [style.width.%]="updateState().progress || 0"></span>
+              </div>
+            }
+            <div class="card-actions">
+              @if (updateState().status === 'ready') {
+                <button mat-flat-button type="button" (click)="onRestartToUpdate()">
+                  Restart now
+                </button>
+              } @else {
+                <button
+                  mat-button
+                  type="button"
+                  (click)="onCheckForUpdates()"
+                  [disabled]="
+                    updateState().status === 'checking' ||
+                    updateState().status === 'downloading' ||
+                    updateState().status === 'unavailable'
+                  "
+                >
+                  <mat-icon>refresh</mat-icon>
+                  <span>Check for updates</span>
+                </button>
+              }
+            </div>
           </mat-card-content>
         </mat-card>
       </div>

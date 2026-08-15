@@ -1,17 +1,25 @@
-<aside class="app-sidebar-drawer">
+<aside class="app-sidebar-drawer" [class.collapsed]="collapsed">
   <!-- Brand Header -->
   <div class="sidebar-brand-header">
-    <div class="brand-logo-box">
-      <mat-icon class="brand-icon">schedule</mat-icon>
-    </div>
+    <button
+      mat-icon-button
+      type="button"
+      class="collapse-btn"
+      (click)="toggleCollapsed()"
+      [attr.aria-label]="collapsed ? 'Expand navigation' : 'Collapse navigation'"
+    >
+      <mat-icon>menu</mat-icon>
+    </button>
     <div class="brand-text">
-      <span class="brand-title headline-small">Dagsverk</span>
-      <span class="brand-tag label-small">Work & Time</span>
+      <span class="brand-title title-medium">Dagsverk</span>
     </div>
   </div>
 
   <!-- Workspace Switcher (56px) -->
-  <div class="workspace-switcher-wrapper">
+  <div
+    class="workspace-switcher-wrapper"
+    [matTooltip]="collapsed ? state.activeWorkspace().name : ''"
+  >
     <button
       type="button"
       matRipple
@@ -25,7 +33,11 @@
 
       <div class="ws-info">
         <span class="ws-name title-small">{{ state.activeWorkspace().name }}</span>
-        <span class="ws-employer body-small">{{ state.activeWorkspace().organizationName || state.activeWorkspace().workerName || 'Personal workspace' }}</span>
+        <span class="ws-employer body-small">{{
+          state.activeWorkspace().organizationName ||
+            state.activeWorkspace().workerName ||
+            'Personal workspace'
+        }}</span>
       </div>
 
       <mat-icon class="ws-arrow">expand_more</mat-icon>
@@ -41,7 +53,9 @@
           [class.is-active]="ws.id === state.activeWorkspaceId()"
         >
           <div class="ws-menu-row">
-            <span class="ws-menu-dot" [style.background-color]="ws.color || '#5F875F'"></span>
+            <span class="ws-menu-leading">
+              <span class="ws-menu-dot" [style.background-color]="ws.color || '#5F875F'"></span>
+            </span>
             <span class="ws-menu-name body-medium">{{ ws.name }}</span>
             @if (ws.id === state.activeWorkspaceId()) {
               <mat-icon class="ws-menu-check">check</mat-icon>
@@ -51,7 +65,9 @@
       }
 
       <button mat-menu-item (click)="onManageWorkspaces()" class="manage-ws-item">
-        <mat-icon>settings</mat-icon>
+        <span class="ws-menu-leading">
+          <mat-icon class="manage-ws-icon">settings</mat-icon>
+        </span>
         <span class="body-medium">Manage workspaces</span>
       </button>
     </mat-menu>
@@ -68,16 +84,13 @@
         [activated]="rla.isActive"
         class="m3-nav-item"
       >
-        <mat-icon
-          matListItemIcon
-          class="nav-icon"
-          [class.filled]="rla.isActive"
-        >
+        <mat-icon matListItemIcon class="nav-icon" [class.filled]="rla.isActive">
           {{ item.icon }}
         </mat-icon>
-        <span matListItemTitle class="nav-title label-large">{{ item.label }}</span>
+        @if (!collapsed) {
+          <span matListItemTitle class="nav-title label-large">{{ item.label }}</span>
+        }
       </a>
     }
   </mat-nav-list>
-
 </aside>

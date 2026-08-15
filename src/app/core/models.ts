@@ -1,30 +1,30 @@
 export enum WorkEntryStatus {
   Incomplete = 0,
   Worked = 1,
-  Off = 2
+  Off = 2,
 }
 
 export enum ThemePreference {
   System = 0,
   Light = 1,
-  Dark = 2
+  Dark = 2,
 }
 
 export enum MonthViewPreference {
   Ledger = 0,
-  Calendar = 1
+  Calendar = 1,
 }
 
 export enum LanguagePreference {
   System = 0,
   English = 1,
-  Swedish = 2
+  Swedish = 2,
 }
 
 export enum WorkspaceType {
   Employment = 0,
   Contract = 1,
-  Personal = 2
+  Personal = 2,
 }
 
 export type CurrencyPreference = 'SEK' | 'EUR' | 'USD' | 'GBP' | 'NOK' | 'DKK';
@@ -32,28 +32,28 @@ export type CurrencyPreference = 'SEK' | 'EUR' | 'USD' | 'GBP' | 'NOK' | 'DKK';
 export enum ExportLanguagePreference {
   Swedish = 0,
   English = 1,
-  System = 2
+  System = 2,
 }
 
 export enum OvertimeCompensationMode {
   CompTime = 0,
-  Paid = 1
+  Paid = 1,
 }
 
 export enum OvertimeThresholdMode {
   FixedDailyHours = 0,
-  ScheduledHours = 1
+  ScheduledHours = 1,
 }
 
 export enum CompensationRuleType {
   Overtime = 0,
-  Ob = 1
+  Ob = 1,
 }
 
 export enum CompensationRateType {
   HourlyPremiumPercent = 0,
   FixedHourlyAmount = 1,
-  FullTimeMonthlySalaryDivisor = 2
+  FullTimeMonthlySalaryDivisor = 2,
 }
 
 export enum OvertimeDayCategory {
@@ -70,19 +70,19 @@ export enum OvertimeDayCategory {
   PublicHolidays = 10,
   ScheduledWeekdays = 11,
   Weekends = 12,
-  MajorHolidays = 13
+  MajorHolidays = 13,
 }
 
 export enum SalaryType {
   Hourly = 0,
-  Monthly = 1
+  Monthly = 1,
 }
 
 export enum TaxMode {
   Disabled = 0,
   PrimaryIncomeTaxTable = 1,
   SecondaryIncomeThirtyPercent = 2,
-  ManualMonthlyDeduction = 3
+  ManualMonthlyDeduction = 3,
 }
 
 export type TaxUnavailableReason = 'None' | 'ManualDeductionNotConfigured' | 'TaxYearNotBundled';
@@ -105,6 +105,18 @@ export interface AppPreferences {
   languagePreference: LanguagePreference;
   interfaceScalePercent: number;
   monthViewPreference: MonthViewPreference;
+  hasCompletedSetup: boolean;
+}
+
+export type UpdateStatus =
+  'unavailable' | 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'current' | 'error';
+
+export interface UpdateState {
+  status: UpdateStatus;
+  currentVersion: string;
+  availableVersion?: string;
+  progress?: number;
+  message?: string;
 }
 
 export interface WorkEntry {
@@ -192,6 +204,13 @@ export interface MonthRecord {
   openingBalanceWasEdited: boolean;
 }
 
+export interface BalanceHistoryMonth {
+  year: number;
+  month: number;
+  record: MonthRecord | null;
+  entries: WorkEntry[];
+}
+
 export interface Project {
   workspaceId?: string;
   id: string;
@@ -261,10 +280,10 @@ export const DEFAULT_WORKSPACE: Workspace = {
   name: 'Main Workspace',
   color: '#5F875F',
   type: WorkspaceType.Employment,
-  organizationName: 'Acme AB',
-  workerName: 'Agnes Larsson',
+  organizationName: '',
+  workerName: '',
   createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
+  updatedAt: new Date().toISOString(),
 };
 
 export const DEFAULT_PREFERENCES: AppPreferences = {
@@ -272,24 +291,25 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   themePreference: ThemePreference.System,
   languagePreference: LanguagePreference.System,
   interfaceScalePercent: 100,
-  monthViewPreference: MonthViewPreference.Ledger
+  monthViewPreference: MonthViewPreference.Ledger,
+  hasCompletedSetup: false,
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
   workspaceId: 'ws-default',
-  employeeName: 'Agnes Larsson',
-  employerName: 'Acme AB',
+  employeeName: '',
+  employerName: '',
   defaultProject: 'General',
   salary: {
     type: SalaryType.Hourly,
     hourlyRate: 250,
     monthlySalary: 40000,
-    employmentPercent: 100
+    employmentPercent: 100,
   },
   expectedHours: {
     hoursPerWorkday: 8,
     workingWeekdays: [1, 2, 3, 4, 5],
-    excludePublicHolidays: true
+    excludePublicHolidays: true,
   },
   defaultStartTime: '08:00',
   defaultEndTime: '16:30',
@@ -299,7 +319,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     taxYear: 2026,
     tableNumber: 30,
     column: 1,
-    manualMonthlyDeduction: null
+    manualMonthlyDeduction: null,
   },
   themePreference: ThemePreference.System,
   openingBalanceMinutes: 0,
@@ -314,6 +334,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     defaultRateValue: 50,
     dailyThresholdHours: 8,
     thresholdMode: OvertimeThresholdMode.ScheduledHours,
-    rateBands: []
-  }
+    rateBands: [],
+  },
 };

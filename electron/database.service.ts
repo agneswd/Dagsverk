@@ -11,7 +11,7 @@ const REQUIRED_TABLES = [
   'WorkspaceSettings',
   'WorkEntries',
   'MonthRecords',
-  'Projects'
+  'Projects',
 ];
 
 export class DatabaseService {
@@ -39,11 +39,15 @@ export class DatabaseService {
   }
 
   private initSchema(): void {
-    const tableExists = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='Workspaces'").get();
+    const tableExists = this.db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='Workspaces'")
+      .get();
 
     if (!tableExists) {
       // Check if legacy table exists
-      const legacyWorkEntries = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='WorkEntries'").get();
+      const legacyWorkEntries = this.db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='WorkEntries'")
+        .get();
 
       if (legacyWorkEntries) {
         this.createMigrationSafetyBackup();
@@ -70,13 +74,14 @@ export class DatabaseService {
           LanguagePreference INTEGER NOT NULL DEFAULT 0,
           InterfaceScalePercent INTEGER NOT NULL DEFAULT 100,
           MonthViewPreference INTEGER NOT NULL DEFAULT 0,
+          HasCompletedSetup INTEGER NOT NULL DEFAULT 0,
           FOREIGN KEY (ActiveWorkspaceId) REFERENCES Workspaces(Id) ON DELETE RESTRICT
         );
 
         CREATE TABLE WorkspaceSettings (
           WorkspaceId TEXT PRIMARY KEY,
-          EmployeeName TEXT NOT NULL DEFAULT 'Agnes Larsson',
-          EmployerName TEXT NOT NULL DEFAULT 'Acme AB',
+          EmployeeName TEXT NOT NULL DEFAULT '',
+          EmployerName TEXT NOT NULL DEFAULT '',
           DefaultProject TEXT NOT NULL DEFAULT 'General',
           HourlyRate DECIMAL NOT NULL DEFAULT 250,
           SalaryType INTEGER NOT NULL DEFAULT 0,
@@ -146,25 +151,41 @@ export class DatabaseService {
 
       // Seed initial default workspace & preferences
       const now = new Date().toISOString();
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         INSERT INTO Workspaces (Id, Name, Color, WorkspaceType, WorkerName, EmployerName, CreatedAt, UpdatedAt)
-        VALUES ('ws-default', 'Main Workspace', '#5F875F', 0, 'Agnes Larsson', 'Acme AB', ?, ?)
-      `).run(now, now);
+        VALUES ('ws-default', 'Main Workspace', '#5F875F', 0, '', '', ?, ?)
+      `,
+        )
+        .run(now, now);
 
-      this.db.prepare(`
-        INSERT INTO AppPreferences (Id, ActiveWorkspaceId, ThemePreference, LanguagePreference, InterfaceScalePercent, MonthViewPreference)
-        VALUES (1, 'ws-default', 0, 0, 100, 0)
-      `).run();
+      this.db
+        .prepare(
+          `
+        INSERT INTO AppPreferences (Id, ActiveWorkspaceId, ThemePreference, LanguagePreference, InterfaceScalePercent, MonthViewPreference, HasCompletedSetup)
+        VALUES (1, 'ws-default', 0, 0, 100, 0, 0)
+      `,
+        )
+        .run();
 
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         INSERT INTO WorkspaceSettings (WorkspaceId)
         VALUES ('ws-default')
-      `).run();
+      `,
+        )
+        .run();
 
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         INSERT INTO Projects (WorkspaceId, Id, Name, Color, IsActive, IsDefault)
         VALUES ('ws-default', 'proj-default', 'General', '#5F875F', 1, 1)
-      `).run();
+      `,
+        )
+        .run();
     }
   }
 
@@ -201,13 +222,14 @@ export class DatabaseService {
           LanguagePreference INTEGER NOT NULL DEFAULT 0,
           InterfaceScalePercent INTEGER NOT NULL DEFAULT 100,
           MonthViewPreference INTEGER NOT NULL DEFAULT 0,
+          HasCompletedSetup INTEGER NOT NULL DEFAULT 0,
           FOREIGN KEY (ActiveWorkspaceId) REFERENCES Workspaces(Id) ON DELETE RESTRICT
         );
 
         CREATE TABLE WorkspaceSettings (
           WorkspaceId TEXT PRIMARY KEY,
-          EmployeeName TEXT NOT NULL DEFAULT 'Agnes Larsson',
-          EmployerName TEXT NOT NULL DEFAULT 'Acme AB',
+          EmployeeName TEXT NOT NULL DEFAULT '',
+          EmployerName TEXT NOT NULL DEFAULT '',
           DefaultProject TEXT NOT NULL DEFAULT 'General',
           HourlyRate DECIMAL NOT NULL DEFAULT 250,
           SalaryType INTEGER NOT NULL DEFAULT 0,
@@ -276,25 +298,35 @@ export class DatabaseService {
       `);
 
       // 3. Create default workspace
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         INSERT INTO Workspaces (Id, Name, Color, WorkspaceType, WorkerName, EmployerName, CreatedAt, UpdatedAt)
-        VALUES ('ws-default', 'Main Workspace', '#5F875F', 0, 'Agnes Larsson', 'Acme AB', ?, ?)
-      `).run(now, now);
+        VALUES ('ws-default', 'Main Workspace', '#5F875F', 0, '', '', ?, ?)
+      `,
+        )
+        .run(now, now);
 
       // 4. Copy old settings into AppPreferences & WorkspaceSettings
       const oldSettings = this.db.prepare('SELECT * FROM Old_Settings WHERE Id = 1').get() as any;
       if (oldSettings) {
-        this.db.prepare(`
-          INSERT INTO AppPreferences (Id, ActiveWorkspaceId, ThemePreference, LanguagePreference, InterfaceScalePercent, MonthViewPreference)
-          VALUES (1, 'ws-default', ?, ?, ?, ?)
-        `).run(
-          oldSettings.ThemePreference || 0,
-          oldSettings.LanguagePreference || 0,
-          oldSettings.InterfaceScalePercent || 100,
-          oldSettings.MonthViewPreference || 0
-        );
+        this.db
+          .prepare(
+            `
+          INSERT INTO AppPreferences (Id, ActiveWorkspaceId, ThemePreference, LanguagePreference, InterfaceScalePercent, MonthViewPreference, HasCompletedSetup)
+          VALUES (1, 'ws-default', ?, ?, ?, ?, 1)
+        `,
+          )
+          .run(
+            oldSettings.ThemePreference || 0,
+            oldSettings.LanguagePreference || 0,
+            oldSettings.InterfaceScalePercent || 100,
+            oldSettings.MonthViewPreference || 0,
+          );
 
-        this.db.prepare(`
+        this.db
+          .prepare(
+            `
           INSERT INTO WorkspaceSettings (
             WorkspaceId, EmployeeName, EmployerName, DefaultProject, HourlyRate,
             SalaryType, MonthlySalary, EmploymentPercent, ExpectedHoursPerWorkday,
@@ -312,35 +344,37 @@ export class DatabaseService {
             ?, ?, ?,
             ?, ?, ?
           )
-        `).run(
-          oldSettings.EmployeeName || 'Agnes Larsson',
-          oldSettings.EmployerName || 'Acme AB',
-          oldSettings.DefaultProject || 'General',
-          oldSettings.HourlyRate || 250,
-          oldSettings.SalaryType || 0,
-          oldSettings.MonthlySalary || 40000,
-          oldSettings.EmploymentPercent || 100,
-          oldSettings.ExpectedHoursPerWorkday || 8,
-          oldSettings.ExpectedWorkingWeekdays || '1,2,3,4,5',
-          oldSettings.ExcludePublicHolidays !== undefined ? oldSettings.ExcludePublicHolidays : 1,
-          oldSettings.DefaultStartTime || '08:00',
-          oldSettings.DefaultEndTime || '16:30',
-          oldSettings.DefaultLunchMinutes || 30,
-          oldSettings.TaxMode || 1,
-          oldSettings.TaxYear || 2026,
-          oldSettings.TaxTableNumber || 30,
-          oldSettings.TaxColumn || 1,
-          oldSettings.ManualTaxValue,
-          oldSettings.OpeningBalanceMinutes || 0,
-          oldSettings.CurrencyPreference || 0,
-          oldSettings.ExportLanguagePreference || 2,
-          oldSettings.OvertimeCompensationMode || 0,
-          oldSettings.OvertimePremiumPercent || 50,
-          oldSettings.OvertimeDailyThresholdHours || 8,
-          oldSettings.OvertimeThresholdMode || 0,
-          oldSettings.OvertimeDefaultRateType || 0,
-          oldSettings.OvertimeRateBandsJson || '[]'
-        );
+        `,
+          )
+          .run(
+            oldSettings.EmployeeName || '',
+            oldSettings.EmployerName || '',
+            oldSettings.DefaultProject || 'General',
+            oldSettings.HourlyRate || 250,
+            oldSettings.SalaryType || 0,
+            oldSettings.MonthlySalary || 40000,
+            oldSettings.EmploymentPercent || 100,
+            oldSettings.ExpectedHoursPerWorkday || 8,
+            oldSettings.ExpectedWorkingWeekdays || '1,2,3,4,5',
+            oldSettings.ExcludePublicHolidays !== undefined ? oldSettings.ExcludePublicHolidays : 1,
+            oldSettings.DefaultStartTime || '08:00',
+            oldSettings.DefaultEndTime || '16:30',
+            oldSettings.DefaultLunchMinutes || 30,
+            oldSettings.TaxMode || 1,
+            oldSettings.TaxYear || 2026,
+            oldSettings.TaxTableNumber || 30,
+            oldSettings.TaxColumn || 1,
+            oldSettings.ManualTaxValue,
+            oldSettings.OpeningBalanceMinutes || 0,
+            oldSettings.CurrencyPreference || 0,
+            oldSettings.ExportLanguagePreference || 2,
+            oldSettings.OvertimeCompensationMode || 0,
+            oldSettings.OvertimePremiumPercent || 50,
+            oldSettings.OvertimeDailyThresholdHours || 8,
+            oldSettings.OvertimeThresholdMode || 0,
+            oldSettings.OvertimeDefaultRateType || 0,
+            oldSettings.OvertimeRateBandsJson || '[]',
+          );
       }
 
       // 5. Copy WorkEntries
@@ -379,7 +413,7 @@ export class DatabaseService {
 
   private ensureWorkspaceIdentitySchema(): void {
     const columns = this.db.pragma('table_info(Workspaces)') as Array<{ name: string }>;
-    const names = new Set(columns.map(column => column.name));
+    const names = new Set(columns.map((column) => column.name));
 
     if (!names.has('WorkspaceType')) {
       this.db.exec('ALTER TABLE Workspaces ADD COLUMN WorkspaceType INTEGER NOT NULL DEFAULT 0');
@@ -394,12 +428,21 @@ export class DatabaseService {
         )
       `);
     }
+
+    const preferenceColumns = this.db.pragma('table_info(AppPreferences)') as Array<{
+      name: string;
+    }>;
+    if (!preferenceColumns.some((column) => column.name === 'HasCompletedSetup')) {
+      this.db.exec(
+        'ALTER TABLE AppPreferences ADD COLUMN HasCompletedSetup INTEGER NOT NULL DEFAULT 1',
+      );
+    }
   }
 
   // --- Workspaces ---
   public getWorkspaces(): any[] {
     const rows = this.db.prepare('SELECT * FROM Workspaces ORDER BY CreatedAt ASC').all() as any[];
-    return rows.map(r => ({
+    return rows.map((r) => ({
       id: r.Id,
       name: r.Name,
       color: r.Color,
@@ -407,13 +450,15 @@ export class DatabaseService {
       workerName: r.WorkerName || undefined,
       organizationName: r.EmployerName || undefined,
       createdAt: r.CreatedAt,
-      updatedAt: r.UpdatedAt
+      updatedAt: r.UpdatedAt,
     }));
   }
 
   public saveWorkspace(ws: any): void {
     const now = new Date().toISOString();
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO Workspaces (Id, Name, Color, WorkspaceType, WorkerName, EmployerName, CreatedAt, UpdatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(Id) DO UPDATE SET
@@ -423,29 +468,39 @@ export class DatabaseService {
         WorkerName = excluded.WorkerName,
         EmployerName = excluded.EmployerName,
         UpdatedAt = excluded.UpdatedAt
-    `).run(
-      ws.id,
-      ws.name,
-      ws.color || '#5F875F',
-      ws.type ?? 0,
-      ws.workerName || '',
-      ws.organizationName || '',
-      ws.createdAt || now,
-      now
-    );
+    `,
+      )
+      .run(
+        ws.id,
+        ws.name,
+        ws.color || '#5F875F',
+        ws.type ?? 0,
+        ws.workerName || '',
+        ws.organizationName || '',
+        ws.createdAt || now,
+        now,
+      );
 
     // Ensure WorkspaceSettings exist
-    const settingsExist = this.db.prepare('SELECT WorkspaceId FROM WorkspaceSettings WHERE WorkspaceId = ?').get(ws.id);
+    const settingsExist = this.db
+      .prepare('SELECT WorkspaceId FROM WorkspaceSettings WHERE WorkspaceId = ?')
+      .get(ws.id);
     if (!settingsExist) {
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         INSERT INTO WorkspaceSettings (WorkspaceId, EmployeeName, EmployerName)
         VALUES (?, ?, ?)
-      `).run(ws.id, ws.workerName || '', ws.organizationName || '');
+      `,
+        )
+        .run(ws.id, ws.workerName || '', ws.organizationName || '');
     }
   }
 
   public deleteWorkspace(id: string): void {
-    const count = (this.db.prepare('SELECT COUNT(*) as cnt FROM Workspaces').get() as { cnt: number }).cnt;
+    const count = (
+      this.db.prepare('SELECT COUNT(*) as cnt FROM Workspaces').get() as { cnt: number }
+    ).cnt;
     if (count <= 1) {
       throw new Error('Cannot delete the last remaining workspace');
     }
@@ -461,7 +516,8 @@ export class DatabaseService {
         themePreference: 0,
         languagePreference: 0,
         interfaceScalePercent: 100,
-        monthViewPreference: 0
+        monthViewPreference: 0,
+        hasCompletedSetup: false,
       };
     }
 
@@ -470,35 +526,46 @@ export class DatabaseService {
       themePreference: row.ThemePreference,
       languagePreference: row.LanguagePreference,
       interfaceScalePercent: row.InterfaceScalePercent,
-      monthViewPreference: row.MonthViewPreference
+      monthViewPreference: row.MonthViewPreference,
+      hasCompletedSetup: Boolean(row.HasCompletedSetup),
     };
   }
 
   public saveAppPreferences(prefs: any): void {
-    this.db.prepare(`
-      INSERT INTO AppPreferences (Id, ActiveWorkspaceId, ThemePreference, LanguagePreference, InterfaceScalePercent, MonthViewPreference)
-      VALUES (1, ?, ?, ?, ?, ?)
+    this.db
+      .prepare(
+        `
+      INSERT INTO AppPreferences (Id, ActiveWorkspaceId, ThemePreference, LanguagePreference, InterfaceScalePercent, MonthViewPreference, HasCompletedSetup)
+      VALUES (1, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(Id) DO UPDATE SET
         ActiveWorkspaceId = excluded.ActiveWorkspaceId,
         ThemePreference = excluded.ThemePreference,
         LanguagePreference = excluded.LanguagePreference,
         InterfaceScalePercent = excluded.InterfaceScalePercent,
-        MonthViewPreference = excluded.MonthViewPreference
-    `).run(
-      prefs.activeWorkspaceId || 'ws-default',
-      prefs.themePreference || 0,
-      prefs.languagePreference || 0,
-      prefs.interfaceScalePercent || 100,
-      prefs.monthViewPreference || 0
-    );
+        MonthViewPreference = excluded.MonthViewPreference,
+        HasCompletedSetup = excluded.HasCompletedSetup
+    `,
+      )
+      .run(
+        prefs.activeWorkspaceId || 'ws-default',
+        prefs.themePreference || 0,
+        prefs.languagePreference || 0,
+        prefs.interfaceScalePercent || 100,
+        prefs.monthViewPreference || 0,
+        prefs.hasCompletedSetup ? 1 : 0,
+      );
   }
 
   // --- WorkspaceSettings ---
   public getSettings(workspaceId: string = 'ws-default'): any {
-    let row = this.db.prepare('SELECT * FROM WorkspaceSettings WHERE WorkspaceId = ?').get(workspaceId) as any;
+    let row = this.db
+      .prepare('SELECT * FROM WorkspaceSettings WHERE WorkspaceId = ?')
+      .get(workspaceId) as any;
     if (!row) {
       this.db.prepare('INSERT INTO WorkspaceSettings (WorkspaceId) VALUES (?)').run(workspaceId);
-      row = this.db.prepare('SELECT * FROM WorkspaceSettings WHERE WorkspaceId = ?').get(workspaceId) as any;
+      row = this.db
+        .prepare('SELECT * FROM WorkspaceSettings WHERE WorkspaceId = ?')
+        .get(workspaceId) as any;
     }
 
     return {
@@ -510,12 +577,12 @@ export class DatabaseService {
         type: row.SalaryType,
         hourlyRate: Number(row.HourlyRate),
         monthlySalary: Number(row.MonthlySalary),
-        employmentPercent: Number(row.EmploymentPercent)
+        employmentPercent: Number(row.EmploymentPercent),
       },
       expectedHours: {
         hoursPerWorkday: Number(row.ExpectedHoursPerWorkday),
         workingWeekdays: row.ExpectedWorkingWeekdays.split(',').map(Number),
-        excludePublicHolidays: Boolean(row.ExcludePublicHolidays)
+        excludePublicHolidays: Boolean(row.ExcludePublicHolidays),
       },
       defaultStartTime: row.DefaultStartTime,
       defaultEndTime: row.DefaultEndTime,
@@ -525,10 +592,11 @@ export class DatabaseService {
         taxYear: row.TaxYear,
         tableNumber: row.TaxTableNumber,
         column: row.TaxColumn,
-        manualMonthlyDeduction: row.ManualTaxValue !== null ? Number(row.ManualTaxValue) : null
+        manualMonthlyDeduction: row.ManualTaxValue !== null ? Number(row.ManualTaxValue) : null,
       },
       openingBalanceMinutes: row.OpeningBalanceMinutes,
-      currencyPreference: ['SEK', 'EUR', 'USD', 'GBP', 'NOK', 'DKK'][row.CurrencyPreference] || 'SEK',
+      currencyPreference:
+        ['SEK', 'EUR', 'USD', 'GBP', 'NOK', 'DKK'][row.CurrencyPreference] || 'SEK',
       exportLanguagePreference: row.ExportLanguagePreference,
       overtimeCompensation: {
         mode: row.OvertimeCompensationMode,
@@ -536,16 +604,20 @@ export class DatabaseService {
         defaultRateValue: Number(row.OvertimePremiumPercent),
         dailyThresholdHours: Number(row.OvertimeDailyThresholdHours),
         thresholdMode: row.OvertimeThresholdMode,
-        rateBands: JSON.parse(row.OvertimeRateBandsJson || '[]')
-      }
+        rateBands: JSON.parse(row.OvertimeRateBandsJson || '[]'),
+      },
     };
   }
 
   public saveSettings(settings: any, workspaceId: string = 'ws-default'): void {
-    const currencyIdx = ['SEK', 'EUR', 'USD', 'GBP', 'NOK', 'DKK'].indexOf(settings.currencyPreference);
+    const currencyIdx = ['SEK', 'EUR', 'USD', 'GBP', 'NOK', 'DKK'].indexOf(
+      settings.currencyPreference,
+    );
     const curr = currencyIdx >= 0 ? currencyIdx : 0;
 
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO WorkspaceSettings (
         WorkspaceId, EmployeeName, EmployerName, DefaultProject, HourlyRate, SalaryType,
         MonthlySalary, EmploymentPercent, ExpectedHoursPerWorkday, ExpectedWorkingWeekdays,
@@ -591,44 +663,48 @@ export class DatabaseService {
         OvertimeThresholdMode = excluded.OvertimeThresholdMode,
         OvertimeDefaultRateType = excluded.OvertimeDefaultRateType,
         OvertimeRateBandsJson = excluded.OvertimeRateBandsJson
-    `).run(
-      workspaceId,
-      settings.employeeName || '',
-      settings.employerName || '',
-      settings.defaultProject || '',
-      settings.salary?.hourlyRate || 0,
-      settings.salary?.type || 0,
-      settings.salary?.monthlySalary || 0,
-      settings.salary?.employmentPercent || 100,
-      settings.expectedHours?.hoursPerWorkday || 8,
-      (settings.expectedHours?.workingWeekdays || [1, 2, 3, 4, 5]).join(','),
-      settings.expectedHours?.excludePublicHolidays ? 1 : 0,
-      settings.defaultStartTime || '08:00',
-      settings.defaultEndTime || '16:30',
-      settings.defaultLunchMinutes ?? 30,
-      settings.taxSettings?.mode || 0,
-      settings.taxSettings?.taxYear || 2026,
-      settings.taxSettings?.tableNumber || 30,
-      settings.taxSettings?.column || 1,
-      settings.taxSettings?.manualMonthlyDeduction,
-      settings.openingBalanceMinutes || 0,
-      curr,
-      settings.exportLanguagePreference ?? 2,
-      settings.overtimeCompensation?.mode || 0,
-      settings.overtimeCompensation?.defaultRateValue || 50,
-      settings.overtimeCompensation?.dailyThresholdHours || 8,
-      settings.overtimeCompensation?.thresholdMode || 0,
-      settings.overtimeCompensation?.defaultRateType || 0,
-      JSON.stringify(settings.overtimeCompensation?.rateBands || [])
-    );
+    `,
+      )
+      .run(
+        workspaceId,
+        settings.employeeName || '',
+        settings.employerName || '',
+        settings.defaultProject || '',
+        settings.salary?.hourlyRate || 0,
+        settings.salary?.type || 0,
+        settings.salary?.monthlySalary || 0,
+        settings.salary?.employmentPercent || 100,
+        settings.expectedHours?.hoursPerWorkday || 8,
+        (settings.expectedHours?.workingWeekdays || [1, 2, 3, 4, 5]).join(','),
+        settings.expectedHours?.excludePublicHolidays ? 1 : 0,
+        settings.defaultStartTime || '08:00',
+        settings.defaultEndTime || '16:30',
+        settings.defaultLunchMinutes ?? 30,
+        settings.taxSettings?.mode || 0,
+        settings.taxSettings?.taxYear || 2026,
+        settings.taxSettings?.tableNumber || 30,
+        settings.taxSettings?.column || 1,
+        settings.taxSettings?.manualMonthlyDeduction,
+        settings.openingBalanceMinutes || 0,
+        curr,
+        settings.exportLanguagePreference ?? 2,
+        settings.overtimeCompensation?.mode || 0,
+        settings.overtimeCompensation?.defaultRateValue || 50,
+        settings.overtimeCompensation?.dailyThresholdHours || 8,
+        settings.overtimeCompensation?.thresholdMode || 0,
+        settings.overtimeCompensation?.defaultRateType || 0,
+        JSON.stringify(settings.overtimeCompensation?.rateBands || []),
+      );
   }
 
   // --- WorkEntries ---
   public getWorkEntries(year: number, month: number, workspaceId: string = 'ws-default'): any[] {
     const monthPrefix = `${year}-${String(month).padStart(2, '0')}%`;
-    const rows = this.db.prepare('SELECT * FROM WorkEntries WHERE WorkspaceId = ? AND Date LIKE ? ORDER BY Date ASC').all(workspaceId, monthPrefix) as any[];
+    const rows = this.db
+      .prepare('SELECT * FROM WorkEntries WHERE WorkspaceId = ? AND Date LIKE ? ORDER BY Date ASC')
+      .all(workspaceId, monthPrefix) as any[];
 
-    return rows.map(r => ({
+    return rows.map((r) => ({
       workspaceId: r.WorkspaceId,
       date: r.Date,
       status: r.Status,
@@ -639,13 +715,15 @@ export class DatabaseService {
       notes: r.Notes,
       scheduledMinutesOverride: r.ScheduledMinutesOverride,
       createdAt: r.CreatedAt,
-      updatedAt: r.UpdatedAt
+      updatedAt: r.UpdatedAt,
     }));
   }
 
   public saveWorkEntry(entry: any, workspaceId: string = 'ws-default'): void {
     const now = new Date().toISOString();
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO WorkEntries (
         WorkspaceId, Date, Status, StartTime, EndTime, LunchMinutes, ProjectName,
         Notes, ScheduledMinutesOverride, CreatedAt, UpdatedAt
@@ -659,28 +737,39 @@ export class DatabaseService {
         Notes = excluded.Notes,
         ScheduledMinutesOverride = excluded.ScheduledMinutesOverride,
         UpdatedAt = excluded.UpdatedAt
-    `).run(
-      workspaceId,
-      entry.date,
-      entry.status,
-      entry.startTime,
-      entry.endTime,
-      entry.lunchMinutes || 0,
-      entry.projectName,
-      entry.notes,
-      entry.scheduledMinutesOverride,
-      now,
-      now
-    );
+    `,
+      )
+      .run(
+        workspaceId,
+        entry.date,
+        entry.status,
+        entry.startTime,
+        entry.endTime,
+        entry.lunchMinutes || 0,
+        entry.projectName,
+        entry.notes,
+        entry.scheduledMinutesOverride,
+        now,
+        now,
+      );
   }
 
   public deleteWorkEntry(date: string, workspaceId: string = 'ws-default'): void {
-    this.db.prepare('DELETE FROM WorkEntries WHERE WorkspaceId = ? AND Date = ?').run(workspaceId, date);
+    this.db
+      .prepare('DELETE FROM WorkEntries WHERE WorkspaceId = ? AND Date = ?')
+      .run(workspaceId, date);
   }
 
   // --- MonthRecords ---
-  public getMonthRecord(year: number, month: number, defaultOpeningBalance = 0, workspaceId: string = 'ws-default'): any {
-    const row = this.db.prepare('SELECT * FROM MonthRecords WHERE WorkspaceId = ? AND Year = ? AND Month = ?').get(workspaceId, year, month) as any;
+  public getMonthRecord(
+    year: number,
+    month: number,
+    defaultOpeningBalance = 0,
+    workspaceId: string = 'ws-default',
+  ): any {
+    const row = this.db
+      .prepare('SELECT * FROM MonthRecords WHERE WorkspaceId = ? AND Year = ? AND Month = ?')
+      .get(workspaceId, year, month) as any;
     if (!row) {
       return {
         workspaceId,
@@ -688,7 +777,7 @@ export class DatabaseService {
         month,
         openingBalanceMinutes: defaultOpeningBalance,
         expectedMinutesOverride: null,
-        openingBalanceWasEdited: false
+        openingBalanceWasEdited: false,
       };
     }
 
@@ -698,43 +787,108 @@ export class DatabaseService {
       month: row.Month,
       openingBalanceMinutes: row.OpeningBalanceMinutes,
       expectedMinutesOverride: row.ExpectedMinutesOverride,
-      openingBalanceWasEdited: Boolean(row.OpeningBalanceWasEdited)
+      openingBalanceWasEdited: Boolean(row.OpeningBalanceWasEdited),
     };
   }
 
   public saveMonthRecord(record: any, workspaceId: string = 'ws-default'): void {
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO MonthRecords (WorkspaceId, Year, Month, OpeningBalanceMinutes, ExpectedMinutesOverride, OpeningBalanceWasEdited)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(WorkspaceId, Year, Month) DO UPDATE SET
         OpeningBalanceMinutes = excluded.OpeningBalanceMinutes,
         ExpectedMinutesOverride = excluded.ExpectedMinutesOverride,
         OpeningBalanceWasEdited = excluded.OpeningBalanceWasEdited
-    `).run(
-      workspaceId,
-      record.year,
-      record.month,
-      record.openingBalanceMinutes || 0,
-      record.expectedMinutesOverride,
-      record.openingBalanceWasEdited ? 1 : 0
-    );
+    `,
+      )
+      .run(
+        workspaceId,
+        record.year,
+        record.month,
+        record.openingBalanceMinutes || 0,
+        record.expectedMinutesOverride,
+        record.openingBalanceWasEdited ? 1 : 0,
+      );
+  }
+
+  public getBalanceHistory(
+    beforeYear: number,
+    beforeMonth: number,
+    workspaceId: string = 'ws-default',
+  ): any[] {
+    const before = `${beforeYear}-${String(beforeMonth).padStart(2, '0')}`;
+    const records = this.db
+      .prepare(
+        `
+      SELECT * FROM MonthRecords
+      WHERE WorkspaceId = ? AND printf('%04d-%02d', Year, Month) < ?
+    `,
+      )
+      .all(workspaceId, before) as any[];
+    const entries = this.db
+      .prepare(
+        `
+      SELECT * FROM WorkEntries
+      WHERE WorkspaceId = ? AND substr(Date, 1, 7) < ? AND Status <> 0
+      ORDER BY Date
+    `,
+      )
+      .all(workspaceId, before) as any[];
+
+    const months = new Map<string, any>();
+    for (const row of records) {
+      const key = `${row.Year}-${String(row.Month).padStart(2, '0')}`;
+      months.set(key, {
+        year: row.Year,
+        month: row.Month,
+        record: this.getMonthRecord(row.Year, row.Month, 0, workspaceId),
+        entries: [],
+      });
+    }
+    for (const row of entries) {
+      const key = row.Date.slice(0, 7);
+      const [year, month] = key.split('-').map(Number);
+      const item = months.get(key) || { year, month, record: null, entries: [] };
+      item.entries.push({
+        workspaceId: row.WorkspaceId,
+        date: row.Date,
+        status: row.Status,
+        startTime: row.StartTime,
+        endTime: row.EndTime,
+        lunchMinutes: row.LunchMinutes,
+        projectName: row.ProjectName,
+        notes: row.Notes,
+        scheduledMinutesOverride: row.ScheduledMinutesOverride,
+      });
+      months.set(key, item);
+    }
+    return [...months.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([, value]) => value)
+      .slice(-120);
   }
 
   // --- Projects ---
   public getProjects(workspaceId: string = 'ws-default'): any[] {
-    const rows = this.db.prepare('SELECT * FROM Projects WHERE WorkspaceId = ? ORDER BY Name ASC').all(workspaceId) as any[];
-    return rows.map(r => ({
+    const rows = this.db
+      .prepare('SELECT * FROM Projects WHERE WorkspaceId = ? ORDER BY Name ASC')
+      .all(workspaceId) as any[];
+    return rows.map((r) => ({
       workspaceId: r.WorkspaceId,
       id: r.Id,
       name: r.Name,
       color: r.Color || '#5F875F',
       isActive: Boolean(r.IsActive),
-      isDefault: Boolean(r.IsDefault)
+      isDefault: Boolean(r.IsDefault),
     }));
   }
 
   public saveProject(project: any, workspaceId: string = 'ws-default'): void {
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO Projects (WorkspaceId, Id, Name, Color, IsActive, IsDefault)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(WorkspaceId, Id) DO UPDATE SET
@@ -742,14 +896,16 @@ export class DatabaseService {
         Color = excluded.Color,
         IsActive = excluded.IsActive,
         IsDefault = excluded.IsDefault
-    `).run(
-      workspaceId,
-      project.id,
-      project.name,
-      project.color || '#5F875F',
-      project.isActive ? 1 : 0,
-      project.isDefault ? 1 : 0
-    );
+    `,
+      )
+      .run(
+        workspaceId,
+        project.id,
+        project.name,
+        project.color || '#5F875F',
+        project.isActive ? 1 : 0,
+        project.isDefault ? 1 : 0,
+      );
   }
 
   public deleteProject(id: string, workspaceId: string = 'ws-default'): void {
@@ -826,11 +982,15 @@ export class DatabaseService {
       }
 
       const placeholders = REQUIRED_TABLES.map(() => '?').join(', ');
-      const rows = database.prepare(`
+      const rows = database
+        .prepare(
+          `
         SELECT name
         FROM sqlite_master
         WHERE type = 'table' AND name IN (${placeholders})
-      `).all(...REQUIRED_TABLES) as Array<{ name: string }>;
+      `,
+        )
+        .all(...REQUIRED_TABLES) as Array<{ name: string }>;
 
       if (rows.length !== REQUIRED_TABLES.length) {
         throw new Error('The selected file is not a Dagsverk database.');
@@ -846,8 +1006,9 @@ export class DatabaseService {
   }
 
   private pruneBackups(folder: string): void {
-    const backups = fs.readdirSync(folder)
-      .filter(file => file.startsWith('dagsverk-backup-') && file.endsWith('.db'))
+    const backups = fs
+      .readdirSync(folder)
+      .filter((file) => file.startsWith('dagsverk-backup-') && file.endsWith('.db'))
       .sort((left, right) => right.localeCompare(left));
 
     for (const expired of backups.slice(RETAINED_BACKUP_COUNT)) {
@@ -860,7 +1021,10 @@ export class DatabaseService {
     fs.mkdirSync(folder, { recursive: true });
     this.db.pragma('wal_checkpoint(TRUNCATE)');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    fs.copyFileSync(this.dbPath, path.join(folder, `dagsverk-backup-${timestamp}-before-migration.db`));
+    fs.copyFileSync(
+      this.dbPath,
+      path.join(folder, `dagsverk-backup-${timestamp}-before-migration.db`),
+    );
     this.pruneBackups(folder);
   }
 }

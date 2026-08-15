@@ -1,8 +1,25 @@
 <div class="workspaces-page-container">
-  <div class="page-header-block">
-    <div class="header-titles">
-      <p class="page-desc body-medium">Keep time, projects, and settings separate for each job or client.</p>
+  <div class="dialog-title-row">
+    <div>
+      <h2 class="dialog-title headline-small">Manage workspaces</h2>
+      <p class="dialog-desc body-medium">
+        Keep time, projects, and settings separate for each job or client.
+      </p>
     </div>
+    @if (dialogRef) {
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Close workspace manager"
+        (click)="dialogRef.close()"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+  </div>
+
+  <div class="page-header-block">
+    <div></div>
     <button
       mat-flat-button
       color="primary"
@@ -28,13 +45,16 @@
               [ngModel]="newWorkspaceName()"
               (ngModelChange)="newWorkspaceName.set($event)"
               placeholder="e.g. Main job"
-            >
+            />
             <mat-icon matPrefix class="field-icon">business</mat-icon>
           </mat-form-field>
 
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Workspace type</mat-label>
-            <mat-select [ngModel]="newWorkspaceType()" (ngModelChange)="newWorkspaceType.set($event)">
+            <mat-select
+              [ngModel]="newWorkspaceType()"
+              (ngModelChange)="newWorkspaceType.set($event)"
+            >
               <mat-option [value]="WorkspaceType.Employment">Employment</mat-option>
               <mat-option [value]="WorkspaceType.Contract">Contract or client</mat-option>
               <mat-option [value]="WorkspaceType.Personal">Personal</mat-option>
@@ -46,15 +66,27 @@
         <div class="form-grid-2">
           @if (newWorkspaceType() !== WorkspaceType.Personal) {
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>{{ newWorkspaceType() === WorkspaceType.Employment ? 'Organization' : 'Client' }}</mat-label>
-              <input matInput [ngModel]="newOrganizationName()" (ngModelChange)="newOrganizationName.set($event)" placeholder="e.g. Acme AB">
+              <mat-label>{{
+                newWorkspaceType() === WorkspaceType.Employment ? 'Organization' : 'Client'
+              }}</mat-label>
+              <input
+                matInput
+                [ngModel]="newOrganizationName()"
+                (ngModelChange)="newOrganizationName.set($event)"
+                placeholder="e.g. Acme AB"
+              />
               <mat-icon matPrefix class="field-icon">domain</mat-icon>
             </mat-form-field>
           }
 
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Worker name</mat-label>
-            <input matInput [ngModel]="newWorkerName()" (ngModelChange)="newWorkerName.set($event)" placeholder="Name used in reports">
+            <input
+              matInput
+              [ngModel]="newWorkerName()"
+              (ngModelChange)="newWorkerName.set($event)"
+              placeholder="Name used in reports"
+            />
             <mat-icon matPrefix class="field-icon">badge</mat-icon>
           </mat-form-field>
         </div>
@@ -98,7 +130,9 @@
   <!-- WORKSPACES LIST (72px Rows) -->
   <mat-card appearance="outlined" class="m3-outlined-card list-card">
     <mat-card-content class="card-content">
-      <h2 class="card-title title-medium">Available workspaces ({{ state.workspaces().length }})</h2>
+      <h2 class="card-title title-medium">
+        Available workspaces ({{ state.workspaces().length }})
+      </h2>
 
       <div class="workspaces-list">
         @for (ws of state.workspaces(); track ws.id) {

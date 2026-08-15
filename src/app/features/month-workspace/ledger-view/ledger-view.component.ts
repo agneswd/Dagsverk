@@ -9,6 +9,7 @@ import { AppStateService } from '../../../core/app-state.service';
 import { SwedishHolidayService } from '../../../core/swedish-holiday.service';
 import { MinuteMath, MonthlyCalculations } from '../../../core/monthly-calculations';
 import { WorkEntry, WorkEntryStatus } from '../../../core/models';
+import { LocalizationService } from '../../../core/localization.service';
 
 export interface LedgerRow {
   date: string;
@@ -38,14 +39,15 @@ export interface LedgerRow {
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
-    MatChipsModule
+    MatChipsModule,
   ],
   templateUrl: './ledger-view.component.html',
-  styleUrls: ['./ledger-view.component.scss']
+  styleUrls: ['./ledger-view.component.scss'],
 })
 export class LedgerViewComponent {
   public state = inject(AppStateService);
   private holidays = inject(SwedishHolidayService);
+  private localization = inject(LocalizationService);
 
   public readonly WorkEntryStatus = WorkEntryStatus;
   public displayedColumns: string[] = [
@@ -57,7 +59,7 @@ export class LedgerViewComponent {
     'overtime',
     'project',
     'notes',
-    'actions'
+    'actions',
   ];
 
   public rows = computed<LedgerRow[]>(() => {
@@ -81,7 +83,8 @@ export class LedgerViewComponent {
       const d = new Date(Date.UTC(y, m - 1, day));
       const dayOfWeek = d.getUTCDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const holidayName = this.holidays.getHolidayName(date);
+      const holiday = this.holidays.getHolidayName(date);
+      const holidayName = holiday ? this.localization.t(holiday) : null;
       const isScheduled = MonthlyCalculations.isScheduledWorkday(date, expected, this.holidays);
       const entry = entriesMap.get(date);
 
@@ -125,7 +128,7 @@ export class LedgerViewComponent {
         workedHours: worked,
         overtimeHours: ot,
         projectName: project,
-        notes
+        notes,
       });
     }
 
@@ -138,7 +141,11 @@ export class LedgerViewComponent {
 
   public formatAccessibleDate(row: LedgerRow): string {
     const d = new Date(`${row.date}T00:00:00`);
-    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    return d.toLocaleDateString(this.localization.language() === 'sv' ? 'sv-SE' : 'en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
   }
 
   public onRowClick(row: LedgerRow): void {
@@ -154,7 +161,7 @@ export class LedgerViewComponent {
 
   public getProjectColor(name: string | null): string {
     if (!name) return '#5F875F';
-    const p = this.state.projects().find(item => item.name.toLowerCase() === name.toLowerCase());
+    const p = this.state.projects().find((item) => item.name.toLowerCase() === name.toLowerCase());
     return p?.color || '#5F875F';
   }
 }
