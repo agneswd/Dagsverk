@@ -102,47 +102,6 @@
     letter-spacing: 0.8px;
     font-weight: 600;
   }
-
-  .color-swatches-grid {
-    display: flex;
-    gap: 8px;
-
-    .color-swatch-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #ffffff;
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 18%, transparent);
-      transition:
-        transform 0.15s ease,
-        box-shadow 0.15s ease;
-
-      &:hover {
-        transform: scale(1.06);
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--app-primary);
-        outline-offset: 2px;
-      }
-
-      &.selected {
-        border-color: var(--app-surface-container-lowest);
-        box-shadow: 0 0 0 2px var(--app-primary);
-      }
-
-      .swatch-check-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-      }
-    }
-  }
 }
 
 .form-actions {
@@ -241,31 +200,6 @@
       display: flex;
       align-items: center;
       gap: 8px;
-
-      .workspace-color-input {
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        border: 0;
-        border-radius: 50%;
-        background: transparent;
-        cursor: pointer;
-
-        &::-webkit-color-swatch-wrapper {
-          padding: 3px;
-        }
-
-        &::-webkit-color-swatch {
-          border: 0;
-          border-radius: 50%;
-          box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 18%, transparent);
-        }
-
-        &:focus-visible {
-          outline: 2px solid var(--app-primary);
-          outline-offset: 2px;
-        }
-      }
 
       .switch-btn {
         height: 36px;

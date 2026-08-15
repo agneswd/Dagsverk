@@ -9,23 +9,6 @@
   align-items: center;
 }
 
-.metric-button {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: inherit;
-  font: inherit;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    .metric-label {
-      color: var(--app-on-surface);
-    }
-  }
-}
-
 .metric-item {
   display: flex;
   align-items: center;

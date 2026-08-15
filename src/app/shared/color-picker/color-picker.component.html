@@ -1,0 +1,44 @@
+<button
+  mat-icon-button
+  type="button"
+  class="color-trigger"
+  [matMenuTriggerFor]="colorMenu"
+  [matTooltip]="label"
+  [attr.aria-label]="label"
+>
+  <span class="selected-color" [style.background-color]="color"></span>
+</button>
+
+<mat-menu #colorMenu="matMenu" class="m3-color-menu">
+  <div class="color-menu-content" (click)="$event.stopPropagation()">
+    <span class="menu-label label-small">COLOR</span>
+    <div class="color-grid" role="radiogroup" [attr.aria-label]="label">
+      @for (option of colors; track option) {
+        <button
+          type="button"
+          class="color-option"
+          [class.selected]="color.toUpperCase() === option"
+          [style.background-color]="option"
+          [attr.aria-label]="option"
+          [attr.aria-pressed]="color.toUpperCase() === option"
+          (click)="select(option)"
+        >
+          @if (color.toUpperCase() === option) {
+            <mat-icon>check</mat-icon>
+          }
+        </button>
+      }
+    </div>
+    <label class="hex-field">
+      <span class="label-small">CUSTOM HEX</span>
+      <input
+        matInput
+        maxlength="7"
+        [ngModel]="color"
+        (keyup.enter)="applyHex($any($event.target).value)"
+        (blur)="applyHex($any($event.target).value)"
+        aria-label="Custom hex color"
+      />
+    </label>
+  </div>
+</mat-menu>

@@ -1,0 +1,92 @@
+:host {
+  display: inline-flex;
+}
+
+.color-trigger {
+  width: 40px;
+  height: 40px;
+}
+
+.selected-color,
+.color-option {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 20%, transparent);
+}
+
+.selected-color {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+::ng-deep .m3-color-menu {
+  --mat-menu-container-shape: 16px;
+  min-width: 232px !important;
+
+  .color-menu-content {
+    padding: 16px;
+  }
+
+  .menu-label,
+  .hex-field span {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--app-on-surface-variant);
+    font-weight: 600;
+    letter-spacing: 0.8px;
+  }
+
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 32px);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .color-option {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: #ffffff;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--app-primary);
+      outline-offset: 2px;
+    }
+
+    &.selected {
+      box-shadow:
+        inset 0 0 0 2px var(--app-surface-container-highest),
+        0 0 0 2px var(--app-primary);
+    }
+
+    mat-icon {
+      width: 18px;
+      height: 18px;
+      font-size: 18px;
+    }
+  }
+
+  .hex-field input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    outline: 1px solid var(--app-outline);
+    background: var(--app-surface-container-high);
+    color: var(--app-on-surface);
+    font: inherit;
+    text-transform: uppercase;
+
+    &:focus {
+      outline: 2px solid var(--app-primary);
+    }
+  }
+}

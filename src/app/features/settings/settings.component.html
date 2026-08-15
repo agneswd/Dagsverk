@@ -49,6 +49,19 @@
                   <mat-option value="DKK">DKK (kr)</mat-option>
                 </mat-select>
               </mat-form-field>
+
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Starting time balance</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  step="0.25"
+                  [ngModel]="model.openingBalanceMinutes / 60"
+                  (ngModelChange)="model.openingBalanceMinutes = $event * 60"
+                  class="numeric"
+                />
+                <span matTextSuffix>hours</span>
+              </mat-form-field>
             </div>
           </mat-card-content>
         </mat-card>

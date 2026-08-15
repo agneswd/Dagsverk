@@ -13,11 +13,7 @@ import { firstValueFrom } from 'rxjs';
 import { AppStateService } from '../../core/app-state.service';
 import { Project } from '../../core/models';
 import { ConfirmDialogComponent } from '../../core/confirm-dialog.component';
-
-export interface ColorOption {
-  name: string;
-  hex: string;
-}
+import { ColorPickerComponent } from '../../shared/color-picker/color-picker.component';
 
 @Component({
   selector: 'app-projects',
@@ -33,6 +29,7 @@ export interface ColorOption {
     MatSlideToggleModule,
     MatTooltipModule,
     MatDialogModule,
+    ColorPickerComponent,
   ],
   templateUrl: './projects.component.html',
   styleUrls: ['./projects.component.scss'],
@@ -43,18 +40,6 @@ export class ProjectsComponent {
 
   public newProjectName = signal<string>('');
   public newProjectColor = signal<string>('#5F875F');
-
-  public availableColors: ColorOption[] = [
-    { name: 'Dagsverk green', hex: '#5F875F' },
-    { name: 'Blue', hex: '#0B57D0' },
-    { name: 'Teal', hex: '#00838F' },
-    { name: 'Green', hex: '#2E7D32' },
-    { name: 'Orange', hex: '#ED6C02' },
-    { name: 'Pink', hex: '#C2185B' },
-    { name: 'Purple', hex: '#7B1FA2' },
-    { name: 'Indigo', hex: '#5C6BC0' },
-    { name: 'Slate', hex: '#455A64' },
-  ];
 
   public async onAddProject(): Promise<void> {
     const name = this.newProjectName().trim();
@@ -78,6 +63,10 @@ export class ProjectsComponent {
       const updated = { ...p, isDefault: p.id === project.id };
       await this.state.saveProject(updated);
     }
+  }
+
+  public onProjectColorChange(project: Project, color: string): void {
+    void this.state.saveProject({ ...project, color });
   }
 
   public async onToggleActive(project: Project): Promise<void> {
