@@ -137,7 +137,7 @@
       <div class="workspaces-list">
         @for (ws of state.workspaces(); track ws.id) {
           <div class="ws-row" [class.is-active]="ws.id === state.activeWorkspaceId()">
-            <div class="ws-avatar" [style.background-color]="ws.color || '#5F875F'">
+            <div class="ws-avatar" [style.--workspace-color]="ws.color || '#5F875F'">
               <mat-icon class="avatar-icon">business</mat-icon>
             </div>
 
@@ -152,6 +152,15 @@
             </div>
 
             <div class="ws-actions">
+              <input
+                type="color"
+                class="workspace-color-input"
+                [value]="ws.color || '#5F875F'"
+                (change)="onWorkspaceColorChange(ws, $event)"
+                [attr.aria-label]="'Change ' + ws.name + ' color'"
+                matTooltip="Change workspace color"
+              />
+
               @if (ws.id !== state.activeWorkspaceId()) {
                 <button
                   mat-stroked-button

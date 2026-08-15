@@ -117,6 +117,7 @@ export class LocalizationService {
       [/^Archive (.+)$/, (match) => `Arkivera ${match[1]}`],
       [/^(.+) project color$/, (match) => `${this.t(match[1])} som projektfärg`],
       [/^Edit (.+)$/, (match) => `Redigera ${match[1]}`],
+      [/^Change (.+) color$/, (match) => `Ändra färg för ${match[1]}`],
       [
         /^Set the balance carried into (.+)\.$/,
         (match) => `Ange saldot som förs över till ${match[1]}.`,

@@ -192,7 +192,12 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #ffffff;
+      color: var(--app-on-surface);
+      background-color: color-mix(
+        in srgb,
+        var(--workspace-color) 42%,
+        var(--app-surface-container-high)
+      );
       flex-shrink: 0;
 
       .avatar-icon {
@@ -236,6 +241,31 @@
       display: flex;
       align-items: center;
       gap: 8px;
+
+      .workspace-color-input {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        cursor: pointer;
+
+        &::-webkit-color-swatch-wrapper {
+          padding: 3px;
+        }
+
+        &::-webkit-color-swatch {
+          border: 0;
+          border-radius: 50%;
+          box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 18%, transparent);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--app-primary);
+          outline-offset: 2px;
+        }
+      }
 
       .switch-btn {
         height: 36px;
