@@ -3,7 +3,6 @@ set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 rid="${1:-}"
-version="$(node -p "require('$repo_root/package.json').version")"
 
 case "$rid" in
   linux-x64)
@@ -29,6 +28,7 @@ case "$rid" in
 esac
 
 cd "$repo_root"
+version="$(node -p "require('./package.json').version")"
 npm ci
 npm run build:all
 npx electron-builder --dir "$builder_target"
