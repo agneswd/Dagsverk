@@ -155,16 +155,21 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
   height: 64px;
   min-height: 64px;
-  padding: 0 24px;
+  padding: 0 16px;
   background-color: var(--app-surface-container);
   border-top: 1px solid color-mix(in srgb, var(--app-outline-variant) 24%, transparent);
 
   .action-btn {
     height: 40px;
     border-radius: 20px;
-    padding: 0 20px;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
+
+  .save-btn {
+    min-width: 136px;
   }
 }
