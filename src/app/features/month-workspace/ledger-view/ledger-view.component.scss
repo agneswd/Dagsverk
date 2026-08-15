@@ -84,21 +84,22 @@
     text-align: left;
   }
 
-  &.is-today {
-    background-color: var(--app-primary-container);
-    color: var(--app-on-primary-container);
-
-    .day-name {
-      color: var(--app-on-primary-container);
-    }
-  }
-
   &.is-weekend {
     background-color: var(--app-surface-container-low);
     color: var(--app-on-surface-variant);
 
     .day-num {
       color: var(--app-on-surface-variant);
+    }
+  }
+
+  &.is-today {
+    background-color: var(--app-primary);
+    color: var(--app-on-primary);
+
+    .day-num,
+    .day-name {
+      color: var(--app-on-primary);
     }
   }
 }
