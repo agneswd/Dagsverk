@@ -1,7 +1,7 @@
 .settings-page-container {
   height: 100%;
   width: 100%;
-  padding: 32px 40px 64px;
+  padding: 24px 32px 48px;
   overflow-y: auto;
   max-width: 1088px;
   margin: 0 auto;
@@ -11,7 +11,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 
   .title-meta {
     .page-title {
@@ -22,7 +22,8 @@
     .page-desc {
       color: var(--app-on-surface-variant);
       margin: 0;
-      font-size: 15px;
+      font-size: 14px;
+      line-height: 20px;
     }
   }
 
@@ -36,22 +37,28 @@
       font-size: 18px;
       width: 18px;
       height: 18px;
-      margin-right: 6px;
+      margin-right: 8px;
     }
   }
 }
 
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .m3-settings-tabs {
   .tab-body {
-    padding: 20px 0;
+    padding: 24px 0;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
   }
 }
 
 .m3-outlined-card {
-  background-color: var(--app-surface-container-lowest);
+  background-color: var(--app-surface-container-low);
   border: none;
   border-radius: 16px;
   box-shadow: none !important;
@@ -70,7 +77,12 @@
 
   .card-desc {
     color: var(--app-on-surface-variant);
-    margin: -8px 0 8px;
+    margin: 4px 0 0;
+  }
+
+  .card-content > .card-title + .card-desc {
+    margin-top: -12px;
+    margin-bottom: 8px;
   }
 }
 
@@ -103,7 +115,8 @@
     gap: 8px;
 
     .weekday-chip {
-      font-size: 13px;
+      font-size: 14px;
+      line-height: 20px;
       height: 36px;
     }
   }
@@ -111,10 +124,14 @@
 
 .field-icon {
   color: var(--app-on-surface-variant);
-  margin-right: 6px;
+  margin-right: 8px;
   font-size: 20px;
   width: 20px;
   height: 20px;
+}
+
+.tax-guide-link {
+  align-self: flex-start;
 }
 
 .card-header-action {
@@ -128,13 +145,19 @@
   }
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .rate-bands-accordion {
   display: flex;
   flex-direction: column;
   gap: 8px;
 
   .m3-expansion-card {
-    border: 1px solid var(--app-outline-variant);
+    border: none;
     border-radius: 8px !important;
     background-color: var(--app-surface-container-low);
     box-shadow: none !important;
@@ -165,12 +188,31 @@
   text-align: center;
 }
 
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.update-progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--app-surface-container-highest);
+
+  span {
+    display: block;
+    height: 100%;
+    background: var(--app-primary);
+  }
+}
+
 @media (max-width: 768px) {
   .settings-page-container {
     padding: 24px 20px 48px;
   }
 
-  .form-grid-2, .form-grid-3 {
+  .form-grid-2,
+  .form-grid-3 {
     grid-template-columns: 1fr;
   }
 }

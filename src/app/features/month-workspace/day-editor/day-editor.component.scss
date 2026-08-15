@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--app-surface-container-lowest);
+  background-color: var(--app-surface-container-low);
   color: var(--app-on-surface);
   box-sizing: border-box;
 }
@@ -14,7 +14,8 @@
   height: 64px;
   min-height: 64px;
   padding: 0 16px 0 24px;
-  border-bottom: 1px solid var(--app-outline-variant);
+  background-color: var(--app-surface-container);
+  border-bottom: 1px solid color-mix(in srgb, var(--app-outline-variant) 24%, transparent);
 
   .header-title-box {
     display: flex;
@@ -50,7 +51,7 @@
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 
   .form-section {
     display: flex;
@@ -73,7 +74,8 @@
     mat-button-toggle {
       flex: 1;
       border: none;
-      font-size: 13px;
+      font-size: 14px;
+      line-height: 20px;
 
       .status-toggle-icon {
         font-size: 16px;
@@ -91,12 +93,14 @@
     }
   }
 
-  .presets-chips, .lunch-chips {
+  .presets-chips,
+  .lunch-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
 
-    .preset-chip, .lunch-chip {
+    .preset-chip,
+    .lunch-chip {
       font-size: 12px;
       height: 32px;
     }
@@ -120,7 +124,7 @@
 
   .field-icon {
     color: var(--app-on-surface-variant);
-    margin-right: 6px;
+    margin-right: 8px;
     font-size: 20px;
     width: 20px;
     height: 20px;
@@ -155,8 +159,8 @@
   height: 64px;
   min-height: 64px;
   padding: 0 24px;
-  background-color: var(--app-surface-container-lowest);
-  border-top: 1px solid var(--app-outline-variant);
+  background-color: var(--app-surface-container);
+  border-top: 1px solid color-mix(in srgb, var(--app-outline-variant) 24%, transparent);
 
   .action-btn {
     height: 40px;
