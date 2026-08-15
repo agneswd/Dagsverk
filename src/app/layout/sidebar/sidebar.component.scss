@@ -114,6 +114,21 @@
       }
     }
   }
+
+  .sidebar-footer {
+    align-items: center;
+    padding: 0 0 12px;
+  }
+
+  .update-status-btn {
+    width: 56px;
+    padding-inline: 0;
+    justify-content: center;
+
+    .update-label {
+      display: none;
+    }
+  }
 }
 
 // 56px Workspace Switcher
@@ -246,10 +261,80 @@
         color: var(--app-on-secondary-container);
       }
     }
+  }
+}
 
-    &:last-child {
-      margin-top: auto;
-      margin-bottom: 12px;
-    }
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 12px 12px;
+}
+
+.footer-nav-list {
+  flex: 0;
+  width: 100%;
+  padding: 0;
+}
+
+.update-status-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 24px;
+  background: var(--app-secondary-container);
+  color: var(--app-on-secondary-container);
+  cursor: pointer;
+  text-align: left;
+
+  mat-icon {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    font-size: 22px;
+  }
+
+  .update-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &:hover {
+    background: color-mix(
+      in srgb,
+      var(--app-on-secondary-container) 8%,
+      var(--app-secondary-container)
+    );
+  }
+
+  &.is-error {
+    background: var(--app-error-container);
+    color: var(--app-on-error-container);
+  }
+}
+
+.update-progress-track {
+  position: absolute;
+  right: 12px;
+  bottom: 6px;
+  left: 12px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: currentColor;
   }
 }

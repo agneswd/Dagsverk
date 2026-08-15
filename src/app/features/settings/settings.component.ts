@@ -1,4 +1,4 @@
-import { Component, DestroyRef, effect, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -38,7 +38,6 @@ import {
   SalaryType,
   TaxMode,
   ThemePreference,
-  UpdateState,
 } from '../../core/models';
 import { ElectronBridgeService } from '../../core/electron-bridge.service';
 import { ConfirmDialogComponent } from '../../core/confirm-dialog.component';
@@ -75,7 +74,6 @@ export class SettingsComponent {
   private taxCalculator = inject(TaxCalculatorService);
   private snackBar = inject(MatSnackBar);
   public bridge = inject(ElectronBridgeService);
-  private destroyRef = inject(DestroyRef);
   private dialog = inject(MatDialog);
 
   public readonly SalaryType = SalaryType;
@@ -126,7 +124,7 @@ export class SettingsComponent {
   ];
 
   public testGrossSalary = signal<number>(35000);
-  public updateState = signal<UpdateState>({ status: 'idle', currentVersion: '' });
+  public updateState = this.bridge.updateState;
 
   public constructor() {
     effect(() => {
@@ -134,9 +132,6 @@ export class SettingsComponent {
       this.preferencesModel = { ...this.state.preferences() };
       this.captureSavedState();
     });
-    void this.bridge.getUpdateState().then((state) => this.updateState.set(state));
-    const unsubscribe = this.bridge.onUpdateState((state) => this.updateState.set(state));
-    this.destroyRef.onDestroy(unsubscribe);
   }
 
   public async onCheckForUpdates(): Promise<void> {

@@ -27,10 +27,7 @@
       [matMenuTriggerFor]="workspaceMenu"
       aria-label="Switch active workspace"
     >
-      <div
-        class="ws-avatar"
-        [style.--workspace-color]="state.activeWorkspace().color || '#5F875F'"
-      >
+      <div class="ws-avatar" [style.--workspace-color]="state.activeWorkspace().color || '#5F875F'">
         <mat-icon class="ws-avatar-icon">business</mat-icon>
       </div>
 
@@ -92,4 +89,42 @@
       </a>
     }
   </mat-nav-list>
+
+  <div class="sidebar-footer">
+    @if (showUpdateStatus) {
+      <button
+        type="button"
+        class="update-status-btn"
+        [class.is-ready]="updates.updateState().status === 'ready'"
+        [class.is-error]="updates.updateState().status === 'error'"
+        (click)="onUpdateAction()"
+        [matTooltip]="collapsed ? updateLabel : ''"
+        [attr.aria-label]="updateLabel"
+      >
+        <mat-icon>{{ updateIcon }}</mat-icon>
+        <span class="update-label label-medium">{{ updateLabel }}</span>
+        @if (updates.updateState().status === 'downloading') {
+          <span class="update-progress-track" aria-hidden="true">
+            <span [style.width.%]="updates.updateState().progress || 0"></span>
+          </span>
+        }
+      </button>
+    }
+
+    <mat-nav-list class="m3-nav-list footer-nav-list">
+      <a
+        [routerLink]="settingsItem.route"
+        routerLinkActive="m3-nav-active"
+        #settingsRla="routerLinkActive"
+        class="m3-nav-item"
+      >
+        <span class="nav-icon-indicator">
+          <mat-icon class="nav-icon" [class.filled]="settingsRla.isActive">{{
+            settingsItem.icon
+          }}</mat-icon>
+        </span>
+        <span class="nav-title label-large">{{ settingsItem.label }}</span>
+      </a>
+    </mat-nav-list>
+  </div>
 </aside>

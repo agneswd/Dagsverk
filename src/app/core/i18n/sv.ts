@@ -20,8 +20,7 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Paste copied month?': 'Klistra in kopierad månad?',
   'Paste entries': 'Klistra in poster',
   'Reset this month?': 'Återställ den här månaden?',
-  'All scheduled workdays already have entries.':
-    'Alla schemalagda arbetsdagar har redan poster.',
+  'All scheduled workdays already have entries.': 'Alla schemalagda arbetsdagar har redan poster.',
   'There are no copied entries to paste.': 'Det finns inga kopierade poster att klistra in.',
   'Add your default hours to {0} empty scheduled workdays? Existing entries will be kept.':
     'Lägg till dina standardtider på {0} tomma schemalagda arbetsdagar? Befintliga poster behålls.',
@@ -120,6 +119,10 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Application updates': 'Programuppdateringar',
   'Check for updates': 'Sök efter uppdateringar',
   'Restart now': 'Starta om nu',
+  'Restart to update': 'Starta om och uppdatera',
+  'Retry update': 'Försök uppdatera igen',
+  'Update available': 'Uppdatering tillgänglig',
+  'Dagsverk could not check for updates.': 'Dagsverk kunde inte söka efter uppdateringar.',
   'Open data folder': 'Öppna datamapp',
   'Database location': 'Databasplats',
   Close: 'Stäng',

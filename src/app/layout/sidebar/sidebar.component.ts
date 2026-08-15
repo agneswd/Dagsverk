@@ -12,6 +12,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { AppStateService } from '../../core/app-state.service';
 import { Workspace } from '../../core/models';
 import { WorkspacesComponent } from '../../features/workspaces/workspaces.component';
+import { ElectronBridgeService } from '../../core/electron-bridge.service';
 
 interface NavItem {
   route: string;
@@ -42,13 +43,50 @@ export class SidebarComponent {
   @Input() public collapsed = false;
   @Output() public collapsedChange = new EventEmitter<boolean>();
   public state = inject(AppStateService);
+  public updates = inject(ElectronBridgeService);
   private dialog = inject(MatDialog);
 
   public navItems: NavItem[] = [
     { route: '/timesheet', label: 'Timesheet', icon: 'schedule' },
     { route: '/projects', label: 'Projects', icon: 'folder' },
-    { route: '/settings', label: 'Settings', icon: 'settings' },
   ];
+  public settingsItem: NavItem = { route: '/settings', label: 'Settings', icon: 'settings' };
+
+  public get showUpdateStatus(): boolean {
+    return ['available', 'downloading', 'ready', 'error'].includes(
+      this.updates.updateState().status,
+    );
+  }
+
+  public get updateIcon(): string {
+    switch (this.updates.updateState().status) {
+      case 'ready':
+        return 'check_circle';
+      case 'error':
+        return 'error';
+      default:
+        return 'download';
+    }
+  }
+
+  public get updateLabel(): string {
+    const update = this.updates.updateState();
+    switch (update.status) {
+      case 'ready':
+        return 'Restart to update';
+      case 'error':
+        return 'Retry update';
+      case 'downloading':
+        return `Downloading update ${update.progress || 0}%`;
+      default:
+        return 'Update available';
+    }
+  }
+
+  public onUpdateAction(): void {
+    if (this.updates.updateState().status === 'ready') this.updates.restartToUpdate();
+    else void this.updates.checkForUpdates();
+  }
 
   public onSelectWorkspace(ws: Workspace): void {
     this.state.switchWorkspace(ws.id);

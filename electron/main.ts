@@ -62,9 +62,7 @@ async function checkForUpdates(manual: boolean): Promise<void> {
   }
 
   try {
-    updateManager ??= new UpdateManager(
-      new GithubSource('https://github.com/agneswd/Dagsverk'),
-    );
+    updateManager ??= new UpdateManager(new GithubSource('https://github.com/agneswd/Dagsverk'));
     sendUpdateState({ status: 'checking', message: undefined, progress: undefined });
     pendingUpdate = await updateManager.checkForUpdatesAsync();
     if (!pendingUpdate) {
@@ -83,11 +81,11 @@ async function checkForUpdates(manual: boolean): Promise<void> {
   } catch (error) {
     log('Update error.', error);
     pendingUpdate = null;
-    sendUpdateState(
-      manual
-        ? { status: 'error', message: error instanceof Error ? error.message : String(error) }
-        : { status: 'idle', message: undefined },
-    );
+    sendUpdateState({
+      status: 'error',
+      message:
+        manual && error instanceof Error ? error.message : 'Dagsverk could not check for updates.',
+    });
   }
 }
 

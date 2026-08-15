@@ -118,6 +118,11 @@ export class LocalizationService {
       [/^(.+) project color$/, (match) => `${this.t(match[1])} som projektfärg`],
       [/^Edit (.+)$/, (match) => `Redigera ${match[1]}`],
       [/^Change (.+) color$/, (match) => `Ändra färg för ${match[1]}`],
+      [/^Downloading update (\d+)%$/, (match) => `Hämtar uppdatering ${match[1]} %`],
+      [
+        /^Dagsverk (.+) is ready to install\.$/,
+        (match) => `Dagsverk ${match[1]} är redo att installeras.`,
+      ],
       [
         /^Set the balance carried into (.+)\.$/,
         (match) => `Ange saldot som förs över till ${match[1]}.`,
