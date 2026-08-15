@@ -15,22 +15,33 @@
     "dev": "concurrently -k \"ng serve\" \"wait-on tcp:4200 && npm run build:electron && npm run electron:start\"",
     "build:all": "ng build && npm run build:electron",
     "dist": "npm run build:all && electron-builder",
+    "verify": "npm run build:all && npm test -- --watch=false && node dist-electron/test-services.js",
+    "package:linux": "bash scripts/package-linux-x64.sh",
+    "package:windows": "bash scripts/package-win-x64.sh",
     "visual:capture": "npx tsx scripts/capture-screens.ts"
   },
   "private": true,
   "build": {
     "appId": "dev.agneswd.dagsverk",
     "productName": "Dagsverk",
+    "executableName": "Dagsverk",
     "files": [
       "dist/dagsverk/**/*",
       "dist-electron/**/*",
       "package.json"
     ],
     "linux": {
+      "icon": "assets/brand/generated/dagsverk-app-icon.png",
       "target": [
-        "AppImage"
+        "dir"
       ],
       "category": "Office"
+    },
+    "win": {
+      "icon": "assets/brand/generated/dagsverk-app-icon.ico",
+      "target": [
+        "dir"
+      ]
     },
     "publish": {
       "provider": "github",
@@ -39,6 +50,17 @@
     }
   },
   "packageManager": "npm@12.0.2",
+  "allowScripts": {
+    "@parcel/watcher@2.6.0": true,
+    "better-sqlite3@13.0.3": true,
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.28.2": true,
+    "lmdb@3.5.6": true,
+    "msgpackr-extract@3.0.4": true
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "dependencies": {
     "@angular/animations": "^22.1.2",
     "@angular/cdk": "^22.1.2",

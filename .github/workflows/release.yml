@@ -1,0 +1,114 @@
+name: Publish release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --global npm@12.0.2
+      - shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          test "${GITHUB_REF_NAME}" = "v${version}"
+          test -f "docs/release-notes/${version}.md"
+      - run: npm ci
+      - run: npm run verify
+
+  package:
+    name: Package ${{ matrix.rid }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            channel: linux
+          - os: windows-latest
+            rid: win-x64
+            channel: win
+    env:
+      VPK_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - run: npm install --global npm@12.0.2
+      - shell: bash
+        run: scripts/package-${{ matrix.rid }}.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: velopack-${{ matrix.channel }}
+          path: artifacts/releases/${{ matrix.channel }}/*
+          if-no-files-found: error
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-installer-bundle
+          path: artifacts/extras/linux/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: package
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VPK_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/download-artifact@v8
+        with:
+          name: velopack-linux
+          path: release-assets/linux
+      - uses: actions/download-artifact@v8
+        with:
+          name: velopack-win
+          path: release-assets/win
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-installer-bundle
+          path: release-assets/linux-bundle
+      - shell: bash
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          release_name="Dagsverk ${version}"
+          dotnet dnx vpk --version 1.2.0 --yes -- --legacyConsole upload github --repoUrl "https://github.com/${GITHUB_REPOSITORY}" --channel linux --outputDir release-assets/linux --tag "$GITHUB_REF_NAME" --releaseName "$release_name"
+          dotnet dnx vpk --version 1.2.0 --yes -- --legacyConsole upload github --repoUrl "https://github.com/${GITHUB_REPOSITORY}" --channel win --outputDir release-assets/win --tag "$GITHUB_REF_NAME" --releaseName "$release_name" --merge
+
+          checksum_file="$RUNNER_TEMP/SHA256SUMS"
+          while IFS= read -r asset; do
+            sha256sum "$asset" | sed "s#  $asset#  $(basename "$asset")#"
+          done < <(find release-assets -type f \( -name '*.AppImage' -o -name '*Setup.exe' -o -name '*Portable.zip' -o -name '*.tar.gz' \) -print | sort) > "$checksum_file"
+
+          gh release upload "$GITHUB_REF_NAME" release-assets/linux-bundle/*.tar.gz "$checksum_file" --clobber
+          gh release edit "$GITHUB_REF_NAME" --notes-file "docs/release-notes/${version}.md" --draft=false --latest

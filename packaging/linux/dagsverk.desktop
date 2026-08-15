@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Dagsverk
+Comment=Track time, salary, and workspaces
+Exec=@EXECUTABLE@
+Icon=dagsverk
+Terminal=false
+Type=Application
+Categories=Office;Utility;
+StartupWMClass=Dagsverk
