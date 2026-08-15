@@ -10,6 +10,7 @@ export const routes: Routes = [
   { path: 'workspaces', redirectTo: 'timesheet' },
   { path: 'projects', component: ProjectsComponent },
   { path: 'settings', component: SettingsComponent },
-  { path: 'backups', component: BackupsComponent },
+  { path: 'settings/data-backups', component: BackupsComponent },
+  { path: 'backups', redirectTo: 'settings/data-backups' },
   { path: '**', redirectTo: 'timesheet' },
 ];

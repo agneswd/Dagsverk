@@ -201,15 +201,27 @@
   } @else {
     <!-- 2. ROUTE PAGE HEADERS (Workspaces, Projects, Settings, Database) -->
     <div class="toolbar-left">
+      @if (currentRoute().startsWith('/settings/data-backups')) {
+        <button
+          mat-icon-button
+          type="button"
+          class="subpage-back-btn"
+          (click)="onBackToSettings()"
+          aria-label="Back to settings"
+          matTooltip="Back to settings"
+        >
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+      }
       <h1 class="route-page-title title-large">
-        @if (currentRoute().startsWith('/workspaces')) {
+        @if (currentRoute().startsWith('/settings/data-backups')) {
+          Data & backups
+        } @else if (currentRoute().startsWith('/workspaces')) {
           Workspaces
         } @else if (currentRoute().startsWith('/projects')) {
           Projects
         } @else if (currentRoute().startsWith('/settings')) {
           Settings
-        } @else if (currentRoute().startsWith('/backups')) {
-          Data & backups
         }
       </h1>
     </div>
