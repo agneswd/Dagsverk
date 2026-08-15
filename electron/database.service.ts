@@ -135,7 +135,7 @@ export class DatabaseService {
       const now = new Date().toISOString();
       this.db.prepare(`
         INSERT INTO Workspaces (Id, Name, Color, EmployerName, CreatedAt, UpdatedAt)
-        VALUES ('ws-default', 'Main Workspace', '#0B57D0', 'Acme AB', ?, ?)
+        VALUES ('ws-default', 'Main Workspace', '#5F875F', 'Acme AB', ?, ?)
       `).run(now, now);
 
       this.db.prepare(`
@@ -150,7 +150,7 @@ export class DatabaseService {
 
       this.db.prepare(`
         INSERT INTO Projects (WorkspaceId, Id, Name, Color, IsActive, IsDefault)
-        VALUES ('ws-default', 'proj-default', 'General', '#0B57D0', 1, 1)
+        VALUES ('ws-default', 'proj-default', 'General', '#5F875F', 1, 1)
       `).run();
     }
   }
@@ -263,7 +263,7 @@ export class DatabaseService {
       // 3. Create default workspace
       this.db.prepare(`
         INSERT INTO Workspaces (Id, Name, Color, EmployerName, CreatedAt, UpdatedAt)
-        VALUES ('ws-default', 'Main Workspace', '#0B57D0', 'Acme AB', ?, ?)
+        VALUES ('ws-default', 'Main Workspace', '#5F875F', 'Acme AB', ?, ?)
       `).run(now, now);
 
       // 4. Copy old settings into AppPreferences & WorkspaceSettings
@@ -345,7 +345,7 @@ export class DatabaseService {
       // 7. Copy Projects
       this.db.exec(`
         INSERT INTO Projects (WorkspaceId, Id, Name, Color, IsActive, IsDefault)
-        SELECT 'ws-default', Id, Name, '#0B57D0', IsActive, IsDefault
+        SELECT 'ws-default', Id, Name, '#5F875F', IsActive, IsDefault
         FROM Old_Projects;
       `);
 
@@ -388,7 +388,7 @@ export class DatabaseService {
     `).run(
       ws.id,
       ws.name,
-      ws.color || '#0B57D0',
+      ws.color || '#5F875F',
       ws.employerName || '',
       ws.createdAt || now,
       now
@@ -687,7 +687,7 @@ export class DatabaseService {
       workspaceId: r.WorkspaceId,
       id: r.Id,
       name: r.Name,
-      color: r.Color || '#0B57D0',
+      color: r.Color || '#5F875F',
       isActive: Boolean(r.IsActive),
       isDefault: Boolean(r.IsDefault)
     }));
@@ -706,7 +706,7 @@ export class DatabaseService {
       workspaceId,
       project.id,
       project.name,
-      project.color || '#0B57D0',
+      project.color || '#5F875F',
       project.isActive ? 1 : 0,
       project.isDefault ? 1 : 0
     );

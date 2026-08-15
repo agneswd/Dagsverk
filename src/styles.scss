@@ -30,8 +30,9 @@
 $light-theme: mat.define-theme((
   color: (
     theme-type: light,
-    primary: mat.$azure-palette,
-    tertiary: mat.$blue-palette,
+    primary: mat.$green-palette,
+    tertiary: mat.$green-palette,
+    use-system-variables: true,
   ),
   typography: (
     plain-family: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -45,8 +46,9 @@ $light-theme: mat.define-theme((
 $dark-theme: mat.define-theme((
   color: (
     theme-type: dark,
-    primary: mat.$azure-palette,
-    tertiary: mat.$blue-palette,
+    primary: mat.$green-palette,
+    tertiary: mat.$green-palette,
+    use-system-variables: true,
   ),
   typography: (
     plain-family: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -58,25 +60,28 @@ $dark-theme: mat.define-theme((
 ));
 
 html {
+  @include mat.system-level-colors($light-theme);
+  @include mat.system-level-typography($light-theme);
   @include mat.all-component-themes($light-theme);
   color-scheme: light;
   height: 100%;
 }
 
 html.dark-theme, body.dark-theme {
+  @include mat.system-level-colors($dark-theme);
   @include mat.all-component-colors($dark-theme);
   color-scheme: dark;
 }
 
 // Light Theme Tokens (reading directly from Angular Material M3 tokens with semantic custom accents)
 :root {
-  --app-bg: #f8fafd;
-  --app-surface: #f8fafd;
+  --app-bg: #fcfdf6;
+  --app-surface: #fcfdf6;
   --app-surface-container-lowest: #ffffff;
-  --app-surface-container-low: #f1f4f9;
-  --app-surface-container: #e9eef6;
-  --app-surface-container-high: #e2e8f0;
-  --app-surface-container-highest: #d9e1ec;
+  --app-surface-container-low: #f6f7f0;
+  --app-surface-container: #f0f1ea;
+  --app-surface-container-high: #eaebe4;
+  --app-surface-container-highest: #e4e5de;
 
   --app-primary: #5f875f;
   --app-on-primary: #ffffff;
@@ -86,10 +91,10 @@ html.dark-theme, body.dark-theme {
   --app-secondary-container: #dce8d8;
   --app-on-secondary-container: #1b351d;
 
-  --app-on-surface: #1f1f1f;
-  --app-on-surface-variant: #5f6368;
-  --app-outline: #747775;
-  --app-outline-variant: #d9dde5;
+  --app-on-surface: #1a1c18;
+  --app-on-surface-variant: #44483f;
+  --app-outline: #74796d;
+  --app-outline-variant: #c4c8bb;
 
   // Semantic Alert Tokens (M3 doesn't bundle success/warning)
   --app-success: #137333;
@@ -107,13 +112,13 @@ html.dark-theme, body.dark-theme {
 
 // Dark Theme Tokens
 html.dark-theme, body.dark-theme {
-  --app-bg: #111318;
-  --app-surface: #181a20;
-  --app-surface-container-lowest: #1d2026;
-  --app-surface-container-low: #22252c;
-  --app-surface-container: #292c34;
-  --app-surface-container-high: #30343c;
-  --app-surface-container-highest: #383c45;
+  --app-bg: #121410;
+  --app-surface: #121410;
+  --app-surface-container-lowest: #0d0f0c;
+  --app-surface-container-low: #1a1c18;
+  --app-surface-container: #1e201c;
+  --app-surface-container-high: #282b26;
+  --app-surface-container-highest: #333630;
 
   --app-primary: #a7caa4;
   --app-on-primary: #17351b;
@@ -123,10 +128,10 @@ html.dark-theme, body.dark-theme {
   --app-secondary-container: #344d38;
   --app-on-secondary-container: #dce8d8;
 
-  --app-on-surface: #e3e7ee;
-  --app-on-surface-variant: #bdc3cc;
-  --app-outline: #8d939d;
-  --app-outline-variant: #41464f;
+  --app-on-surface: #e2e3dc;
+  --app-on-surface-variant: #c4c8bb;
+  --app-outline: #8e9287;
+  --app-outline-variant: #44483f;
 
   --app-success: #81C995;
   --app-success-container: #0F5223;

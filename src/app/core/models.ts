@@ -251,7 +251,7 @@ export interface ReportExportRequest {
 export const DEFAULT_WORKSPACE: Workspace = {
   id: 'ws-default',
   name: 'Main Workspace',
-  color: '#0B57D0',
+  color: '#5F875F',
   employerName: 'Acme AB',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString()

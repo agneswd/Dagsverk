@@ -34,10 +34,11 @@ export class WorkspacesComponent {
 
   public newWorkspaceName = signal<string>('');
   public newWorkspaceEmployer = signal<string>('');
-  public newWorkspaceColor = signal<string>('#0B57D0');
+  public newWorkspaceColor = signal<string>('#5F875F');
   public isAdding = signal<boolean>(false);
 
   public availableColors = [
+    '#5F875F', // Dagsverk green
     '#0B57D0', // Blue
     '#00838F', // Teal
     '#2E7D32', // Green

@@ -37,9 +37,10 @@ export class ProjectsComponent {
   public state = inject(AppStateService);
 
   public newProjectName = signal<string>('');
-  public newProjectColor = signal<string>('#0B57D0');
+  public newProjectColor = signal<string>('#5F875F');
 
   public availableColors: ColorOption[] = [
+    { name: 'Dagsverk green', hex: '#5F875F' },
     { name: 'Blue', hex: '#0B57D0' },
     { name: 'Teal', hex: '#00838F' },
     { name: 'Green', hex: '#2E7D32' },

@@ -183,8 +183,8 @@ export class CalendarViewComponent {
   }
 
   public getProjectColor(name: string | null): string {
-    if (!name) return '#0B57D0';
+    if (!name) return '#5F875F';
     const p = this.state.projects().find(item => item.name.toLowerCase() === name.toLowerCase());
-    return p?.color || '#0B57D0';
+    return p?.color || '#5F875F';
   }
 }
