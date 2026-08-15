@@ -362,11 +362,12 @@ export class AppStateService {
   }
 
   public async exportExcel(): Promise<void> {
+    const workspace = this.activeWorkspace();
     const req: ReportExportRequest = {
       year: this.currentYear(),
       month: this.currentMonth(),
-      employeeName: this.settings().employeeName || 'Employee',
-      employerName: this.settings().employerName || 'Employer',
+      employeeName: workspace.workerName || 'Worker',
+      employerName: workspace.organizationName || '',
       entries: this.entries(),
       summary: this.summary(),
       language: this.settings().exportLanguagePreference ?? 2,
@@ -375,7 +376,7 @@ export class AppStateService {
     };
 
     const monthStr = String(this.currentMonth()).padStart(2, '0');
-    const safeName = (this.settings().employeeName || 'report').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeName = (workspace.workerName || workspace.name || 'report').replace(/[^a-zA-Z0-9_-]/g, '_');
     const defaultFilename = `Dagsverk_${safeName}_${this.currentYear()}-${monthStr}.xlsx`;
 
     const res = await this.bridge.showSaveDialog({

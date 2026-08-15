@@ -31,6 +31,7 @@ export class DatabaseService {
 
     this.db = this.openDatabase();
     this.initSchema();
+    this.ensureWorkspaceIdentitySchema();
   }
 
   public getDatabasePath(): string {
@@ -55,6 +56,8 @@ export class DatabaseService {
           Id TEXT PRIMARY KEY,
           Name TEXT NOT NULL,
           Color TEXT NOT NULL,
+          WorkspaceType INTEGER NOT NULL DEFAULT 0,
+          WorkerName TEXT NOT NULL DEFAULT '',
           EmployerName TEXT NOT NULL DEFAULT '',
           CreatedAt TEXT NOT NULL,
           UpdatedAt TEXT NOT NULL
@@ -144,8 +147,8 @@ export class DatabaseService {
       // Seed initial default workspace & preferences
       const now = new Date().toISOString();
       this.db.prepare(`
-        INSERT INTO Workspaces (Id, Name, Color, EmployerName, CreatedAt, UpdatedAt)
-        VALUES ('ws-default', 'Main Workspace', '#5F875F', 'Acme AB', ?, ?)
+        INSERT INTO Workspaces (Id, Name, Color, WorkspaceType, WorkerName, EmployerName, CreatedAt, UpdatedAt)
+        VALUES ('ws-default', 'Main Workspace', '#5F875F', 0, 'Agnes Larsson', 'Acme AB', ?, ?)
       `).run(now, now);
 
       this.db.prepare(`
@@ -184,6 +187,8 @@ export class DatabaseService {
           Id TEXT PRIMARY KEY,
           Name TEXT NOT NULL,
           Color TEXT NOT NULL,
+          WorkspaceType INTEGER NOT NULL DEFAULT 0,
+          WorkerName TEXT NOT NULL DEFAULT '',
           EmployerName TEXT NOT NULL DEFAULT '',
           CreatedAt TEXT NOT NULL,
           UpdatedAt TEXT NOT NULL
@@ -272,8 +277,8 @@ export class DatabaseService {
 
       // 3. Create default workspace
       this.db.prepare(`
-        INSERT INTO Workspaces (Id, Name, Color, EmployerName, CreatedAt, UpdatedAt)
-        VALUES ('ws-default', 'Main Workspace', '#5F875F', 'Acme AB', ?, ?)
+        INSERT INTO Workspaces (Id, Name, Color, WorkspaceType, WorkerName, EmployerName, CreatedAt, UpdatedAt)
+        VALUES ('ws-default', 'Main Workspace', '#5F875F', 0, 'Agnes Larsson', 'Acme AB', ?, ?)
       `).run(now, now);
 
       // 4. Copy old settings into AppPreferences & WorkspaceSettings
@@ -372,6 +377,25 @@ export class DatabaseService {
     this.db.pragma('foreign_keys = ON');
   }
 
+  private ensureWorkspaceIdentitySchema(): void {
+    const columns = this.db.pragma('table_info(Workspaces)') as Array<{ name: string }>;
+    const names = new Set(columns.map(column => column.name));
+
+    if (!names.has('WorkspaceType')) {
+      this.db.exec('ALTER TABLE Workspaces ADD COLUMN WorkspaceType INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!names.has('WorkerName')) {
+      this.db.exec("ALTER TABLE Workspaces ADD COLUMN WorkerName TEXT NOT NULL DEFAULT ''");
+      this.db.exec(`
+        UPDATE Workspaces
+        SET WorkerName = COALESCE(
+          (SELECT EmployeeName FROM WorkspaceSettings WHERE WorkspaceId = Workspaces.Id),
+          ''
+        )
+      `);
+    }
+  }
+
   // --- Workspaces ---
   public getWorkspaces(): any[] {
     const rows = this.db.prepare('SELECT * FROM Workspaces ORDER BY CreatedAt ASC').all() as any[];
@@ -379,7 +403,9 @@ export class DatabaseService {
       id: r.Id,
       name: r.Name,
       color: r.Color,
-      employerName: r.EmployerName,
+      type: r.WorkspaceType,
+      workerName: r.WorkerName || undefined,
+      organizationName: r.EmployerName || undefined,
       createdAt: r.CreatedAt,
       updatedAt: r.UpdatedAt
     }));
@@ -388,18 +414,22 @@ export class DatabaseService {
   public saveWorkspace(ws: any): void {
     const now = new Date().toISOString();
     this.db.prepare(`
-      INSERT INTO Workspaces (Id, Name, Color, EmployerName, CreatedAt, UpdatedAt)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO Workspaces (Id, Name, Color, WorkspaceType, WorkerName, EmployerName, CreatedAt, UpdatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(Id) DO UPDATE SET
         Name = excluded.Name,
         Color = excluded.Color,
+        WorkspaceType = excluded.WorkspaceType,
+        WorkerName = excluded.WorkerName,
         EmployerName = excluded.EmployerName,
         UpdatedAt = excluded.UpdatedAt
     `).run(
       ws.id,
       ws.name,
       ws.color || '#5F875F',
-      ws.employerName || '',
+      ws.type ?? 0,
+      ws.workerName || '',
+      ws.organizationName || '',
       ws.createdAt || now,
       now
     );
@@ -408,9 +438,9 @@ export class DatabaseService {
     const settingsExist = this.db.prepare('SELECT WorkspaceId FROM WorkspaceSettings WHERE WorkspaceId = ?').get(ws.id);
     if (!settingsExist) {
       this.db.prepare(`
-        INSERT INTO WorkspaceSettings (WorkspaceId, EmployerName)
-        VALUES (?, ?)
-      `).run(ws.id, ws.employerName || '');
+        INSERT INTO WorkspaceSettings (WorkspaceId, EmployeeName, EmployerName)
+        VALUES (?, ?, ?)
+      `).run(ws.id, ws.workerName || '', ws.organizationName || '');
     }
   }
 

@@ -22,25 +22,40 @@
 
         <div class="form-grid-2">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Workspace Name</mat-label>
+            <mat-label>Workspace name</mat-label>
             <input
               matInput
               [ngModel]="newWorkspaceName()"
               (ngModelChange)="newWorkspaceName.set($event)"
-              placeholder="e.g. Acme Corp"
+              placeholder="e.g. Main job"
             >
             <mat-icon matPrefix class="field-icon">business</mat-icon>
           </mat-form-field>
 
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Employer / Company</mat-label>
-            <input
-              matInput
-              [ngModel]="newWorkspaceEmployer()"
-              (ngModelChange)="newWorkspaceEmployer.set($event)"
-              placeholder="e.g. Acme AB"
-            >
-            <mat-icon matPrefix class="field-icon">domain</mat-icon>
+            <mat-label>Workspace type</mat-label>
+            <mat-select [ngModel]="newWorkspaceType()" (ngModelChange)="newWorkspaceType.set($event)">
+              <mat-option [value]="WorkspaceType.Employment">Employment</mat-option>
+              <mat-option [value]="WorkspaceType.Contract">Contract or client</mat-option>
+              <mat-option [value]="WorkspaceType.Personal">Personal</mat-option>
+            </mat-select>
+            <mat-icon matPrefix class="field-icon">category</mat-icon>
+          </mat-form-field>
+        </div>
+
+        <div class="form-grid-2">
+          @if (newWorkspaceType() !== WorkspaceType.Personal) {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>{{ newWorkspaceType() === WorkspaceType.Employment ? 'Organization' : 'Client' }}</mat-label>
+              <input matInput [ngModel]="newOrganizationName()" (ngModelChange)="newOrganizationName.set($event)" placeholder="e.g. Acme AB">
+              <mat-icon matPrefix class="field-icon">domain</mat-icon>
+            </mat-form-field>
+          }
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Worker name</mat-label>
+            <input matInput [ngModel]="newWorkerName()" (ngModelChange)="newWorkerName.set($event)" placeholder="Name used in reports">
+            <mat-icon matPrefix class="field-icon">badge</mat-icon>
           </mat-form-field>
         </div>
 
@@ -99,7 +114,7 @@
                   <span class="active-badge label-small">Active</span>
                 }
               </div>
-              <span class="ws-subtitle body-small">{{ ws.employerName || 'No Employer Specified' }}</span>
+              <span class="ws-subtitle body-small">{{ workspaceSubtitle(ws) }}</span>
             </div>
 
             <div class="ws-actions">

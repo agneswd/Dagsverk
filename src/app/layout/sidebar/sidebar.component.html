@@ -25,7 +25,7 @@
 
       <div class="ws-info">
         <span class="ws-name title-small">{{ state.activeWorkspace().name }}</span>
-        <span class="ws-employer body-small">{{ state.activeWorkspace().employerName || 'Default Employer' }}</span>
+        <span class="ws-employer body-small">{{ state.activeWorkspace().organizationName || state.activeWorkspace().workerName || 'Personal workspace' }}</span>
       </div>
 
       <mat-icon class="ws-arrow">expand_more</mat-icon>

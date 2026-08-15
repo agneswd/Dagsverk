@@ -9,7 +9,8 @@ import {
   Project,
   ReportExportRequest,
   WorkEntry,
-  Workspace
+  Workspace,
+  WorkspaceType
 } from './models';
 
 declare global {
@@ -86,7 +87,13 @@ export class ElectronBridgeService {
       return list && list.length > 0 ? list : [DEFAULT_WORKSPACE];
     }
     const local = this.getItem('dagsverk_workspaces');
-    return local ? JSON.parse(local) : [DEFAULT_WORKSPACE];
+    if (!local) return [DEFAULT_WORKSPACE];
+    return (JSON.parse(local) as Array<Workspace & { employerName?: string }>).map(workspace => ({
+      ...workspace,
+      type: workspace.type ?? WorkspaceType.Employment,
+      organizationName: workspace.organizationName ?? workspace.employerName,
+      workerName: workspace.workerName ?? ''
+    }));
   }
 
   public async saveWorkspace(ws: Workspace): Promise<void> {

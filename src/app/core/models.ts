@@ -21,6 +21,12 @@ export enum LanguagePreference {
   Swedish = 2
 }
 
+export enum WorkspaceType {
+  Employment = 0,
+  Contract = 1,
+  Personal = 2
+}
+
 export type CurrencyPreference = 'SEK' | 'EUR' | 'USD' | 'GBP' | 'NOK' | 'DKK';
 
 export enum ExportLanguagePreference {
@@ -85,7 +91,9 @@ export interface Workspace {
   id: string;
   name: string;
   color: string;
-  employerName?: string;
+  type: WorkspaceType;
+  organizationName?: string;
+  workerName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -252,7 +260,9 @@ export const DEFAULT_WORKSPACE: Workspace = {
   id: 'ws-default',
   name: 'Main Workspace',
   color: '#5F875F',
-  employerName: 'Acme AB',
+  type: WorkspaceType.Employment,
+  organizationName: 'Acme AB',
+  workerName: 'Agnes Larsson',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString()
 };
