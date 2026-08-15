@@ -29,16 +29,46 @@
         </button>
       }
     </div>
-    <label class="hex-field">
-      <span class="label-small">CUSTOM HEX</span>
-      <input
-        matInput
-        maxlength="7"
-        [ngModel]="color"
-        (keyup.enter)="applyHex($any($event.target).value)"
-        (blur)="applyHex($any($event.target).value)"
-        aria-label="Custom hex color"
-      />
-    </label>
+    <div class="custom-picker">
+      <div class="custom-picker-header">
+        <span class="label-small">CUSTOM COLOR</span>
+        <span class="custom-preview" [style.background-color]="color"></span>
+      </div>
+      <label>
+        <span class="label-small">HUE</span>
+        <input
+          type="range"
+          min="0"
+          max="359"
+          [value]="hue"
+          (input)="updateCustomColor('hue', +$any($event.target).value)"
+        />
+      </label>
+      <label>
+        <span class="label-small">SATURATION</span>
+        <input
+          class="saturation-range"
+          type="range"
+          min="0"
+          max="100"
+          [value]="saturation"
+          [style.--picker-hue]="hue"
+          (input)="updateCustomColor('saturation', +$any($event.target).value)"
+        />
+      </label>
+      <label>
+        <span class="label-small">BRIGHTNESS</span>
+        <input
+          class="lightness-range"
+          type="range"
+          min="10"
+          max="90"
+          [value]="lightness"
+          [style.--picker-hue]="hue"
+          [style.--picker-saturation]="saturation + '%'"
+          (input)="updateCustomColor('lightness', +$any($event.target).value)"
+        />
+      </label>
+    </div>
   </div>
 </mat-menu>

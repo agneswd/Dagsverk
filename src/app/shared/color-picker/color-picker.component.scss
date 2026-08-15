@@ -31,7 +31,7 @@
   }
 
   .menu-label,
-  .hex-field span {
+  .custom-picker span {
     display: block;
     margin-bottom: 8px;
     color: var(--app-on-surface-variant);
@@ -75,21 +75,89 @@
     }
   }
 
-  .hex-field input {
-    box-sizing: border-box;
-    width: 100%;
-    height: 40px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 8px;
-    outline: 1px solid var(--app-outline);
-    background: var(--app-surface-container-high);
-    color: var(--app-on-surface);
-    font: inherit;
-    text-transform: uppercase;
+  .custom-picker {
+    display: grid;
+    gap: 10px;
 
-    &:focus {
-      outline: 2px solid var(--app-primary);
+    label {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      align-items: center;
+      gap: 8px;
+    }
+
+    span {
+      margin: 0;
+    }
+
+    .custom-picker-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .custom-preview {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 20%, transparent);
+    }
+
+    input[type='range'] {
+      width: 100%;
+      height: 20px;
+      margin: 0;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+
+      &::-webkit-slider-runnable-track {
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(
+          to right,
+          #ff0000,
+          #ffff00,
+          #00ff00,
+          #00ffff,
+          #0000ff,
+          #ff00ff,
+          #ff0000
+        );
+      }
+
+      &::-webkit-slider-thumb {
+        width: 16px;
+        height: 16px;
+        margin-top: -4px;
+        appearance: none;
+        border: 2px solid var(--app-on-surface);
+        border-radius: 50%;
+        background: var(--app-surface-container-highest);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--app-primary);
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+    }
+
+    .saturation-range::-webkit-slider-runnable-track {
+      background: linear-gradient(
+        to right,
+        hsl(var(--picker-hue) 0% 50%),
+        hsl(var(--picker-hue) 100% 50%)
+      );
+    }
+
+    .lightness-range::-webkit-slider-runnable-track {
+      background: linear-gradient(
+        to right,
+        hsl(var(--picker-hue) var(--picker-saturation) 10%),
+        hsl(var(--picker-hue) var(--picker-saturation) 50%),
+        hsl(var(--picker-hue) var(--picker-saturation) 90%)
+      );
     }
   }
 }
