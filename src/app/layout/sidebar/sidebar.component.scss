@@ -246,5 +246,10 @@
         color: var(--app-on-secondary-container);
       }
     }
+
+    &:last-child {
+      margin-top: auto;
+      margin-bottom: 12px;
+    }
   }
 }

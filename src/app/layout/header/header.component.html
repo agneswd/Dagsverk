@@ -83,11 +83,12 @@
             [matMenuTriggerFor]="monthActionsMenu"
             aria-label="Month actions"
             matTooltip="Month actions"
+            class="month-actions-btn"
           >
             <mat-icon>more_vert</mat-icon>
           </button>
 
-          <mat-menu #monthActionsMenu="matMenu">
+          <mat-menu #monthActionsMenu="matMenu" class="m3-action-menu">
             <button mat-menu-item (click)="onFillMonth()">
               <mat-icon>playlist_add</mat-icon>
               <span>Fill normal workdays</span>
@@ -125,11 +126,11 @@
         >
           <mat-button-toggle [value]="MonthViewPreference.Ledger">
             <mat-icon class="toggle-icon">table_rows</mat-icon>
-            <span>Ledger</span>
+            <span class="toggle-label">Ledger</span>
           </mat-button-toggle>
           <mat-button-toggle [value]="MonthViewPreference.Calendar">
             <mat-icon class="toggle-icon">calendar_month</mat-icon>
-            <span>Calendar</span>
+            <span class="toggle-label">Calendar</span>
           </mat-button-toggle>
         </mat-button-toggle-group>
       </div>
@@ -148,7 +149,7 @@
             matTooltip="Review unlogged past workdays"
           >
             <mat-icon>auto_fix_high</mat-icon>
-            <span>Catch Up ({{ state.missingDaysCount() }})</span>
+            <span class="catchup-label">Catch Up ({{ state.missingDaysCount() }})</span>
           </button>
         }
       </div>
