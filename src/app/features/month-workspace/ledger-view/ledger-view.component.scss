@@ -39,19 +39,11 @@
         var(--app-on-surface) 8%,
         var(--app-surface-container-low)
       );
-
-      .row-edit-btn {
-        opacity: 1;
-      }
     }
 
     &:focus-visible {
       outline: 2px solid var(--app-primary);
       outline-offset: -2px;
-
-      .row-edit-btn {
-        opacity: 1;
-      }
     }
 
     td {
@@ -212,22 +204,4 @@
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--app-on-surface-variant);
-}
-
-.col-actions {
-  text-align: right;
-  width: 48px;
-  padding-right: 8px !important;
-}
-
-.row-edit-btn {
-  opacity: 0.5;
-  transition: opacity 0.15s ease;
-  color: var(--app-on-surface-variant);
-
-  &:hover,
-  &:focus-visible {
-    opacity: 1;
-    color: var(--app-primary);
-  }
 }

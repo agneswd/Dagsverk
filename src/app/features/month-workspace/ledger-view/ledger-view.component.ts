@@ -1,7 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
@@ -33,14 +32,7 @@ export interface LedgerRow {
 @Component({
   selector: 'app-ledger-view',
   standalone: true,
-  imports: [
-    CommonModule,
-    MatTableModule,
-    MatButtonModule,
-    MatIconModule,
-    MatTooltipModule,
-    MatChipsModule,
-  ],
+  imports: [CommonModule, MatTableModule, MatIconModule, MatTooltipModule, MatChipsModule],
   templateUrl: './ledger-view.component.html',
   styleUrls: ['./ledger-view.component.scss'],
 })
@@ -59,7 +51,6 @@ export class LedgerViewComponent {
     'overtime',
     'project',
     'notes',
-    'actions',
   ];
 
   public rows = computed<LedgerRow[]>(() => {
