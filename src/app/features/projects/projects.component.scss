@@ -47,9 +47,16 @@
 }
 
 .form-card {
+  .project-name-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
   .full-width {
     width: 100%;
-    margin-bottom: 24px;
   }
 
   .add-btn {
