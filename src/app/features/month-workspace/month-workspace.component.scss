@@ -11,6 +11,14 @@
   padding: 24px 32px 40px;
 }
 
+.workspace-sidenav-container.editor-open .workspace-main-content {
+  scrollbar-color: transparent transparent;
+
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+}
+
 .workspace-content {
   width: min(100%, 1280px);
   margin-inline: auto;
