@@ -1,5 +1,6 @@
 <mat-sidenav-container
   class="workspace-sidenav-container"
+  [class.editor-open]="state.isEditorOpen()"
   [hasBackdrop]="!isWideScreen() && state.isEditorOpen()"
 >
   <!-- Main Workspace Views -->
