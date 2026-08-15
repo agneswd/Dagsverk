@@ -102,6 +102,12 @@
     }
   }
 
+  .quick-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
   .time-range-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;

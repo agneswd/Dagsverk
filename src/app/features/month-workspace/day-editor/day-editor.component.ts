@@ -10,6 +10,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { AppSettings, WorkEntry, WorkEntryStatus } from '../../../core/models';
 import { MinuteMath, MonthlyCalculations, TimeInput } from '../../../core/monthly-calculations';
 import { SwedishHolidayService } from '../../../core/swedish-holiday.service';
@@ -29,7 +30,8 @@ import { AppStateService } from '../../../core/app-state.service';
     MatButtonToggleModule,
     MatDividerModule,
     MatTooltipModule,
-    MatChipsModule
+    MatChipsModule,
+    MatSlideToggleModule
   ],
   templateUrl: './day-editor.component.html',
   styleUrls: ['./day-editor.component.scss']
@@ -46,6 +48,9 @@ export class DayEditorComponent {
   public lunchMinutes = signal<number>(30);
   public projectName = signal<string>('General');
   public notes = signal<string>('');
+  public useScheduledHoursOverride = signal<boolean>(false);
+  public scheduledHours = signal<number>(8);
+  public errorText = signal<string>('');
 
   public timePresets = [
     { label: '08:00 – 16:30', start: '08:00', end: '16:30', lunch: 30 },
@@ -69,12 +74,17 @@ export class DayEditorComponent {
       const e = this.state.selectedEntry();
       const s = this.state.settings();
       if (e) {
-        this.status.set(e.status);
+        this.status.set(this.state.isCatchUpOpen() && e.status === WorkEntryStatus.Incomplete
+          ? WorkEntryStatus.Worked
+          : e.status);
         this.startTime.set(e.startTime || s.defaultStartTime || '08:00');
         this.endTime.set(e.endTime || s.defaultEndTime || '16:30');
         this.lunchMinutes.set(e.lunchMinutes ?? s.defaultLunchMinutes ?? 30);
         this.projectName.set(e.projectName || s.defaultProject || 'General');
         this.notes.set(e.notes || '');
+        this.useScheduledHoursOverride.set(e.scheduledMinutesOverride !== null);
+        this.scheduledHours.set((e.scheduledMinutesOverride ?? s.expectedHours.hoursPerWorkday * 60) / 60);
+        this.errorText.set('');
       }
     });
   }
@@ -113,7 +123,7 @@ export class DayEditorComponent {
       lunchMinutes: this.lunchMinutes(),
       projectName: this.projectName(),
       notes: this.notes(),
-      scheduledMinutesOverride: null
+      scheduledMinutesOverride: this.useScheduledHoursOverride() ? Math.round(this.scheduledHours() * 60) : null
     };
     return MonthlyCalculations.calculateDailyPay(
       fakeEntry,
@@ -131,6 +141,53 @@ export class DayEditorComponent {
     this.lunchMinutes.set(preset.lunch);
   }
 
+  public applyNormalDay(): void {
+    const settings = this.state.settings();
+    this.status.set(WorkEntryStatus.Worked);
+    this.startTime.set(settings.defaultStartTime);
+    this.endTime.set(settings.defaultEndTime);
+    this.lunchMinutes.set(settings.defaultLunchMinutes);
+    this.projectName.set(settings.defaultProject);
+    this.useScheduledHoursOverride.set(false);
+    this.errorText.set('');
+  }
+
+  public copyPrevious(): void {
+    const current = this.currentDateString;
+    const previous = this.state.entries()
+      .filter(entry => entry.date < current && entry.status === WorkEntryStatus.Worked)
+      .sort((left, right) => right.date.localeCompare(left.date))[0];
+    this.copyEntry(previous);
+  }
+
+  public copyLastWeek(): void {
+    const date = new Date(`${this.currentDateString}T00:00:00`);
+    date.setDate(date.getDate() - 7);
+    this.copyEntry(this.state.entries().find(entry => entry.date === this.toDateString(date)));
+  }
+
+  private copyEntry(entry?: WorkEntry): void {
+    if (!entry || entry.status !== WorkEntryStatus.Worked) {
+      this.errorText.set('No completed day is available to copy.');
+      return;
+    }
+    this.status.set(WorkEntryStatus.Worked);
+    this.startTime.set(entry.startTime || '08:00');
+    this.endTime.set(entry.endTime || '16:30');
+    this.lunchMinutes.set(entry.lunchMinutes);
+    this.projectName.set(entry.projectName || this.state.settings().defaultProject);
+    this.useScheduledHoursOverride.set(entry.scheduledMinutesOverride !== null);
+    this.scheduledHours.set((entry.scheduledMinutesOverride || 0) / 60);
+    this.errorText.set('');
+  }
+
+  private toDateString(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   public onTimeBlur(field: 'start' | 'end', val: string): void {
     const norm = TimeInput.tryNormalize(val);
     if (norm) {
@@ -139,9 +196,13 @@ export class DayEditorComponent {
     }
   }
 
-  public onSave(): void {
+  public async onSave(saveAndNext = false): Promise<void> {
     const e = this.state.selectedEntry();
     if (!e) return;
+    if (this.useScheduledHoursOverride() && (!Number.isFinite(this.scheduledHours()) || this.scheduledHours() < 0)) {
+      this.errorText.set('Scheduled hours must be zero or more.');
+      return;
+    }
     const updated: WorkEntry = {
       ...e,
       status: this.status(),
@@ -149,29 +210,22 @@ export class DayEditorComponent {
       endTime: this.status() === WorkEntryStatus.Worked ? this.endTime() : null,
       lunchMinutes: this.status() === WorkEntryStatus.Worked ? this.lunchMinutes() : 0,
       projectName: this.status() === WorkEntryStatus.Worked ? this.projectName() : null,
-      notes: this.notes() || null
+      notes: this.notes() || null,
+      scheduledMinutesOverride: this.useScheduledHoursOverride() ? Math.round(this.scheduledHours() * 60) : null
     };
-    this.state.saveEntry(updated);
-    this.state.closeEditor();
+    await this.state.saveEntry(updated);
+    if (saveAndNext && this.state.isCatchUpOpen()) this.state.moveCatchUp(1);
+    else this.state.closeEditor();
   }
 
-  public onReset(): void {
+  public async onReset(): Promise<void> {
     const e = this.state.selectedEntry();
     if (!e) return;
-    const cleared: WorkEntry = {
-      ...e,
-      status: WorkEntryStatus.Incomplete,
-      startTime: null,
-      endTime: null,
-      lunchMinutes: 0,
-      projectName: null,
-      notes: null
-    };
-    this.state.saveEntry(cleared);
-    this.state.closeEditor();
+    await this.state.deleteEntry(e.date);
   }
 
   public onClose(): void {
-    this.state.closeEditor();
+    if (this.state.isCatchUpOpen()) this.state.closeCatchUp();
+    else this.state.closeEditor();
   }
 }

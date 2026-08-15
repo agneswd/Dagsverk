@@ -3,6 +3,9 @@
   <div class="editor-header">
     <div class="header-title-box">
       <h3 class="date-title title-medium">{{ formattedDateTitle }}</h3>
+      @if (state.isCatchUpOpen()) {
+        <span class="body-small">Catch up - {{ state.catchUpProgress() }}</span>
+      }
       @if (holidayName) {
         <span class="holiday-pill label-small">🎉 {{ holidayName }}</span>
       }
@@ -48,6 +51,14 @@
 
     <!-- WORKED STATUS FORM -->
     @if (status() === WorkEntryStatus.Worked) {
+      <div class="form-section">
+        <label class="section-label label-small">Reuse a day</label>
+        <div class="quick-action-row">
+          <button mat-button type="button" (click)="applyNormalDay()">Normal day</button>
+          <button mat-button type="button" (click)="copyPrevious()">Copy previous</button>
+          <button mat-button type="button" (click)="copyLastWeek()">Copy last week</button>
+        </div>
+      </div>
       <!-- Presets Chips -->
       <div class="form-section">
         <label class="section-label label-small">Quick Presets</label>
@@ -62,6 +73,19 @@
             </mat-chip-option>
           }
         </mat-chip-listbox>
+      </div>
+
+      <div class="form-section">
+        <mat-slide-toggle [ngModel]="useScheduledHoursOverride()" (ngModelChange)="useScheduledHoursOverride.set($event)">
+          Override scheduled hours
+        </mat-slide-toggle>
+        @if (useScheduledHoursOverride()) {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <mat-label>Scheduled hours</mat-label>
+            <input matInput type="number" min="0" step="0.25" [ngModel]="scheduledHours()" (ngModelChange)="scheduledHours.set($event)" class="numeric">
+            <span matTextSuffix>hours</span>
+          </mat-form-field>
+        }
       </div>
 
       <!-- Time Range Inputs (12px gap) -->
@@ -165,12 +189,23 @@
       ></textarea>
       <mat-icon matPrefix class="field-icon">edit_note</mat-icon>
     </mat-form-field>
+
+    @if (errorText()) {
+      <p class="body-small" role="alert">{{ errorText() }}</p>
+    }
   </div>
 
   <mat-divider></mat-divider>
 
   <!-- Side-Sheet Actions (40px, Cancel first, Save Entry last) -->
   <div class="editor-footer">
+    @if (state.isCatchUpOpen()) {
+      <button mat-button type="button" (click)="state.moveCatchUp(-1)" [disabled]="state.catchUpIndex() === 0">Back</button>
+      <button mat-button type="button" (click)="state.moveCatchUp(1)">Skip</button>
+    } @else {
+      <button mat-button type="button" (click)="onReset()" class="action-btn label-large">Reset</button>
+    }
+
     <button
       mat-button
       type="button"
@@ -184,10 +219,10 @@
       mat-flat-button
       color="primary"
       type="button"
-      (click)="onSave()"
+      (click)="onSave(state.isCatchUpOpen())"
       class="action-btn save-btn label-large"
     >
-      Save Entry
+      {{ state.isCatchUpOpen() ? 'Save and next' : 'Save entry' }}
     </button>
   </div>
 </div>
