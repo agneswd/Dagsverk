@@ -66,6 +66,7 @@ declare global {
       maximizeWindow: () => void;
       closeWindow: () => void;
       isMaximized: () => Promise<boolean>;
+      setZoomFactor: (factor: number) => void;
     };
   }
 }
@@ -435,6 +436,10 @@ export class ElectronBridgeService {
 
   public restartToUpdate(): void {
     if (this.isElectron) window.electronAPI!.restartToUpdate();
+  }
+
+  public setZoomFactor(factor: number): void {
+    if (this.isElectron) window.electronAPI!.setZoomFactor(factor);
   }
 
   public onUpdateState(callback: (state: UpdateState) => void): () => void {

@@ -45,6 +45,7 @@ export interface ElectronAPI {
   maximizeWindow: () => void;
   closeWindow: () => void;
   isMaximized: () => Promise<boolean>;
+  setZoomFactor: (factor: number) => void;
 }
 
 const electronAPI: ElectronAPI = {
@@ -96,6 +97,7 @@ const electronAPI: ElectronAPI = {
   maximizeWindow: () => ipcRenderer.send('window:maximize'),
   closeWindow: () => ipcRenderer.send('window:close'),
   isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+  setZoomFactor: (factor) => ipcRenderer.send('window:set-zoom-factor', factor),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

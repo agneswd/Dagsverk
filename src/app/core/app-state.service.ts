@@ -552,8 +552,11 @@ export class AppStateService {
     );
     this.localization.setPreference(preferences.languagePreference);
     if (typeof document !== 'undefined') {
-      document.body.style.zoom = `${preferences.interfaceScalePercent || 100}%`;
+      document.body.style.zoom = this.bridge.isRunningInElectron
+        ? ''
+        : `${preferences.interfaceScalePercent || 100}%`;
     }
+    this.bridge.setZoomFactor((preferences.interfaceScalePercent || 100) / 100);
   }
 
   public setView(view: MonthViewPreference): void {

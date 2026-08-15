@@ -236,6 +236,10 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() ?? false);
+  ipcMain.on('window:set-zoom-factor', (_, factor: number) => {
+    if (!Number.isFinite(factor)) return;
+    mainWindow?.webContents.setZoomFactor(Math.min(1.5, Math.max(0.8, factor)));
+  });
 }
 
 app.whenReady().then(() => {
