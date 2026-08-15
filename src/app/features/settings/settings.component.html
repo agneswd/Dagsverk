@@ -229,6 +229,20 @@
                 Find my tax table
               </a>
             }
+            <div class="form-grid-2">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>OB during overtime</mat-label>
+                <mat-select [(ngModel)]="model.overtimeCompensation.obOvertimeCombination">
+                  <mat-option [value]="ObOvertimeCombinationMode.ExcludeOb">
+                    Exclude OB during overtime
+                  </mat-option>
+                  <mat-option [value]="ObOvertimeCombinationMode.IncludeOb">
+                    Include OB during overtime
+                  </mat-option>
+                </mat-select>
+                <mat-hint>Your agreement decides whether OB and overtime can overlap.</mat-hint>
+              </mat-form-field>
+            </div>
             @if (model.overtimeCompensation.mode === OvertimeCompensationMode.Paid) {
               <div class="form-grid-2">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -459,6 +473,22 @@
                     class="numeric"
                   />
                   <span matTextSuffix>%</span>
+                </mat-form-field>
+              }
+              @if (
+                model.salary.type === SalaryType.Hourly &&
+                model.overtimeCompensation.mode === OvertimeCompensationMode.CompTime
+              ) {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Hourly pay is based on</mat-label>
+                  <mat-select [(ngModel)]="model.salary.hourlyPayBasis">
+                    <mat-option [value]="HourlyPayBasis.DailyRegularHours">
+                      Regular hours per day
+                    </mat-option>
+                    <mat-option [value]="HourlyPayBasis.MonthlyExpectedHours">
+                      Monthly expected hours
+                    </mat-option>
+                  </mat-select>
                 </mat-form-field>
               }
             </div>

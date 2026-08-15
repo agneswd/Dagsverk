@@ -3,8 +3,10 @@ import {
   CompensationRuleType,
   DailyPayBreakdown,
   ExpectedHoursSettings,
+  HourlyPayBasis,
   MonthlySummary,
   MonthRecord,
+  ObOvertimeCombinationMode,
   OvertimeCompensationMode,
   OvertimeCompensationSettings,
   OvertimeDayCategory,
@@ -13,9 +15,13 @@ import {
   SalarySettings,
   SalaryType,
   WorkEntry,
-  WorkEntryStatus
+  WorkEntryStatus,
 } from './models';
 import { SwedishHolidayService } from './swedish-holiday.service';
+import Decimal from 'decimal.js';
+
+const roundMoney = (amount: Decimal.Value): number =>
+  new Decimal(amount).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
 
 export class TimeInput {
   public static tryNormalize(input: string | null | undefined): string | null {
@@ -55,24 +61,31 @@ export class TimeInput {
   }
 
   public static fromMinutes(totalMinutes: number): string {
-    const h = Math.floor(totalMinutes / 60) % 24;
-    const m = totalMinutes % 60;
+    const minutesInDay = 24 * 60;
+    const normalized = ((totalMinutes % minutesInDay) + minutesInDay) % minutesInDay;
+    const h = Math.floor(normalized / 60);
+    const m = normalized % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
 }
 
 export class MinuteMath {
-  public static worked(startTime: string | null, endTime: string | null, lunchMinutes: number): number {
-    if (!startTime || !endTime) {
-      return 0;
-    }
+  public static elapsed(startTime: string, endTime: string): number {
     const start = TimeInput.toMinutes(startTime);
     const end = TimeInput.toMinutes(endTime);
-    if (end <= start) {
+    const elapsed = end - start;
+    return elapsed > 0 ? elapsed : elapsed + 24 * 60;
+  }
+
+  public static worked(
+    startTime: string | null,
+    endTime: string | null,
+    lunchMinutes: number,
+  ): number {
+    if (!startTime || !endTime || startTime === endTime) {
       return 0;
     }
-    const elapsed = end - start;
-    return Math.max(0, elapsed - (lunchMinutes || 0));
+    return Math.max(0, this.elapsed(startTime, endTime) - (lunchMinutes || 0));
   }
 }
 
@@ -84,13 +97,21 @@ export class OvertimeEngine {
     timeStr: string,
     isScheduledWorkday: boolean,
     isPublicHoliday: boolean,
-    isMajorHoliday: boolean
+    isMajorHoliday: boolean,
   ): boolean {
     if (band.compensationType !== compensationType) {
       return false;
     }
 
-    if (!this.matchesDayCategory(band.dayCategory, dateStr, isScheduledWorkday, isPublicHoliday, isMajorHoliday)) {
+    if (
+      !this.matchesDayCategory(
+        band.dayCategory,
+        dateStr,
+        isScheduledWorkday,
+        isPublicHoliday,
+        isMajorHoliday,
+      )
+    ) {
       return false;
     }
 
@@ -102,7 +123,7 @@ export class OvertimeEngine {
     dateStr: string,
     isScheduledWorkday: boolean,
     isPublicHoliday: boolean,
-    isMajorHoliday: boolean
+    isMajorHoliday: boolean,
   ): boolean {
     const [y, m, d] = dateStr.split('-').map(Number);
     const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Sun, 1=Mon... 6=Sat
@@ -149,30 +170,41 @@ export class OvertimeEngine {
       return true;
     }
 
-    return start < end
-      ? target >= start && target < end
-      : target >= start || target < end;
+    return start < end ? target >= start && target < end : target >= start || target < end;
   }
 
   public static getHourlyAmount(
     rateType: CompensationRateType,
     rateValue: number,
     salary: SalarySettings,
-    includeHourlyBase: boolean
+    includeHourlyBase: boolean,
   ): number {
+    return this.getHourlyAmountDecimal(rateType, rateValue, salary, includeHourlyBase).toNumber();
+  }
+
+  private static getHourlyAmountDecimal(
+    rateType: CompensationRateType,
+    rateValue: number,
+    salary: SalarySettings,
+    includeHourlyBase: boolean,
+  ): Decimal {
     switch (rateType) {
       case CompensationRateType.HourlyPremiumPercent:
-        return salary.hourlyRate * ((includeHourlyBase ? 1 : 0) + rateValue / 100);
+        return new Decimal(salary.hourlyRate).times(
+          new Decimal(rateValue).dividedBy(100).plus(includeHourlyBase ? 1 : 0),
+        );
       case CompensationRateType.FixedHourlyAmount:
-        return rateValue;
+        return new Decimal(rateValue);
       case CompensationRateType.FullTimeMonthlySalaryDivisor:
         if (salary.type === SalaryType.Monthly && rateValue > 0) {
-          const fullTimeSalary = salary.monthlySalary * 100 / (salary.employmentPercent || 100);
-          return fullTimeSalary / rateValue;
+          return new Decimal(salary.monthlySalary)
+            .times(100)
+            .dividedBy(salary.employmentPercent)
+            .dividedBy(rateValue);
         }
-        return 0;
+        return new Decimal(0);
       default:
-        return 0;
+        return new Decimal(0);
     }
   }
 
@@ -184,33 +216,65 @@ export class OvertimeEngine {
     timeStr: string,
     isScheduledWorkday: boolean,
     isPublicHoliday: boolean,
-    isMajorHoliday: boolean
+    isMajorHoliday: boolean,
   ): number {
-    let highest = 0;
+    return this.hourlyAmountAtDecimal(
+      compensationType,
+      salary,
+      overtimeCompensation,
+      dateStr,
+      timeStr,
+      isScheduledWorkday,
+      isPublicHoliday,
+      isMajorHoliday,
+    ).toNumber();
+  }
+
+  public static hourlyAmountAtDecimal(
+    compensationType: CompensationRuleType,
+    salary: SalarySettings,
+    overtimeCompensation: OvertimeCompensationSettings,
+    dateStr: string,
+    timeStr: string,
+    isScheduledWorkday: boolean,
+    isPublicHoliday: boolean,
+    isMajorHoliday: boolean,
+  ): Decimal {
+    let highest = new Decimal(0);
     let matched = false;
 
     for (const band of overtimeCompensation.rateBands) {
-      if (this.matchesRateBand(band, compensationType, dateStr, timeStr, isScheduledWorkday, isPublicHoliday, isMajorHoliday)) {
-        const amount = this.getHourlyAmount(
+      if (
+        this.matchesRateBand(
+          band,
+          compensationType,
+          dateStr,
+          timeStr,
+          isScheduledWorkday,
+          isPublicHoliday,
+          isMajorHoliday,
+        )
+      ) {
+        const amount = this.getHourlyAmountDecimal(
           band.rateType,
           band.rateValue,
           salary,
-          compensationType === CompensationRuleType.Overtime
+          compensationType === CompensationRuleType.Overtime,
         );
-        highest = matched ? Math.max(highest, amount) : amount;
+        highest = matched ? Decimal.max(highest, amount) : amount;
         matched = true;
       }
     }
 
     if (matched || compensationType === CompensationRuleType.Ob) {
-      return matched ? highest : 0;
+      return matched ? highest : new Decimal(0);
     }
 
-    return this.getHourlyAmount(
+    return this.getHourlyAmountDecimal(
       overtimeCompensation.defaultRateType,
       overtimeCompensation.defaultRateValue,
       salary,
-      true
+      true,
     );
   }
 }
@@ -230,28 +294,33 @@ export class MonthlyCalculations {
   public static isScheduledWorkday(
     dateStr: string,
     expectedHours: ExpectedHoursSettings,
-    holidays: SwedishHolidayService
+    holidays: SwedishHolidayService,
   ): boolean {
     const [y, m, d] = dateStr.split('-').map(Number);
     const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
     const isExpectedWeekday = expectedHours.workingWeekdays.includes(dayOfWeek);
-    return isExpectedWeekday && (!expectedHours.excludePublicHolidays || !holidays.isPublicHoliday(dateStr));
+    return (
+      isExpectedWeekday &&
+      (!expectedHours.excludePublicHolidays || !holidays.isPublicHoliday(dateStr))
+    );
   }
 
   public static getExpectedWorkdays(
     year: number,
     month: number,
     expectedHours: ExpectedHoursSettings,
-    holidays: SwedishHolidayService
+    holidays: SwedishHolidayService,
   ): string[] {
-    return this.getDatesInMonth(year, month).filter(d => this.isScheduledWorkday(d, expectedHours, holidays));
+    return this.getDatesInMonth(year, month).filter((d) =>
+      this.isScheduledWorkday(d, expectedHours, holidays),
+    );
   }
 
   public static thresholdForEntry(
     entry: WorkEntry,
     expectedHours: ExpectedHoursSettings,
     overtimeCompensation: OvertimeCompensationSettings,
-    holidays: SwedishHolidayService
+    holidays: SwedishHolidayService,
   ): number {
     if (entry.scheduledMinutesOverride !== null && entry.scheduledMinutesOverride !== undefined) {
       return entry.scheduledMinutesOverride;
@@ -270,14 +339,14 @@ export class MonthlyCalculations {
     entry: WorkEntry,
     expectedHours: ExpectedHoursSettings,
     overtimeCompensation: OvertimeCompensationSettings,
-    holidays: SwedishHolidayService
+    holidays: SwedishHolidayService,
   ): { regularMinutes: number; overtimeMinutes: number } {
     const workedMinutes = MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes);
     const threshold = this.thresholdForEntry(entry, expectedHours, overtimeCompensation, holidays);
     const regular = Math.min(workedMinutes, threshold);
     return {
       regularMinutes: regular,
-      overtimeMinutes: Math.max(0, workedMinutes - regular)
+      overtimeMinutes: Math.max(0, workedMinutes - regular),
     };
   }
 
@@ -286,74 +355,97 @@ export class MonthlyCalculations {
     expectedHours: ExpectedHoursSettings,
     salary: SalarySettings,
     overtimeCompensation: OvertimeCompensationSettings,
-    holidays: SwedishHolidayService
+    holidays: SwedishHolidayService,
   ): DailyPayBreakdown {
     if (entry.status !== WorkEntryStatus.Worked || !entry.startTime || !entry.endTime) {
       return { regularPay: 0, overtimePay: 0, obPay: 0, obMinutes: 0, total: 0 };
     }
 
-    const { regularMinutes, overtimeMinutes } = this.splitOvertime(entry, expectedHours, overtimeCompensation, holidays);
-    const regularPay = salary.type === SalaryType.Hourly
-      ? (regularMinutes * salary.hourlyRate) / 60
-      : 0;
+    const { regularMinutes, overtimeMinutes } = this.splitOvertime(
+      entry,
+      expectedHours,
+      overtimeCompensation,
+      holidays,
+    );
+    const regularPay =
+      salary.type === SalaryType.Hourly
+        ? new Decimal(regularMinutes).times(salary.hourlyRate).dividedBy(60)
+        : new Decimal(0);
+    const paysOvertime =
+      overtimeCompensation.mode === OvertimeCompensationMode.Paid && overtimeMinutes > 0;
+    const paysOb = overtimeCompensation.rateBands.some(
+      (band) => band.compensationType === CompensationRuleType.Ob,
+    );
+    if (!paysOvertime && !paysOb) {
+      const roundedRegularPay = roundMoney(regularPay);
+      return {
+        regularPay: roundedRegularPay,
+        overtimePay: 0,
+        obPay: 0,
+        obMinutes: 0,
+        total: roundedRegularPay,
+      };
+    }
 
-    let overtimePay = 0;
-    let obPay = 0;
+    let overtimePay = new Decimal(0);
+    let obPay = new Decimal(0);
     let obMinutes = 0;
 
-    const isPublicHoliday = holidays.isPublicHoliday(entry.date);
-    const isScheduled = this.isScheduledWorkday(entry.date, expectedHours, holidays);
+    for (let minute = 0; minute < regularMinutes + overtimeMinutes; minute++) {
+      const isOvertimeMinute = minute >= regularMinutes;
+      const clock = this.clockAt(entry, isOvertimeMinute ? minute + entry.lunchMinutes : minute);
+      const isScheduled = this.isScheduledWorkday(clock.date, expectedHours, holidays);
+      const isPublicHoliday = holidays.isPublicHoliday(clock.date);
+      const isMajorHoliday = holidays.isMajorHolidayPeriod(clock.date, clock.time);
+      const paysObForMinute =
+        paysOb &&
+        (!isOvertimeMinute ||
+          (overtimeCompensation.obOvertimeCombination ?? ObOvertimeCombinationMode.ExcludeOb) ===
+            ObOvertimeCombinationMode.IncludeOb);
 
-    const startMinutes = TimeInput.toMinutes(entry.startTime);
-    for (let minute = 0; minute < regularMinutes; minute++) {
-      const timeStr = TimeInput.fromMinutes(startMinutes + minute);
-      const isMajorHoliday = holidays.isMajorHolidayPeriod(entry.date, timeStr);
-      const hourlyOb = OvertimeEngine.hourlyAmountAt(
-        CompensationRuleType.Ob,
-        salary,
-        overtimeCompensation,
-        entry.date,
-        timeStr,
-        isScheduled,
-        isPublicHoliday,
-        isMajorHoliday
-      );
-      if (hourlyOb > 0) {
-        obPay += hourlyOb / 60;
-        obMinutes++;
-      }
-    }
-
-    if (overtimeCompensation.mode === OvertimeCompensationMode.Paid && overtimeMinutes > 0) {
-      const endMinutes = TimeInput.toMinutes(entry.endTime);
-      const overtimeStartMinutes = endMinutes - overtimeMinutes;
-      for (let minute = 0; minute < overtimeMinutes; minute++) {
-        const timeStr = TimeInput.fromMinutes(overtimeStartMinutes + minute);
-        const isMajorHoliday = holidays.isMajorHolidayPeriod(entry.date, timeStr);
-        const hourlyOvertime = OvertimeEngine.hourlyAmountAt(
-          CompensationRuleType.Overtime,
+      if (paysObForMinute) {
+        const hourlyOb = OvertimeEngine.hourlyAmountAtDecimal(
+          CompensationRuleType.Ob,
           salary,
           overtimeCompensation,
-          entry.date,
-          timeStr,
+          clock.date,
+          clock.time,
           isScheduled,
           isPublicHoliday,
-          isMajorHoliday
+          isMajorHoliday,
         );
-        overtimePay += hourlyOvertime / 60;
+        if (hourlyOb.greaterThan(0)) {
+          obPay = obPay.plus(hourlyOb.dividedBy(60));
+          obMinutes++;
+        }
+      }
+
+      if (isOvertimeMinute && paysOvertime) {
+        overtimePay = overtimePay.plus(
+          OvertimeEngine.hourlyAmountAtDecimal(
+            CompensationRuleType.Overtime,
+            salary,
+            overtimeCompensation,
+            clock.date,
+            clock.time,
+            isScheduled,
+            isPublicHoliday,
+            isMajorHoliday,
+          ).dividedBy(60),
+        );
       }
     }
 
-    const rPay = Math.round(regularPay * 100) / 100;
-    const oPay = Math.round(overtimePay * 100) / 100;
-    const bPay = Math.round(obPay * 100) / 100;
+    const rPay = roundMoney(regularPay);
+    const oPay = roundMoney(overtimePay);
+    const bPay = roundMoney(obPay);
 
     return {
       regularPay: rPay,
       overtimePay: oPay,
       obPay: bPay,
       obMinutes,
-      total: Math.round((rPay + oPay + bPay) * 100) / 100
+      total: new Decimal(rPay).plus(oPay).plus(bPay).toNumber(),
     };
   }
 
@@ -364,9 +456,8 @@ export class MonthlyCalculations {
     salary: SalarySettings,
     overtimeCompensation: OvertimeCompensationSettings,
     holidays: SwedishHolidayService,
-    todayStr: string
+    todayStr: string,
   ): MonthlySummary {
-    const datesInMonth = this.getDatesInMonth(monthRecord.year, monthRecord.month);
     const entriesByDate = new Map<string, WorkEntry>();
     for (const e of entries) {
       if (e.date.startsWith(`${monthRecord.year}-${String(monthRecord.month).padStart(2, '0')}`)) {
@@ -374,24 +465,20 @@ export class MonthlyCalculations {
       }
     }
 
-    let expectedMinutes = 0;
-    if (monthRecord.expectedMinutesOverride !== null && monthRecord.expectedMinutesOverride !== undefined) {
-      expectedMinutes = monthRecord.expectedMinutesOverride;
-    } else {
-      const expectedDays = this.getExpectedWorkdays(monthRecord.year, monthRecord.month, expectedHours, holidays);
-      expectedMinutes = expectedDays.length * Math.round(expectedHours.hoursPerWorkday * 60);
-
-      // Adjust for scheduledMinutesOverride on individual entries
-      for (const entry of entriesByDate.values()) {
-        if (entry.scheduledMinutesOverride !== null && entry.scheduledMinutesOverride !== undefined) {
-          const defaultDaily = this.isScheduledWorkday(entry.date, expectedHours, holidays)
-            ? Math.round(expectedHours.hoursPerWorkday * 60)
-            : 0;
-          expectedMinutes = expectedMinutes - defaultDaily + entry.scheduledMinutesOverride;
-        }
-      }
-      expectedMinutes = Math.max(0, expectedMinutes);
-    }
+    const monthEntries = [...entriesByDate.values()];
+    const fullExpectedMinutes = this.calculateExpectedMinutes(
+      monthRecord,
+      monthEntries,
+      expectedHours,
+      holidays,
+    );
+    const expectedMinutes = this.calculateExpectedMinutes(
+      monthRecord,
+      monthEntries,
+      expectedHours,
+      holidays,
+      todayStr,
+    );
 
     let totalWorkedMinutes = 0;
     let totalRegularMinutes = 0;
@@ -399,20 +486,33 @@ export class MonthlyCalculations {
     let totalOvertimePay = 0;
     let totalObPay = 0;
     let totalObMinutes = 0;
-    let totalGrossSalary = salary.type === SalaryType.Monthly ? salary.monthlySalary : 0;
+    let totalGrossSalary = new Decimal(
+      salary.type === SalaryType.Monthly ? salary.monthlySalary : 0,
+    );
     let completedDayCount = 0;
 
     for (const entry of entriesByDate.values()) {
       if (entry.status === WorkEntryStatus.Worked && entry.startTime && entry.endTime) {
         completedDayCount++;
         const worked = MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes);
-        const { regularMinutes, overtimeMinutes } = this.splitOvertime(entry, expectedHours, overtimeCompensation, holidays);
-        const pay = this.calculateDailyPay(entry, expectedHours, salary, overtimeCompensation, holidays);
+        const { regularMinutes, overtimeMinutes } = this.splitOvertime(
+          entry,
+          expectedHours,
+          overtimeCompensation,
+          holidays,
+        );
+        const pay = this.calculateDailyPay(
+          entry,
+          expectedHours,
+          salary,
+          overtimeCompensation,
+          holidays,
+        );
 
         totalWorkedMinutes += worked;
         totalRegularMinutes += regularMinutes;
         totalOvertimeMinutes += overtimeMinutes;
-        totalGrossSalary += pay.total;
+        totalGrossSalary = totalGrossSalary.plus(pay.total);
         totalOvertimePay += pay.overtimePay;
         totalObPay += pay.obPay;
         totalObMinutes += pay.obMinutes;
@@ -421,15 +521,35 @@ export class MonthlyCalculations {
       }
     }
 
-    const balanceEligibleMinutes = overtimeCompensation.mode === OvertimeCompensationMode.CompTime
-      ? totalWorkedMinutes
-      : totalRegularMinutes;
+    const balanceEligibleMinutes =
+      overtimeCompensation.mode === OvertimeCompensationMode.CompTime
+        ? totalWorkedMinutes
+        : totalRegularMinutes;
+
+    let ordinaryPaidMinutes = salary.type === SalaryType.Hourly ? totalRegularMinutes : 0;
+    if (
+      salary.type === SalaryType.Hourly &&
+      overtimeCompensation.mode === OvertimeCompensationMode.CompTime &&
+      (salary.hourlyPayBasis ?? HourlyPayBasis.DailyRegularHours) ===
+        HourlyPayBasis.MonthlyExpectedHours
+    ) {
+      ordinaryPaidMinutes = Math.min(totalWorkedMinutes, fullExpectedMinutes);
+      totalGrossSalary = new Decimal(ordinaryPaidMinutes)
+        .times(salary.hourlyRate)
+        .dividedBy(60)
+        .plus(totalObPay);
+    }
 
     const monthlyDifferenceMinutes = balanceEligibleMinutes - expectedMinutes;
     const closingBalanceMinutes = monthRecord.openingBalanceMinutes + monthlyDifferenceMinutes;
 
-    const expectedWorkdays = this.getExpectedWorkdays(monthRecord.year, monthRecord.month, expectedHours, holidays);
-    const missingPastDays = expectedWorkdays.filter(dateStr => {
+    const expectedWorkdays = this.getExpectedWorkdays(
+      monthRecord.year,
+      monthRecord.month,
+      expectedHours,
+      holidays,
+    );
+    const missingPastDays = expectedWorkdays.filter((dateStr) => {
       if (dateStr >= todayStr) {
         return false;
       }
@@ -443,12 +563,13 @@ export class MonthlyCalculations {
       workedMinutes: totalWorkedMinutes,
       regularMinutes: totalRegularMinutes,
       overtimeMinutes: totalOvertimeMinutes,
+      ordinaryPaidMinutes,
       balanceEligibleMinutes,
       expectedMinutes,
       monthlyDifferenceMinutes,
       openingBalanceMinutes: monthRecord.openingBalanceMinutes,
       closingBalanceMinutes,
-      grossSalary: Math.round(totalGrossSalary * 100) / 100,
+      grossSalary: roundMoney(totalGrossSalary),
       baseSalary: salary.type === SalaryType.Monthly ? salary.monthlySalary : 0,
       overtimeCompensation: Math.round(totalOvertimePay * 100) / 100,
       obCompensation: Math.round(totalObPay * 100) / 100,
@@ -458,8 +579,75 @@ export class MonthlyCalculations {
       workedHours: Math.round((totalWorkedMinutes / 60) * 100) / 100,
       regularHours: Math.round((totalRegularMinutes / 60) * 100) / 100,
       overtimeHours: Math.round((totalOvertimeMinutes / 60) * 100) / 100,
+      ordinaryPaidHours: ordinaryPaidMinutes / 60,
       obHours: Math.round((totalObMinutes / 60) * 100) / 100,
-      expectedHours: Math.round((expectedMinutes / 60) * 100) / 100
+      expectedHours: Math.round((expectedMinutes / 60) * 100) / 100,
     };
+  }
+
+  private static calculateExpectedMinutes(
+    monthRecord: MonthRecord,
+    entries: WorkEntry[],
+    expectedHours: ExpectedHoursSettings,
+    holidays: SwedishHolidayService,
+    through?: string,
+  ): number {
+    const workdays = this.getExpectedWorkdays(
+      monthRecord.year,
+      monthRecord.month,
+      expectedHours,
+      holidays,
+    );
+    const dailyMinutes = Math.round(expectedHours.hoursPerWorkday * 60);
+    const fullExpected = monthRecord.expectedMinutesOverride ?? workdays.length * dailyMinutes;
+    const monthStart = `${monthRecord.year}-${String(monthRecord.month).padStart(2, '0')}-01`;
+    const monthEnd = this.getDatesInMonth(monthRecord.year, monthRecord.month).at(-1)!;
+    const fullMonth = !through || through >= monthEnd;
+    if (!fullMonth && through < monthStart) {
+      return 0;
+    }
+
+    const elapsedWorkdays = fullMonth
+      ? workdays.length
+      : workdays.filter((date) => date <= through).length;
+    if (monthRecord.expectedMinutesOverride !== null) {
+      if (fullMonth) {
+        return fullExpected;
+      }
+      if (workdays.length === 0) {
+        return 0;
+      }
+      return new Decimal(fullExpected)
+        .times(elapsedWorkdays)
+        .dividedBy(workdays.length)
+        .toDecimalPlaces(0, Decimal.ROUND_HALF_UP)
+        .toNumber();
+    }
+
+    const lastIncluded = fullMonth ? monthEnd : through!;
+    let adjusted = fullMonth ? fullExpected : elapsedWorkdays * dailyMinutes;
+    for (const entry of entries) {
+      if (entry.date > lastIncluded || entry.scheduledMinutesOverride === null) {
+        continue;
+      }
+      adjusted -= this.isScheduledWorkday(entry.date, expectedHours, holidays) ? dailyMinutes : 0;
+      adjusted += entry.scheduledMinutesOverride;
+    }
+    return Math.max(0, adjusted);
+  }
+
+  private static clockAt(entry: WorkEntry, offsetMinutes: number): { date: string; time: string } {
+    const absoluteMinutes = TimeInput.toMinutes(entry.startTime!) + offsetMinutes;
+    const dayOffset = Math.floor(absoluteMinutes / (24 * 60));
+    return {
+      date: this.addDays(entry.date, dayOffset),
+      time: TimeInput.fromMinutes(absoluteMinutes),
+    };
+  }
+
+  private static addDays(dateStr: string, days: number): string {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day + days));
+    return date.toISOString().slice(0, 10);
   }
 }

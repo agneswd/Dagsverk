@@ -476,6 +476,9 @@ export class AppStateService {
           : this.settings().exportLanguagePreference,
       overtimeMode: this.settings().overtimeCompensation.mode,
       dailyOvertimeThresholdHours: this.settings().overtimeCompensation.dailyThresholdHours,
+      expectedHours: this.settings().expectedHours,
+      overtimeSettings: this.settings().overtimeCompensation,
+      hourlyPayBasis: this.settings().salary.hourlyPayBasis,
     };
 
     const monthStr = String(this.currentMonth()).padStart(2, '0');

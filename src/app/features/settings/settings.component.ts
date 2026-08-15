@@ -28,7 +28,9 @@ import {
   CompensationRuleType,
   CurrencyPreference,
   ExportLanguagePreference,
+  HourlyPayBasis,
   LanguagePreference,
+  ObOvertimeCombinationMode,
   OvertimeCompensationMode,
   OvertimeDayCategory,
   OvertimeRateBand,
@@ -86,6 +88,8 @@ export class SettingsComponent {
   public readonly ThemePreference = ThemePreference;
   public readonly LanguagePreference = LanguagePreference;
   public readonly ExportLanguagePreference = ExportLanguagePreference;
+  public readonly HourlyPayBasis = HourlyPayBasis;
+  public readonly ObOvertimeCombinationMode = ObOvertimeCombinationMode;
 
   // Local Form Model
   public model: AppSettings = JSON.parse(JSON.stringify(this.state.settings()));
