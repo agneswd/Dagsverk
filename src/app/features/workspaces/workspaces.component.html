@@ -152,15 +152,6 @@
             </div>
 
             <div class="ws-actions">
-              <input
-                type="color"
-                class="workspace-color-input"
-                [value]="ws.color || '#5F875F'"
-                (change)="onWorkspaceColorChange(ws, $event)"
-                [attr.aria-label]="'Change ' + ws.name + ' color'"
-                matTooltip="Change workspace color"
-              />
-
               @if (ws.id !== state.activeWorkspaceId()) {
                 <button
                   mat-stroked-button
@@ -170,6 +161,15 @@
                   Switch To
                 </button>
               }
+
+              <input
+                type="color"
+                class="workspace-color-input"
+                [value]="ws.color || '#5F875F'"
+                (change)="onWorkspaceColorChange(ws, $event)"
+                [attr.aria-label]="'Change ' + ws.name + ' color'"
+                matTooltip="Change workspace color"
+              />
 
               @if (state.workspaces().length > 1) {
                 <button
