@@ -9,22 +9,23 @@
       <mat-card-content class="card-content">
         <h2 class="card-title title-medium">Add project</h2>
 
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
-          <mat-label>Project Name</mat-label>
-          <input
-            matInput
-            [ngModel]="newProjectName()"
-            (ngModelChange)="newProjectName.set($event)"
-            placeholder="e.g. Client Alpha"
-            (keydown.enter)="onAddProject()"
-          />
+        <div class="project-name-row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <mat-label>Project Name</mat-label>
+            <input
+              matInput
+              [ngModel]="newProjectName()"
+              (ngModelChange)="newProjectName.set($event)"
+              placeholder="e.g. Client Alpha"
+              (keydown.enter)="onAddProject()"
+            />
+          </mat-form-field>
           <app-color-picker
-            matSuffix
             [color]="newProjectColor()"
             (colorChange)="newProjectColor.set($event)"
             label="Choose project color"
           />
-        </mat-form-field>
+        </div>
 
         <button
           mat-flat-button
