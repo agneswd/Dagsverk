@@ -88,6 +88,11 @@ export class WorkspacesComponent {
     this.state.switchWorkspace(ws.id);
   }
 
+  public onWorkspaceColorChange(ws: Workspace, event: Event): void {
+    const color = (event.target as HTMLInputElement).value;
+    void this.state.saveWorkspace({ ...ws, color, updatedAt: new Date().toISOString() });
+  }
+
   public workspaceSubtitle(workspace: Workspace): string {
     if (workspace.type === WorkspaceType.Personal)
       return workspace.workerName || 'Personal workspace';

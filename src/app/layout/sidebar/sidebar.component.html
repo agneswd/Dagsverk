@@ -27,7 +27,10 @@
       [matMenuTriggerFor]="workspaceMenu"
       aria-label="Switch active workspace"
     >
-      <div class="ws-avatar">
+      <div
+        class="ws-avatar"
+        [style.--workspace-color]="state.activeWorkspace().color || '#5F875F'"
+      >
         <mat-icon class="ws-avatar-icon">business</mat-icon>
       </div>
 

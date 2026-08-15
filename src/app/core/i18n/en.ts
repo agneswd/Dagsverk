@@ -247,6 +247,7 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   'Public Holidays': 'Public holidays',
   'Untitled Band': 'Untitled band',
   'Switch active workspace': 'Switch active workspace',
+  'Change workspace color': 'Change workspace color',
   'Adjust opening time balance': 'Adjust opening time balance',
   'Adjust opening balance': 'Adjust opening balance',
   'Save balance': 'Save balance',

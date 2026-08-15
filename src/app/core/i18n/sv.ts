@@ -247,6 +247,7 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Public Holidays': 'Helgdagar',
   'Untitled Band': 'Namnlöst intervall',
   'Switch active workspace': 'Byt aktiv arbetsyta',
+  'Change workspace color': 'Ändra arbetsytans färg',
   'Adjust opening time balance': 'Ändra ingående tidsbalans',
   'Adjust opening balance': 'Ändra ingående balans',
   'Save balance': 'Spara balans',
