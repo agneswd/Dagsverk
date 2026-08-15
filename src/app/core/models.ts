@@ -288,6 +288,7 @@ export interface ReportExportRequest {
   overtimeMode: OvertimeCompensationMode;
   dailyOvertimeThresholdHours: number;
   hourlyPayBasis: HourlyPayBasis;
+  thresholdMinutesByDate: Record<string, number>;
 }
 
 export const DEFAULT_WORKSPACE: Workspace = {

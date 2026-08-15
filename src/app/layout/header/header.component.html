@@ -119,20 +119,20 @@
         }
       </div>
 
-      <!-- Export to Excel -->
+      <!-- Export report -->
       <span
         class="export-action"
         [matTooltip]="
           state.entries().length === 0
             ? 'Add at least one time entry before exporting'
-            : 'Export to Excel (.xlsx)'
+            : 'Export monthly report (.xlsx or .ods)'
         "
       >
         <button
           mat-icon-button
           (click)="onExport()"
           [disabled]="state.entries().length === 0"
-          aria-label="Export to Excel"
+          aria-label="Export monthly report"
         >
           <mat-icon>download</mat-icon>
         </button>

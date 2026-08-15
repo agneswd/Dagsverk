@@ -459,8 +459,19 @@ export class AppStateService {
     this.closeEditor();
   }
 
-  public async exportExcel(): Promise<void> {
+  public async exportReport(format: 'xlsx' | 'ods' = 'xlsx'): Promise<void> {
     const workspace = this.activeWorkspace();
+    const thresholdMinutesByDate = Object.fromEntries(
+      this.entries().map((entry) => [
+        entry.date,
+        MonthlyCalculations.thresholdForEntry(
+          entry,
+          this.settings().expectedHours,
+          this.settings().overtimeCompensation,
+          this.holidays,
+        ),
+      ]),
+    );
     const req: ReportExportRequest = {
       year: this.currentYear(),
       month: this.currentMonth(),
@@ -479,6 +490,7 @@ export class AppStateService {
       expectedHours: this.settings().expectedHours,
       overtimeSettings: this.settings().overtimeCompensation,
       hourlyPayBasis: this.settings().salary.hourlyPayBasis,
+      thresholdMinutesByDate,
     };
 
     const monthStr = String(this.currentMonth()).padStart(2, '0');
@@ -486,16 +498,24 @@ export class AppStateService {
       /[^a-zA-Z0-9_-]/g,
       '_',
     );
-    const defaultFilename = `Dagsverk_${safeName}_${this.currentYear()}-${monthStr}.xlsx`;
+    const defaultFilename = `Dagsverk_${safeName}_${this.currentYear()}-${monthStr}.${format}`;
 
     const res = await this.bridge.showSaveDialog({
       title: 'Export Timesheet Report',
       defaultPath: defaultFilename,
-      filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }],
+      filters: [
+        format === 'xlsx'
+          ? { name: 'Excel Workbook', extensions: ['xlsx'] }
+          : { name: 'OpenDocument Spreadsheet', extensions: ['ods'] },
+      ],
     });
 
     if (!res.canceled && res.filePath) {
       await this.bridge.exportExcel(req, res.filePath);
     }
+  }
+
+  public async exportExcel(): Promise<void> {
+    await this.exportReport('xlsx');
   }
 }

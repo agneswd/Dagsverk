@@ -1,5 +1,7 @@
 import { DatabaseService } from './database.service';
 import { ExcelExportService, ReportExportRequest } from './excel-export.service';
+import { OdsExportService } from './ods-export.service';
+import JSZip from 'jszip';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as ExcelJS from 'exceljs';
@@ -139,16 +141,21 @@ async function runTests() {
       },
     ],
     summary: {
-      workedMinutes: 510,
-      regularMinutes: 480,
-      overtimeMinutes: 30,
+      workedHours: 8.5,
+      regularHours: 8,
+      overtimeHours: 0.5,
+      ordinaryPaidHours: 8,
       obHours: 0,
       expectedHours: 168,
+      monthlyDifferenceMinutes: -9570,
       openingBalanceMinutes: 60,
+      closingBalanceMinutes: -9510,
     },
     language: 1, // English
     overtimeMode: 0, // Comp-Time
     dailyOvertimeThresholdHours: 8,
+    hourlyPayBasis: 0,
+    thresholdMinutesByDate: { '2026-08-17': 480 },
   };
 
   await ExcelExportService.exportToFile(req, testExcelPath);
@@ -164,7 +171,53 @@ async function runTests() {
 
   const sheet1 = workbook.worksheets[0];
   const sheet2 = workbook.worksheets[1];
+  if (!String((sheet1.getCell('E21').value as ExcelJS.CellFormulaValue).formula).includes('MOD(')) {
+    throw new Error('Excel overnight formula is not parity-safe');
+  }
+  if ((sheet1.views[0] as { ySplit?: number } | undefined)?.ySplit !== 4) {
+    throw new Error('Excel header rows are not frozen');
+  }
+  if (sheet1.getCell('D39').value !== null || sheet2.getCell('A7').value !== null) {
+    throw new Error('Excel included empty OB rows');
+  }
   console.log(`✔ Excel Export verified: Sheet 1 "${sheet1.name}", Sheet 2 "${sheet2.name}"`);
+
+  const testOdsPath = path.join(__dirname, 'test-report.ods');
+  await OdsExportService.exportToFile(req, testOdsPath);
+  const ods = await JSZip.loadAsync(fs.readFileSync(testOdsPath));
+  const content = await ods.file('content.xml')?.async('text');
+  if (!content?.includes('August 2026') || !content.includes('Time balance')) {
+    throw new Error('OpenDocument report sheets are incomplete');
+  }
+  console.log('✔ OpenDocument export verified');
+
+  const monthlyWorkbook = ExcelExportService.createWorkbook({
+    ...req,
+    month: 6,
+    entries: [],
+    language: 0,
+    hourlyPayBasis: 1,
+    summary: {
+      ...req.summary,
+      workedHours: 141,
+      regularHours: 133.5,
+      overtimeHours: 7.5,
+      ordinaryPaidHours: 136,
+      expectedHours: 136,
+      monthlyDifferenceMinutes: 300,
+      closingBalanceMinutes: 360,
+    },
+  });
+  const monthlyReport = monthlyWorkbook.worksheets[0];
+  const monthlyBalance = monthlyWorkbook.getWorksheet('Tidsbalans');
+  if (
+    monthlyReport.getCell('D36').value !== 'Totalt betalda timmar' ||
+    monthlyReport.getCell('E36').value !== 136 ||
+    monthlyBalance?.getCell('A5').value !== 'Intjänad komptid'
+  ) {
+    throw new Error('Monthly hourly export did not match Tidverk');
+  }
+  console.log('✔ Monthly hourly export parity verified');
 
   let invalidExportRejected = false;
   try {
@@ -186,6 +239,7 @@ async function runTests() {
   // Clean up
   fs.unlinkSync(tempDbPath);
   fs.unlinkSync(testExcelPath);
+  fs.unlinkSync(testOdsPath);
   fs.rmSync(unrelatedPath, { force: true });
   for (const file of fs
     .readdirSync(__dirname)
