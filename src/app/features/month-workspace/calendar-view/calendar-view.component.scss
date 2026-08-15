@@ -44,7 +44,11 @@
   transition: background-color 0.15s ease;
 
   &:hover {
-    background-color: var(--app-surface-container-low);
+    background-color: color-mix(
+      in srgb,
+      var(--app-on-surface) 8%,
+      var(--app-surface-container-low)
+    );
 
     .add-entry-btn {
       opacity: 1;
@@ -75,11 +79,20 @@
   }
 
   &.is-selected {
-    background-color: color-mix(
+    --selected-cell-background: color-mix(
       in srgb,
       var(--app-primary-container) 54%,
       var(--app-surface-container-low)
     );
+    background-color: var(--selected-cell-background);
+
+    &:hover {
+      background-color: color-mix(
+        in srgb,
+        var(--app-on-surface) 8%,
+        var(--selected-cell-background)
+      );
+    }
   }
 
   .cell-top-bar {

@@ -80,19 +80,15 @@
   <mat-nav-list class="m3-nav-list">
     @for (item of navItems; track item.route) {
       <a
-        mat-list-item
         [routerLink]="item.route"
         routerLinkActive="m3-nav-active"
         #rla="routerLinkActive"
-        [activated]="rla.isActive"
         class="m3-nav-item"
       >
-        <mat-icon matListItemIcon class="nav-icon" [class.filled]="rla.isActive">
-          {{ item.icon }}
-        </mat-icon>
-        @if (!collapsed) {
-          <span matListItemTitle class="nav-title label-large">{{ item.label }}</span>
-        }
+        <span class="nav-icon-indicator">
+          <mat-icon class="nav-icon" [class.filled]="rla.isActive">{{ item.icon }}</mat-icon>
+        </span>
+        <span class="nav-title label-large">{{ item.label }}</span>
       </a>
     }
   </mat-nav-list>

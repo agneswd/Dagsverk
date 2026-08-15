@@ -134,6 +134,10 @@
   align-self: flex-start;
 }
 
+.data-backups-link {
+  align-self: flex-start;
+}
+
 .card-header-action {
   display: flex;
   justify-content: space-between;
@@ -159,7 +163,7 @@
   .m3-expansion-card {
     border: none;
     border-radius: 8px !important;
-    background-color: var(--app-surface-container-low);
+    background-color: var(--app-surface-container);
     box-shadow: none !important;
 
     .expansion-form-grid {
@@ -183,14 +187,14 @@
 .empty-bands-placeholder {
   padding: 16px;
   border-radius: 8px;
-  background-color: var(--app-surface-container-low);
+  background-color: var(--app-surface-container);
   color: var(--app-on-surface-variant);
   text-align: center;
 }
 
 .card-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .update-progress {

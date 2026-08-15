@@ -51,28 +51,68 @@
     margin: 0;
   }
 
-  .workspace-switcher-wrapper,
-  .m3-nav-list {
+  .workspace-switcher-wrapper {
     padding-inline: 12px;
   }
 
-  .workspace-switcher-btn,
-  .m3-nav-item {
+  .workspace-switcher-btn {
     width: 56px;
     justify-content: center;
     padding-inline: 0;
   }
 
-  .workspace-switcher-btn .ws-avatar,
-  .m3-nav-item .nav-icon {
+  .workspace-switcher-btn .ws-avatar {
     margin: 0;
   }
 
-  .m3-nav-item .nav-icon {
-    position: absolute;
-    left: 17px !important;
-    right: auto !important;
-    margin: 0 !important;
+  .m3-nav-list {
+    padding: 8px 0 0;
+    align-items: center;
+
+    .m3-nav-item {
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+      width: 80px;
+      height: 64px;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+
+      .nav-icon-indicator {
+        width: 56px;
+        height: 32px;
+        margin-right: 0;
+        border-radius: 16px;
+      }
+
+      .nav-icon {
+        margin: 0;
+      }
+
+      .nav-title {
+        display: block;
+        font-size: 12px;
+        line-height: 16px;
+        letter-spacing: 0.5px;
+      }
+
+      &:hover {
+        background: transparent;
+
+        .nav-icon-indicator {
+          background-color: var(--app-surface-container-high);
+        }
+      }
+
+      &.m3-nav-active {
+        background: transparent;
+
+        .nav-icon-indicator {
+          background-color: var(--app-secondary-container);
+        }
+      }
+    }
   }
 }
 
@@ -159,18 +199,28 @@
   gap: 4px;
 
   .m3-nav-item {
+    display: flex;
+    align-items: center;
     height: 52px;
+    padding: 0 16px;
     border-radius: 26px;
     color: var(--app-on-surface-variant);
+    text-decoration: none;
     transition:
       background-color 0.15s ease,
       color 0.15s ease;
+
+    .nav-icon-indicator {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      margin-right: 12px;
+    }
 
     .nav-icon {
       font-size: 22px;
       width: 22px;
       height: 22px;
-      margin-right: 12px;
       color: var(--app-on-surface-variant);
     }
 

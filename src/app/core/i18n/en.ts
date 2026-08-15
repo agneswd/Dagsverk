@@ -253,6 +253,10 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   'Save balance': 'Save balance',
   'Close day editor': 'Close day editor',
   'Export to Excel': 'Export to Excel',
+  'Data and backups': 'Data and backups',
+  'Manage data and backups': 'Manage data and backups',
+  'Back up or restore the local Dagsverk database for all workspaces.':
+    'Back up or restore the local Dagsverk database for all workspaces.',
   'Export to Excel (.xlsx)': 'Export to Excel (.xlsx)',
   'Add at least one time entry before exporting': 'Add at least one time entry before exporting',
   'Month calendar view': 'Month calendar view',
