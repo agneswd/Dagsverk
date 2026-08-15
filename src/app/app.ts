@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterOutlet } from '@angular/router';
@@ -164,10 +164,20 @@ export class App {
   public state = inject(AppStateService);
   private dialog = inject(MatDialog);
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
   private setupOpened = false;
-  public sidebarCollapsed = signal(false);
+  private isNarrowWindow = window.innerWidth < 1200;
+  public sidebarCollapsed = signal(this.isNarrowWindow);
 
   public constructor() {
+    const handleResize = () => {
+      const isNarrowWindow = window.innerWidth < 1200;
+      if (isNarrowWindow && !this.isNarrowWindow) this.sidebarCollapsed.set(true);
+      this.isNarrowWindow = isNarrowWindow;
+    };
+    window.addEventListener('resize', handleResize);
+    this.destroyRef.onDestroy(() => window.removeEventListener('resize', handleResize));
+
     effect(() => {
       if (
         this.state.isInitialized() &&

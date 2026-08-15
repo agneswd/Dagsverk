@@ -175,3 +175,38 @@
     flex: 0 0 128px;
   }
 }
+
+@container (max-width: 360px) {
+  .editor-header {
+    padding-inline: 16px 8px;
+  }
+
+  .editor-body {
+    padding: 16px;
+    gap: 16px;
+
+    .m3-status-toggle {
+      height: auto;
+      flex-direction: column;
+      border-radius: 20px;
+      overflow: hidden;
+
+      mat-button-toggle {
+        flex: 0 0 40px;
+      }
+    }
+
+    .time-range-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .editor-footer {
+    gap: 4px;
+    padding-inline: 8px;
+
+    .save-btn {
+      flex-basis: 112px;
+    }
+  }
+}

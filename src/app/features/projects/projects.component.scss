@@ -74,7 +74,8 @@
   }
 
   .project-item-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 4px minmax(100px, 1fr) max-content;
     align-items: center;
     padding: 12px 16px;
     min-height: 64px;
@@ -83,6 +84,7 @@
     border: none;
     gap: 12px;
     transition: background-color 0.15s ease;
+    overflow: hidden;
 
     &:hover {
       background-color: var(--app-surface-container);
@@ -105,10 +107,14 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        min-width: 0;
 
         .p-name {
           font-weight: 600;
           color: var(--app-on-surface);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .default-badge {
@@ -117,6 +123,7 @@
           padding: 4px 8px;
           border-radius: 10px;
           font-weight: 500;
+          flex-shrink: 0;
         }
       }
 
@@ -129,6 +136,7 @@
       display: flex;
       align-items: center;
       gap: 4px;
+      flex-shrink: 0;
 
       .action-text-btn {
         height: 40px;

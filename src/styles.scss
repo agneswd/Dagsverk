@@ -231,6 +231,37 @@ body {
   }
 }
 
+.mat-mdc-menu-panel.m3-action-menu {
+  min-width: 240px;
+
+  .mat-mdc-menu-content {
+    padding: 8px;
+  }
+
+  .mat-mdc-menu-item {
+    min-height: 48px;
+    padding-inline: 12px;
+    border-radius: 8px;
+
+    mat-icon {
+      display: grid;
+      place-items: center;
+      flex: 0 0 24px;
+      width: 24px;
+      height: 24px;
+      margin: 0 12px 0 0;
+      font-size: 24px;
+      line-height: 24px;
+    }
+
+    .mat-mdc-menu-item-text {
+      display: flex;
+      align-items: center;
+      line-height: 20px;
+    }
+  }
+}
+
 // Overlay components render outside component style scopes.
 .m3-workspace-menu {
   .menu-heading {

@@ -199,9 +199,13 @@ export class HeaderComponent {
   public async onFillMonth(): Promise<void> {
     const count = this.state.fillableWorkdayCount();
     if (!count) {
-      this.snackBar.open(this.localization.t('All scheduled workdays already have entries.'), 'OK', {
-        duration: 4000,
-      });
+      this.snackBar.open(
+        this.localization.t('All scheduled workdays already have entries.'),
+        'OK',
+        {
+          duration: 4000,
+        },
+      );
       return;
     }
     const confirmed = await this.confirm(

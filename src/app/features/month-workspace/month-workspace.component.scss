@@ -73,8 +73,9 @@
 
 // M3 400px Side Sheet
 .m3-day-editor-drawer {
-  width: 416px;
-  max-width: 90vw;
+  width: min(416px, 100%);
+  max-width: 100%;
+  container-type: inline-size;
   background-color: var(--app-surface-container-low);
   border: none;
   box-shadow: -4px 0 16px color-mix(in srgb, #000000 12%, transparent);

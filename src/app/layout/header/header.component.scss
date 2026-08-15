@@ -1,3 +1,9 @@
+:host {
+  display: block;
+  min-width: 0;
+  container-type: inline-size;
+}
+
 .app-top-toolbar {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -10,6 +16,7 @@
   user-select: none;
   z-index: 10;
   box-sizing: border-box;
+  min-width: 0;
 
   &.route-header {
     position: relative;
@@ -32,6 +39,8 @@
 
   &:not(.route-header) {
     position: relative;
+    grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+    overflow: hidden;
 
     .toolbar-right {
       grid-column: 3;
@@ -51,16 +60,13 @@
 }
 
 .timesheet-controls-plane {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  transition: margin-right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  display: contents;
 
   .toolbar-left {
-    position: absolute;
-    left: max(32px, calc((100% - 1280px) / 2));
+    position: static;
+    grid-column: 1;
+    justify-self: start;
+    margin-left: max(32px, calc((100cqw - 1280px) / 2));
   }
 
   .toolbar-center {
@@ -78,7 +84,11 @@
 
 @media (min-width: 1600px) {
   .app-top-toolbar.editor-open .timesheet-controls-plane {
-    margin-right: 416px;
+    .toolbar-left,
+    .toolbar-center {
+      transform: translateX(-208px);
+      transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
   }
 }
 
@@ -285,5 +295,101 @@
 
   mat-icon {
     color: inherit;
+  }
+}
+
+// The drawer reduces the header's usable width without changing viewport breakpoints.
+@container (max-width: 1240px) {
+  .app-top-toolbar:not(.route-header) {
+    .toolbar-center .m3-view-toggle mat-button-toggle {
+      padding-inline: 12px;
+
+      .toggle-icon {
+        margin-right: 0;
+      }
+
+      .toggle-label {
+        display: none;
+      }
+    }
+
+    .toolbar-right .catchup-btn {
+      width: 40px;
+      min-width: 40px;
+      padding: 0;
+
+      mat-icon {
+        margin: 0;
+      }
+
+      .catchup-label {
+        display: none;
+      }
+    }
+  }
+}
+
+@container (max-width: 1080px) {
+  .app-top-toolbar:not(.route-header) .today-btn {
+    display: none;
+  }
+}
+
+@container (max-width: 880px) {
+  .app-top-toolbar:not(.route-header) {
+    padding-inline: 16px;
+
+    .timesheet-controls-plane .toolbar-left {
+      margin-left: 16px;
+    }
+
+    .month-navigator {
+      gap: 0;
+
+      .month-selector-btn {
+        width: 132px;
+        padding-inline: 8px;
+      }
+
+      .nav-arrow-btn,
+      .month-actions-btn {
+        width: 40px;
+        height: 40px;
+        padding: 8px;
+      }
+    }
+  }
+}
+
+@container (max-width: 740px) {
+  .app-top-toolbar:not(.route-header) .catchup-slot {
+    display: none;
+  }
+}
+
+@container (max-width: 680px) {
+  .app-top-toolbar:not(.route-header) .month-actions-btn {
+    display: none;
+  }
+}
+
+@container (max-width: 640px) {
+  .app-top-toolbar:not(.route-header) > .toolbar-right > button[mat-icon-button] {
+    display: none;
+  }
+}
+
+@container (max-width: 560px) {
+  .app-top-toolbar:not(.route-header) {
+    .nav-arrow-btn,
+    .export-action {
+      display: none;
+    }
+  }
+}
+
+@container (max-width: 420px) {
+  .app-top-toolbar:not(.route-header) .toolbar-center {
+    display: none;
   }
 }
