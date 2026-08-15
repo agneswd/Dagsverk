@@ -9,6 +9,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import {
   MatDialog,
   MatDialogModule,
@@ -19,6 +20,8 @@ import { firstValueFrom } from 'rxjs';
 import { AppStateService } from '../../core/app-state.service';
 import { ElectronBridgeService } from '../../core/electron-bridge.service';
 import { MonthViewPreference } from '../../core/models';
+import { ConfirmDialogComponent } from '../../core/confirm-dialog.component';
+import { LocalizationService } from '../../core/localization.service';
 
 @Component({
   selector: 'app-report-preview-dialog',
@@ -111,6 +114,7 @@ export class ReportPreviewDialogComponent {
     MatMenuModule,
     MatDividerModule,
     MatDialogModule,
+    MatSnackBarModule,
   ],
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss'],
@@ -120,6 +124,8 @@ export class HeaderComponent {
   public bridge = inject(ElectronBridgeService);
   private router = inject(Router);
   private dialog = inject(MatDialog);
+  private snackBar = inject(MatSnackBar);
+  private localization = inject(LocalizationService);
 
   public readonly MonthViewPreference = MonthViewPreference;
   public currentRoute = signal<string>('/timesheet');
@@ -188,5 +194,105 @@ export class HeaderComponent {
         .afterClosed(),
     );
     if (format === 'xlsx' || format === 'ods') await this.state.exportReport(format);
+  }
+
+  public async onFillMonth(): Promise<void> {
+    const count = this.state.fillableWorkdayCount();
+    if (!count) {
+      this.snackBar.open(this.localization.t('All scheduled workdays already have entries.'), 'OK', {
+        duration: 4000,
+      });
+      return;
+    }
+    const confirmed = await this.confirm(
+      'Fill normal workdays?',
+      this.format(
+        'Add your default hours to {0} empty scheduled workdays? Existing entries will be kept.',
+        count,
+      ),
+      'Fill workdays',
+    );
+    if (!confirmed) return;
+    const added = await this.state.fillNormalWorkdays();
+    this.snackBar.open(this.format('{0} normal workdays added.', added), 'OK', { duration: 4000 });
+  }
+
+  public onCopyMonth(): void {
+    this.state.copyMonth();
+    this.snackBar.open(
+      this.format(
+        '{0} copied. Open another month and choose Paste month.',
+        this.state.formattedMonthTitle(),
+      ),
+      'OK',
+      { duration: 4000 },
+    );
+  }
+
+  public async onPasteMonth(): Promise<void> {
+    const count = this.state.pasteableEntryCount();
+    if (!count) {
+      this.snackBar.open(this.localization.t('There are no copied entries to paste.'), 'OK', {
+        duration: 4000,
+      });
+      return;
+    }
+    const confirmed = await this.confirm(
+      'Paste copied month?',
+      this.format(
+        'Add {0} entries from {1} by matching each weekday occurrence? Existing entries will be kept.',
+        count,
+        this.state.copiedMonthTitle(),
+      ),
+      'Paste entries',
+    );
+    if (!confirmed) return;
+    const pasted = await this.state.pasteMonth();
+    this.snackBar.open(this.format('{0} entries pasted.', pasted), 'OK', { duration: 4000 });
+  }
+
+  public async onResetMonth(): Promise<void> {
+    const confirmed = await this.confirm(
+      'Reset this month?',
+      this.format(
+        'Delete every entry and balance adjustment for {0}? This cannot be undone.',
+        this.state.formattedMonthTitle(),
+      ),
+      'Reset month',
+      true,
+    );
+    if (!confirmed) return;
+    const month = this.state.formattedMonthTitle();
+    await this.state.resetMonth();
+    this.snackBar.open(this.format('{0} was reset.', month), 'OK', { duration: 4000 });
+  }
+
+  private async confirm(
+    title: string,
+    message: string,
+    confirmLabel: string,
+    destructive = false,
+  ): Promise<boolean> {
+    return Boolean(
+      await firstValueFrom(
+        this.dialog
+          .open(ConfirmDialogComponent, {
+            width: '440px',
+            data: {
+              title: this.localization.t(title),
+              message,
+              confirmLabel: this.localization.t(confirmLabel),
+              destructive,
+            },
+          })
+          .afterClosed(),
+      ),
+    );
+  }
+
+  private format(source: string, ...values: Array<string | number>): string {
+    let result = this.localization.t(source);
+    values.forEach((value, index) => (result = result.replace(`{${index}}`, String(value))));
+    return result;
   }
 }

@@ -13,6 +13,7 @@ export interface ElectronAPI {
   saveSettings: (settings: any, workspaceId?: string) => Promise<void>;
   getWorkEntries: (year: number, month: number, workspaceId?: string) => Promise<any[]>;
   saveWorkEntry: (entry: any, workspaceId?: string) => Promise<void>;
+  saveWorkEntries: (entries: any[], workspaceId?: string) => Promise<void>;
   deleteWorkEntry: (date: string, workspaceId?: string) => Promise<void>;
   getMonthRecord: (
     year: number,
@@ -21,6 +22,7 @@ export interface ElectronAPI {
     workspaceId?: string,
   ) => Promise<any>;
   saveMonthRecord: (record: any, workspaceId?: string) => Promise<void>;
+  resetMonth: (year: number, month: number, workspaceId?: string) => Promise<void>;
   getBalanceHistory: (year: number, month: number, workspaceId?: string) => Promise<any[]>;
   getProjects: (workspaceId?: string) => Promise<any[]>;
   saveProject: (project: any, workspaceId?: string) => Promise<void>;
@@ -29,6 +31,7 @@ export interface ElectronAPI {
   // Utilities
   createBackup: (destinationFolder?: string) => Promise<string>;
   restoreBackup: (filePath: string) => Promise<void>;
+  importTidverkDatabase: (filePath: string) => Promise<any>;
   getDatabasePath: () => Promise<string>;
   openDataFolder: () => Promise<void>;
   getUpdateState: () => Promise<any>;
@@ -57,11 +60,15 @@ const electronAPI: ElectronAPI = {
   getWorkEntries: (year, month, workspaceId) =>
     ipcRenderer.invoke('db:get-entries', year, month, workspaceId),
   saveWorkEntry: (entry, workspaceId) => ipcRenderer.invoke('db:save-entry', entry, workspaceId),
+  saveWorkEntries: (entries, workspaceId) =>
+    ipcRenderer.invoke('db:save-entries', entries, workspaceId),
   deleteWorkEntry: (date, workspaceId) => ipcRenderer.invoke('db:delete-entry', date, workspaceId),
   getMonthRecord: (year, month, defaultOpening, workspaceId) =>
     ipcRenderer.invoke('db:get-month', year, month, defaultOpening, workspaceId),
   saveMonthRecord: (record, workspaceId) =>
     ipcRenderer.invoke('db:save-month', record, workspaceId),
+  resetMonth: (year, month, workspaceId) =>
+    ipcRenderer.invoke('db:reset-month', year, month, workspaceId),
   getBalanceHistory: (year, month, workspaceId) =>
     ipcRenderer.invoke('db:get-balance-history', year, month, workspaceId),
   getProjects: (workspaceId) => ipcRenderer.invoke('db:get-projects', workspaceId),
@@ -71,6 +78,7 @@ const electronAPI: ElectronAPI = {
 
   createBackup: (folder) => ipcRenderer.invoke('db:backup', folder),
   restoreBackup: (filePath) => ipcRenderer.invoke('db:restore', filePath),
+  importTidverkDatabase: (filePath) => ipcRenderer.invoke('db:import-tidverk', filePath),
   getDatabasePath: () => ipcRenderer.invoke('db:get-path'),
   openDataFolder: () => ipcRenderer.invoke('db:open-folder'),
   getUpdateState: () => ipcRenderer.invoke('update:get-state'),

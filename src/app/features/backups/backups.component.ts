@@ -84,4 +84,42 @@ export class BackupsComponent {
       this.snackBar.open(`Restore failed: ${err.message || err}`, 'Close', { duration: 5000 });
     }
   }
+
+  public async onImportTidverk(): Promise<void> {
+    try {
+      const result = await this.bridge.showOpenDialog({
+        title: 'Select Tidverk Database',
+        filters: [{ name: 'Tidverk SQLite Database', extensions: ['db'] }],
+        properties: ['openFile'],
+      });
+      if (result.canceled || result.filePaths.length === 0) return;
+
+      const filePath = result.filePaths[0];
+      const confirmed = await firstValueFrom(
+        this.dialog
+          .open(ConfirmDialogComponent, {
+            width: '440px',
+            data: {
+              title: 'Import Tidverk data?',
+              message:
+                'Dagsverk will create backups, then import the entries and settings into a workspace. The Tidverk database will not change.',
+              confirmLabel: 'Import data',
+              destructive: false,
+            },
+          })
+          .afterClosed(),
+      );
+      if (!confirmed) return;
+
+      const imported = await this.bridge.importTidverkDatabase(filePath);
+      await this.state.init();
+      this.snackBar.open(
+        `Imported ${imported.entryCount} entries into ${imported.workspaceName}`,
+        'OK',
+        { duration: 5000 },
+      );
+    } catch (err: any) {
+      this.snackBar.open(`Import failed: ${err.message || err}`, 'Close', { duration: 5000 });
+    }
+  }
 }

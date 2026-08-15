@@ -28,6 +28,7 @@ declare global {
       saveSettings: (settings: AppSettings, workspaceId?: string) => Promise<void>;
       getWorkEntries: (year: number, month: number, workspaceId?: string) => Promise<WorkEntry[]>;
       saveWorkEntry: (entry: WorkEntry, workspaceId?: string) => Promise<void>;
+      saveWorkEntries: (entries: WorkEntry[], workspaceId?: string) => Promise<void>;
       deleteWorkEntry: (date: string, workspaceId?: string) => Promise<void>;
       getMonthRecord: (
         year: number,
@@ -36,6 +37,7 @@ declare global {
         workspaceId?: string,
       ) => Promise<MonthRecord>;
       saveMonthRecord: (record: MonthRecord, workspaceId?: string) => Promise<void>;
+      resetMonth: (year: number, month: number, workspaceId?: string) => Promise<void>;
       getBalanceHistory: (
         year: number,
         month: number,
@@ -47,6 +49,10 @@ declare global {
 
       createBackup: (folder?: string) => Promise<string>;
       restoreBackup: (filePath: string) => Promise<void>;
+      importTidverkDatabase: (filePath: string) => Promise<{
+        workspaceName: string;
+        entryCount: number;
+      }>;
       getDatabasePath: () => Promise<string>;
       openDataFolder: () => Promise<void>;
       getUpdateState: () => Promise<UpdateState>;
@@ -96,6 +102,18 @@ export class ElectronBridgeService {
       }
     }
     this.memoryStorage.set(key, value);
+  }
+
+  private removeItem(key: string): void {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        this.memoryStorage.delete(key);
+      }
+    } else {
+      this.memoryStorage.delete(key);
+    }
   }
 
   // --- Workspaces ---
@@ -199,6 +217,20 @@ export class ElectronBridgeService {
     this.setItem(`dagsverk_entries_${workspaceId}`, JSON.stringify(all));
   }
 
+  public async saveWorkEntries(
+    entries: WorkEntry[],
+    workspaceId: string = 'ws-default',
+  ): Promise<void> {
+    if (this.isElectron) {
+      await window.electronAPI!.saveWorkEntries(entries, workspaceId);
+      return;
+    }
+    const dates = new Set(entries.map((entry) => entry.date));
+    const all = this.getLocalEntries(workspaceId).filter((entry) => !dates.has(entry.date));
+    all.push(...entries.map((entry) => ({ ...entry, workspaceId })));
+    this.setItem(`dagsverk_entries_${workspaceId}`, JSON.stringify(all));
+  }
+
   public async deleteWorkEntry(date: string, workspaceId: string = 'ws-default'): Promise<void> {
     if (this.isElectron) {
       await window.electronAPI!.deleteWorkEntry(date, workspaceId);
@@ -247,6 +279,23 @@ export class ElectronBridgeService {
     }
     const key = `dagsverk_month_${workspaceId}_${record.year}_${record.month}`;
     this.setItem(key, JSON.stringify({ ...record, workspaceId }));
+  }
+
+  public async resetMonth(
+    year: number,
+    month: number,
+    workspaceId: string = 'ws-default',
+  ): Promise<void> {
+    if (this.isElectron) {
+      await window.electronAPI!.resetMonth(year, month, workspaceId);
+      return;
+    }
+    const prefix = `${year}-${String(month).padStart(2, '0')}`;
+    const entries = this.getLocalEntries(workspaceId).filter(
+      (entry) => !entry.date.startsWith(prefix),
+    );
+    this.setItem(`dagsverk_entries_${workspaceId}`, JSON.stringify(entries));
+    this.removeItem(`dagsverk_month_${workspaceId}_${year}_${month}`);
   }
 
   public async getBalanceHistory(
@@ -357,6 +406,13 @@ export class ElectronBridgeService {
     if (this.isElectron) {
       await window.electronAPI!.restoreBackup(filePath);
     }
+  }
+
+  public async importTidverkDatabase(
+    filePath: string,
+  ): Promise<{ workspaceName: string; entryCount: number }> {
+    if (!this.isElectron) throw new Error('Tidverk import is available in the desktop app.');
+    return await window.electronAPI!.importTidverkDatabase(filePath);
   }
 
   public async getDatabasePath(): Promise<string> {

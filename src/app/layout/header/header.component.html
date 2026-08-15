@@ -77,6 +77,40 @@
           <button mat-stroked-button (click)="state.goToToday()" class="today-btn label-large">
             Today
           </button>
+
+          <button
+            mat-icon-button
+            [matMenuTriggerFor]="monthActionsMenu"
+            aria-label="Month actions"
+            matTooltip="Month actions"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+
+          <mat-menu #monthActionsMenu="matMenu">
+            <button mat-menu-item (click)="onFillMonth()">
+              <mat-icon>playlist_add</mat-icon>
+              <span>Fill normal workdays</span>
+            </button>
+            <button mat-menu-item (click)="onCopyMonth()" [disabled]="state.isMonthUnstarted()">
+              <mat-icon>content_copy</mat-icon>
+              <span>Copy month</span>
+            </button>
+            <button mat-menu-item (click)="onPasteMonth()" [disabled]="!state.canPasteMonth()">
+              <mat-icon>content_paste</mat-icon>
+              <span>Paste month</span>
+            </button>
+            <mat-divider></mat-divider>
+            <button
+              mat-menu-item
+              class="destructive-menu-item"
+              (click)="onResetMonth()"
+              [disabled]="!state.canResetMonth()"
+            >
+              <mat-icon>delete_sweep</mat-icon>
+              <span>Reset month</span>
+            </button>
+          </mat-menu>
         </div>
       </div>
 

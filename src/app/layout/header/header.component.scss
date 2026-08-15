@@ -279,3 +279,11 @@
     }
   }
 }
+
+.destructive-menu-item:not([disabled]) {
+  color: var(--app-error);
+
+  mat-icon {
+    color: inherit;
+  }
+}
