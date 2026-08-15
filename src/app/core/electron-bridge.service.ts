@@ -214,14 +214,14 @@ export class ElectronBridgeService {
     if (this.isElectron) {
       const list = await window.electronAPI!.getProjects(workspaceId);
       return list && list.length > 0 ? list : [
-        { workspaceId, id: 'proj-default', name: 'General', color: '#0B57D0', isActive: true, isDefault: true }
+        { workspaceId, id: 'proj-default', name: 'General', color: '#5F875F', isActive: true, isDefault: true }
       ];
     }
     const raw = this.getItem(`dagsverk_projects_${workspaceId}`);
     if (raw) return JSON.parse(raw);
 
     return [
-      { workspaceId, id: 'proj-default', name: 'General', color: '#0B57D0', isActive: true, isDefault: true }
+      { workspaceId, id: 'proj-default', name: 'General', color: '#5F875F', isActive: true, isDefault: true }
     ];
   }
 
