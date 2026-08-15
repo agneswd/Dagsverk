@@ -10,12 +10,7 @@
         <span class="holiday-pill label-small">🎉 {{ holidayName }}</span>
       }
     </div>
-    <button
-      mat-icon-button
-      (click)="onClose()"
-      aria-label="Close day editor"
-      class="close-btn"
-    >
+    <button mat-icon-button (click)="onClose()" aria-label="Close day editor" class="close-btn">
       <mat-icon>close</mat-icon>
     </button>
   </div>
@@ -65,7 +60,11 @@
         <mat-chip-listbox aria-label="Quick time presets" class="presets-chips">
           @for (preset of timePresets; track preset.label) {
             <mat-chip-option
-              [selected]="startTime() === preset.start && endTime() === preset.end && lunchMinutes() === preset.lunch"
+              [selected]="
+                startTime() === preset.start &&
+                endTime() === preset.end &&
+                lunchMinutes() === preset.lunch
+              "
               (click)="applyPreset(preset)"
               class="preset-chip"
             >
@@ -76,13 +75,24 @@
       </div>
 
       <div class="form-section">
-        <mat-slide-toggle [ngModel]="useScheduledHoursOverride()" (ngModelChange)="useScheduledHoursOverride.set($event)">
+        <mat-slide-toggle
+          [ngModel]="useScheduledHoursOverride()"
+          (ngModelChange)="useScheduledHoursOverride.set($event)"
+        >
           Override scheduled hours
         </mat-slide-toggle>
         @if (useScheduledHoursOverride()) {
           <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
             <mat-label>Scheduled hours</mat-label>
-            <input matInput type="number" min="0" step="0.25" [ngModel]="scheduledHours()" (ngModelChange)="scheduledHours.set($event)" class="numeric">
+            <input
+              matInput
+              type="number"
+              min="0"
+              step="0.25"
+              [ngModel]="scheduledHours()"
+              (ngModelChange)="scheduledHours.set($event)"
+              class="numeric"
+            />
             <span matTextSuffix>hours</span>
           </mat-form-field>
         }
@@ -99,7 +109,7 @@
             (blur)="onTimeBlur('start', startTime())"
             placeholder="08:00"
             class="numeric"
-          >
+          />
           <mat-icon matPrefix class="field-icon">schedule</mat-icon>
         </mat-form-field>
 
@@ -112,7 +122,7 @@
             (blur)="onTimeBlur('end', endTime())"
             placeholder="16:30"
             class="numeric"
-          >
+          />
           <mat-icon matPrefix class="field-icon">update</mat-icon>
         </mat-form-field>
       </div>
@@ -148,18 +158,23 @@
       <div class="pay-summary-card">
         <div class="pay-row">
           <span class="body-small">Effective Hours</span>
-          <span class="title-small numeric">{{ workedHours | number:'1.2-2' }}h</span>
+          <span class="title-small numeric">{{ workedHours | number: '1.2-2' }}h</span>
         </div>
         @if (dailyPay.overtimePay > 0 || dailyPay.obPay > 0) {
           <div class="pay-row">
             <span class="body-small">Overtime & OB</span>
-            <span class="title-small numeric">+{{ (dailyPay.overtimePay + dailyPay.obPay) | number:'1.0-0' }} {{ state.settings().currencyPreference }}</span>
+            <span class="title-small numeric"
+              >+{{ dailyPay.overtimePay + dailyPay.obPay | number: '1.0-0' }}
+              {{ state.settings().currencyPreference }}</span
+            >
           </div>
         }
         <mat-divider></mat-divider>
         <div class="pay-row total-row">
           <span class="label-large">Estimated Day Pay</span>
-          <span class="title-medium numeric">{{ dailyPay.total | number:'1.0-0' }} {{ state.settings().currencyPreference }}</span>
+          <span class="title-medium numeric"
+            >{{ dailyPay.total | number: '1.0-0' }} {{ state.settings().currencyPreference }}</span
+          >
         </div>
       </div>
     }
@@ -200,18 +215,30 @@
   <!-- Side-Sheet Actions (40px, Cancel first, Save Entry last) -->
   <div class="editor-footer">
     @if (state.isCatchUpOpen()) {
-      <button mat-button type="button" (click)="state.moveCatchUp(-1)" [disabled]="state.catchUpIndex() === 0">Back</button>
-      <button mat-button type="button" (click)="state.moveCatchUp(1)">Skip</button>
+      <button
+        mat-button
+        type="button"
+        class="action-btn label-large"
+        (click)="state.moveCatchUp(-1)"
+        [disabled]="state.catchUpIndex() === 0"
+      >
+        Back
+      </button>
+      <button
+        mat-button
+        type="button"
+        class="action-btn label-large"
+        (click)="state.moveCatchUp(1)"
+      >
+        Skip
+      </button>
     } @else {
-      <button mat-button type="button" (click)="onReset()" class="action-btn label-large">Reset</button>
+      <button mat-button type="button" (click)="onReset()" class="action-btn label-large">
+        Reset
+      </button>
     }
 
-    <button
-      mat-button
-      type="button"
-      (click)="onClose()"
-      class="action-btn label-large"
-    >
+    <button mat-button type="button" (click)="onClose()" class="action-btn label-large">
       Cancel
     </button>
 
