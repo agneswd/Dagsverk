@@ -40,8 +40,9 @@ import { MonthViewPreference } from '../../core/models';
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end" class="report-dialog-actions">
-      <button mat-button type="button" (click)="dialogRef.close(false)">Cancel</button>
-      <button mat-flat-button type="button" (click)="dialogRef.close(true)">Choose file</button>
+      <button mat-button type="button" (click)="dialogRef.close()">Cancel</button>
+      <button mat-button type="button" (click)="dialogRef.close('ods')">OpenDocument</button>
+      <button mat-flat-button type="button" (click)="dialogRef.close('xlsx')">Excel</button>
     </mat-dialog-actions>
   `,
   styles: `
@@ -172,7 +173,7 @@ export class HeaderComponent {
   }
 
   public async onExport(): Promise<void> {
-    const confirmed = await firstValueFrom(
+    const format = await firstValueFrom(
       this.dialog
         .open(ReportPreviewDialogComponent, {
           width: '440px',
@@ -186,6 +187,6 @@ export class HeaderComponent {
         })
         .afterClosed(),
     );
-    if (confirmed) await this.state.exportExcel();
+    if (format === 'xlsx' || format === 'ods') await this.state.exportReport(format);
   }
 }

@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { DatabaseService } from './database.service';
 import { ExcelExportService } from './excel-export.service';
+import { OdsExportService } from './ods-export.service';
 
 let mainWindow: BrowserWindow | null = null;
 let dbService: DatabaseService | null = null;
@@ -176,7 +177,11 @@ function registerIpcHandlers() {
   ipcMain.on('update:restart', () => autoUpdater.quitAndInstall());
 
   ipcMain.handle('export:excel', async (_, request, outputPath) => {
-    await ExcelExportService.exportToFile(request, outputPath);
+    if (path.extname(outputPath).toLowerCase() === '.ods') {
+      await OdsExportService.exportToFile(request, outputPath);
+    } else {
+      await ExcelExportService.exportToFile(request, outputPath);
+    }
   });
 
   ipcMain.handle('dialog:save-file', async (_, options) => {
