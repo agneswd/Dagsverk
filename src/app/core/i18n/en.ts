@@ -248,6 +248,8 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   'Untitled Band': 'Untitled band',
   'Switch active workspace': 'Switch active workspace',
   'Adjust opening time balance': 'Adjust opening time balance',
+  'Adjust opening balance': 'Adjust opening balance',
+  'Save balance': 'Save balance',
   'Close day editor': 'Close day editor',
   'Export to Excel': 'Export to Excel',
   'Month calendar view': 'Month calendar view',

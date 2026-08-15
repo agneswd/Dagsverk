@@ -248,6 +248,8 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Untitled Band': 'Namnlöst intervall',
   'Switch active workspace': 'Byt aktiv arbetsyta',
   'Adjust opening time balance': 'Ändra ingående tidsbalans',
+  'Adjust opening balance': 'Ändra ingående balans',
+  'Save balance': 'Spara balans',
   'Close day editor': 'Stäng dagredigeraren',
   'Export to Excel': 'Exportera till Excel',
   'Month calendar view': 'Månadskalender',

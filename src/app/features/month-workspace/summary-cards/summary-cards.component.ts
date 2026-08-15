@@ -18,19 +18,43 @@ import { OvertimeCompensationMode } from '../../../core/models';
   selector: 'app-balance-dialog',
   standalone: true,
   imports: [FormsModule, MatButtonModule, MatDialogModule, MatFormFieldModule, MatInputModule],
-  template: `<h2 mat-dialog-title>Adjust opening balance</h2>
-    <mat-dialog-content
-      ><p>Set the balance carried into {{ data.month }}.</p>
-      <mat-form-field appearance="outline"
-        ><mat-label>Opening balance</mat-label
-        ><input matInput type="number" step="0.25" [(ngModel)]="hours" /><span matTextSuffix
-          >hours</span
-        ></mat-form-field
-      ></mat-dialog-content
-    ><mat-dialog-actions align="end"
-      ><button mat-button (click)="dialogRef.close()">Cancel</button
-      ><button mat-flat-button (click)="save()">Save balance</button></mat-dialog-actions
-    >`,
+  template: `
+    <h2 mat-dialog-title>Adjust opening balance</h2>
+    <mat-dialog-content class="balance-dialog-content">
+      <p>Set the balance carried into {{ data.month }}.</p>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Opening balance</mat-label>
+        <input matInput type="number" step="0.25" [(ngModel)]="hours" />
+        <span matTextSuffix>hours</span>
+      </mat-form-field>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end" class="balance-dialog-actions">
+      <button mat-button type="button" (click)="dialogRef.close()">Cancel</button>
+      <button mat-flat-button type="button" (click)="save()">Save balance</button>
+    </mat-dialog-actions>
+  `,
+  styles: `
+    .balance-dialog-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-top: 0;
+    }
+
+    .balance-dialog-content p {
+      margin: 0;
+      color: var(--app-on-surface-variant);
+    }
+
+    .balance-dialog-content mat-form-field {
+      width: 100%;
+    }
+
+    .balance-dialog-actions {
+      gap: 8px;
+      padding: 16px 24px 24px;
+    }
+  `,
 })
 export class BalanceDialogComponent {
   public dialogRef = inject(MatDialogRef<BalanceDialogComponent>);

@@ -106,24 +106,20 @@
       justify-content: center;
 
       .month-selector-content {
-        display: grid;
-        grid-template-columns: 20px minmax(0, 1fr) 20px;
+        display: flex;
         align-items: center;
+        justify-content: center;
+        gap: 4px;
         width: 100%;
-
-        &::before {
-          content: '';
-        }
       }
 
       .month-label {
-        grid-column: 2;
         min-width: 0;
         text-align: center;
       }
 
       .dropdown-icon {
-        grid-column: 3;
+        flex: 0 0 20px;
         font-size: 20px;
         width: 20px;
         height: 20px;
