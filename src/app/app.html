@@ -1,7 +1,19 @@
-<mat-sidenav-container class="app-shell-container" [hasBackdrop]="false">
+<mat-sidenav-container
+  class="app-shell-container"
+  [hasBackdrop]="false"
+  (document:keydown)="onShortcut($event)"
+>
   <!-- Full-Height Navigation Drawer (240px) -->
-  <mat-sidenav mode="side" opened="true" class="app-shell-drawer">
-    <app-sidebar></app-sidebar>
+  <mat-sidenav
+    mode="side"
+    opened="true"
+    class="app-shell-drawer"
+    [class.collapsed]="sidebarCollapsed()"
+  >
+    <app-sidebar
+      [collapsed]="sidebarCollapsed()"
+      (collapsedChange)="sidebarCollapsed.set($event)"
+    ></app-sidebar>
   </mat-sidenav>
 
   <!-- Shell Main Content Column (Toolbar + Route View) -->

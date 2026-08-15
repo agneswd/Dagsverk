@@ -9,8 +9,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { firstValueFrom } from 'rxjs';
 import { AppStateService } from '../../core/app-state.service';
 import { Workspace, WorkspaceType } from '../../core/models';
+import { ConfirmDialogComponent } from '../../core/confirm-dialog.component';
 
 @Component({
   selector: 'app-workspaces',
@@ -25,14 +28,17 @@ import { Workspace, WorkspaceType } from '../../core/models';
     MatInputModule,
     MatSelectModule,
     MatTooltipModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatDialogModule,
   ],
   templateUrl: './workspaces.component.html',
-  styleUrls: ['./workspaces.component.scss']
+  styleUrls: ['./workspaces.component.scss'],
 })
 export class WorkspacesComponent {
   public state = inject(AppStateService);
+  public dialogRef = inject(MatDialogRef<WorkspacesComponent>, { optional: true });
   private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
 
   public newWorkspaceName = signal<string>('');
   public newWorkspaceType = signal<WorkspaceType>(WorkspaceType.Employment);
@@ -51,7 +57,7 @@ export class WorkspacesComponent {
     '#C2185B', // Pink
     '#7B1FA2', // Purple
     '#5C6BC0', // Indigo
-    '#455A64'  // Slate
+    '#455A64', // Slate
   ];
 
   public async onAddWorkspace(): Promise<void> {
@@ -66,7 +72,7 @@ export class WorkspacesComponent {
       workerName: this.newWorkerName().trim() || undefined,
       color: this.newWorkspaceColor(),
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
 
     await this.state.saveWorkspace(newWs);
@@ -83,8 +89,12 @@ export class WorkspacesComponent {
   }
 
   public workspaceSubtitle(workspace: Workspace): string {
-    if (workspace.type === WorkspaceType.Personal) return workspace.workerName || 'Personal workspace';
-    return workspace.organizationName || (workspace.type === WorkspaceType.Contract ? 'Independent contract' : 'Employment');
+    if (workspace.type === WorkspaceType.Personal)
+      return workspace.workerName || 'Personal workspace';
+    return (
+      workspace.organizationName ||
+      (workspace.type === WorkspaceType.Contract ? 'Independent contract' : 'Employment')
+    );
   }
 
   public async onDeleteWorkspace(ws: Workspace): Promise<void> {
@@ -93,9 +103,20 @@ export class WorkspacesComponent {
       return;
     }
 
-    if (typeof confirm !== 'undefined' && !confirm(`Are you sure you want to delete workspace "${ws.name}"? All associated entries, projects, and settings will be permanently removed.`)) {
-      return;
-    }
+    const confirmed = await firstValueFrom(
+      this.dialog
+        .open(ConfirmDialogComponent, {
+          width: '440px',
+          data: {
+            title: 'Delete workspace?',
+            message: `Delete "${ws.name}" and all its entries, projects, and settings?`,
+            confirmLabel: 'Delete workspace',
+            destructive: true,
+          },
+        })
+        .afterClosed(),
+    );
+    if (!confirmed) return;
 
     await this.state.deleteWorkspace(ws.id);
     this.snackBar.open(`Workspace "${ws.name}" deleted`, 'Close', { duration: 3000 });

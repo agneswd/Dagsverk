@@ -7,6 +7,7 @@ import { AppStateService } from '../../../core/app-state.service';
 import { SwedishHolidayService } from '../../../core/swedish-holiday.service';
 import { MinuteMath, MonthlyCalculations } from '../../../core/monthly-calculations';
 import { WorkEntry, WorkEntryStatus } from '../../../core/models';
+import { LocalizationService } from '../../../core/localization.service';
 
 export interface CalendarDayCell {
   date: string;
@@ -31,11 +32,12 @@ export interface CalendarDayCell {
   standalone: true,
   imports: [CommonModule, MatCardModule, MatIconModule, MatTooltipModule],
   templateUrl: './calendar-view.component.html',
-  styleUrls: ['./calendar-view.component.scss']
+  styleUrls: ['./calendar-view.component.scss'],
 })
 export class CalendarViewComponent {
   public state = inject(AppStateService);
   private holidays = inject(SwedishHolidayService);
+  private localization = inject(LocalizationService);
 
   public readonly WorkEntryStatus = WorkEntryStatus;
   public readonly weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -78,7 +80,7 @@ export class CalendarViewComponent {
         workedHours: 0,
         overtimeHours: 0,
         projectName: null,
-        notes: null
+        notes: null,
       });
     }
 
@@ -88,7 +90,8 @@ export class CalendarViewComponent {
       const d = new Date(Date.UTC(y, m - 1, day));
       const dayOfWeek = d.getUTCDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const holidayName = this.holidays.getHolidayName(date);
+      const holiday = this.holidays.getHolidayName(date);
+      const holidayName = holiday ? this.localization.t(holiday) : null;
       const isScheduled = MonthlyCalculations.isScheduledWorkday(date, expected, this.holidays);
       const entry = entriesMap.get(date);
 
@@ -128,7 +131,7 @@ export class CalendarViewComponent {
         workedHours: worked,
         overtimeHours: ot,
         projectName: project,
-        notes
+        notes,
       });
     }
 
@@ -152,7 +155,7 @@ export class CalendarViewComponent {
         workedHours: 0,
         overtimeHours: 0,
         projectName: null,
-        notes: null
+        notes: null,
       });
     }
 
@@ -161,12 +164,17 @@ export class CalendarViewComponent {
 
   public formatAccessibleCellName(cell: CalendarDayCell): string {
     const d = new Date(`${cell.date}T00:00:00`);
-    const dateStr = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-    if (cell.holidayName) return `${dateStr}, Holiday ${cell.holidayName}`;
-    if (cell.status === WorkEntryStatus.Worked) return `${dateStr}, Worked ${cell.workedHours.toFixed(1)} hours`;
-    if (cell.status === WorkEntryStatus.Off) return `${dateStr}, Day off`;
-    if (cell.isScheduledWorkday) return `${dateStr}, unlogged`;
-    return `${dateStr}, rest day`;
+    const dateStr = d.toLocaleDateString(
+      this.localization.language() === 'sv' ? 'sv-SE' : 'en-US',
+      { weekday: 'long', month: 'long', day: 'numeric' },
+    );
+    if (cell.holidayName)
+      return `${dateStr}, ${this.localization.t('Holiday')} ${cell.holidayName}`;
+    if (cell.status === WorkEntryStatus.Worked)
+      return `${dateStr}, ${this.localization.t('Worked')} ${cell.workedHours.toFixed(1)} h`;
+    if (cell.status === WorkEntryStatus.Off) return `${dateStr}, ${this.localization.t('Day Off')}`;
+    if (cell.isScheduledWorkday) return `${dateStr}, ${this.localization.t('Unlogged')}`;
+    return dateStr;
   }
 
   public onCellClick(cell: CalendarDayCell): void {
@@ -184,7 +192,7 @@ export class CalendarViewComponent {
 
   public getProjectColor(name: string | null): string {
     if (!name) return '#5F875F';
-    const p = this.state.projects().find(item => item.name.toLowerCase() === name.toLowerCase());
+    const p = this.state.projects().find((item) => item.name.toLowerCase() === name.toLowerCase());
     return p?.color || '#5F875F';
   }
 }

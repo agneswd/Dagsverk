@@ -23,10 +23,7 @@
       >
         <!-- Cell Top Row: Day Number + Add Button -->
         <div class="cell-top-bar">
-          <span
-            class="day-number-pill numeric"
-            [class.today-circle]="cell.isToday"
-          >
+          <span class="day-number-pill numeric" [class.today-circle]="cell.isToday">
             {{ cell.dayOfMonth }}
           </span>
 
@@ -43,7 +40,11 @@
         </div>
 
         <!-- Unlogged indicator directly under day number -->
-        @if (cell.isCurrentMonth && cell.status === WorkEntryStatus.Incomplete && cell.isScheduledWorkday) {
+        @if (
+          cell.isCurrentMonth &&
+          cell.status === WorkEntryStatus.Incomplete &&
+          cell.isScheduledWorkday
+        ) {
           <div class="unlogged-banner">
             <span class="unlogged-dot"></span>
             <span class="unlogged-label label-small">Unlogged</span>
@@ -62,12 +63,15 @@
           @if (cell.status === WorkEntryStatus.Worked) {
             <div class="calendar-chip worked-chip">
               <div class="chip-main-row">
-                <span class="chip-time numeric">{{ cell.startTime }}–{{ cell.endTime }}</span>
-                <span class="chip-hours numeric">{{ cell.workedHours | number:'1.2-2' }}h</span>
+                <span class="chip-time numeric">{{ cell.startTime }}-{{ cell.endTime }}</span>
+                <span class="chip-hours numeric">{{ cell.workedHours | number: '1.2-2' }}h</span>
               </div>
               @if (cell.projectName) {
                 <div class="chip-sub-row">
-                  <span class="proj-dot" [style.background-color]="getProjectColor(cell.projectName)"></span>
+                  <span
+                    class="proj-dot"
+                    [style.background-color]="getProjectColor(cell.projectName)"
+                  ></span>
                   <span class="proj-name label-small">{{ cell.projectName }}</span>
                 </div>
               }

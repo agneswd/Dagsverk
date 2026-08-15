@@ -1,6 +1,8 @@
 import { Component, HostListener, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { AppStateService } from '../../core/app-state.service';
 import { MonthViewPreference } from '../../core/models';
 import { SummaryCardsComponent } from './summary-cards/summary-cards.component';
@@ -14,20 +16,22 @@ import { DayEditorComponent } from './day-editor/day-editor.component';
   imports: [
     CommonModule,
     MatSidenavModule,
+    MatButtonModule,
+    MatIconModule,
     SummaryCardsComponent,
     LedgerViewComponent,
     CalendarViewComponent,
-    DayEditorComponent
+    DayEditorComponent,
   ],
   templateUrl: './month-workspace.component.html',
-  styleUrls: ['./month-workspace.component.scss']
+  styleUrls: ['./month-workspace.component.scss'],
 })
 export class MonthWorkspaceComponent {
   public state = inject(AppStateService);
   public readonly MonthViewPreference = MonthViewPreference;
 
   public isWideScreen = signal<boolean>(
-    typeof window !== 'undefined' ? window.innerWidth >= 1600 : false
+    typeof window !== 'undefined' ? window.innerWidth >= 1600 : false,
   );
 
   @HostListener('window:resize')

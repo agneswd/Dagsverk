@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output, signal, effect } from '@angular/core';
+import { Component, HostListener, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -15,6 +15,7 @@ import { AppSettings, WorkEntry, WorkEntryStatus } from '../../../core/models';
 import { MinuteMath, MonthlyCalculations, TimeInput } from '../../../core/monthly-calculations';
 import { SwedishHolidayService } from '../../../core/swedish-holiday.service';
 import { AppStateService } from '../../../core/app-state.service';
+import { LocalizationService } from '../../../core/localization.service';
 
 @Component({
   selector: 'app-day-editor',
@@ -31,14 +32,15 @@ import { AppStateService } from '../../../core/app-state.service';
     MatDividerModule,
     MatTooltipModule,
     MatChipsModule,
-    MatSlideToggleModule
+    MatSlideToggleModule,
   ],
   templateUrl: './day-editor.component.html',
-  styleUrls: ['./day-editor.component.scss']
+  styleUrls: ['./day-editor.component.scss'],
 })
 export class DayEditorComponent {
   public holidays = inject(SwedishHolidayService);
   public state = inject(AppStateService);
+  private localization = inject(LocalizationService);
 
   public readonly WorkEntryStatus = WorkEntryStatus;
 
@@ -53,20 +55,20 @@ export class DayEditorComponent {
   public errorText = signal<string>('');
 
   public timePresets = [
-    { label: '08:00 – 16:30', start: '08:00', end: '16:30', lunch: 30 },
-    { label: '08:30 – 17:00', start: '08:30', end: '17:00', lunch: 30 },
-    { label: '09:00 – 17:30', start: '09:00', end: '17:30', lunch: 30 }
+    { label: '08:00-16:30', start: '08:00', end: '16:30', lunch: 30 },
+    { label: '08:30-17:00', start: '08:30', end: '17:00', lunch: 30 },
+    { label: '09:00-17:30', start: '09:00', end: '17:30', lunch: 30 },
   ];
 
   public lunchOptions = [0, 30, 45, 60];
 
   public dayOffReasons = [
-    'Vacation / Semester',
-    'Sick / Sjuk',
-    'VAB',
-    'Leave / Tjänstledig',
-    'Parental / Föräldraledig',
-    'Holiday / Helg'
+    'Vacation',
+    'Sick leave',
+    'Care of child',
+    'Leave of absence',
+    'Parental leave',
+    'Public holiday',
   ];
 
   public constructor() {
@@ -74,16 +76,20 @@ export class DayEditorComponent {
       const e = this.state.selectedEntry();
       const s = this.state.settings();
       if (e) {
-        this.status.set(this.state.isCatchUpOpen() && e.status === WorkEntryStatus.Incomplete
-          ? WorkEntryStatus.Worked
-          : e.status);
+        this.status.set(
+          this.state.isCatchUpOpen() && e.status === WorkEntryStatus.Incomplete
+            ? WorkEntryStatus.Worked
+            : e.status,
+        );
         this.startTime.set(e.startTime || s.defaultStartTime || '08:00');
         this.endTime.set(e.endTime || s.defaultEndTime || '16:30');
         this.lunchMinutes.set(e.lunchMinutes ?? s.defaultLunchMinutes ?? 30);
         this.projectName.set(e.projectName || s.defaultProject || 'General');
         this.notes.set(e.notes || '');
         this.useScheduledHoursOverride.set(e.scheduledMinutesOverride !== null);
-        this.scheduledHours.set((e.scheduledMinutesOverride ?? s.expectedHours.hoursPerWorkday * 60) / 60);
+        this.scheduledHours.set(
+          (e.scheduledMinutesOverride ?? s.expectedHours.hoursPerWorkday * 60) / 60,
+        );
         this.errorText.set('');
       }
     });
@@ -97,12 +103,18 @@ export class DayEditorComponent {
     const d = this.state.selectedDate();
     if (!d) return '';
     const dateObj = new Date(`${d}T00:00:00`);
-    return dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    return dateObj.toLocaleDateString(this.localization.language() === 'sv' ? 'sv-SE' : 'en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   }
 
   public get holidayName(): string | null {
     const d = this.state.selectedDate();
-    return d ? this.holidays.getHolidayName(d) : null;
+    const holiday = d ? this.holidays.getHolidayName(d) : null;
+    return holiday ? this.localization.t(holiday) : null;
   }
 
   public get workedHours(): number {
@@ -123,14 +135,16 @@ export class DayEditorComponent {
       lunchMinutes: this.lunchMinutes(),
       projectName: this.projectName(),
       notes: this.notes(),
-      scheduledMinutesOverride: this.useScheduledHoursOverride() ? Math.round(this.scheduledHours() * 60) : null
+      scheduledMinutesOverride: this.useScheduledHoursOverride()
+        ? Math.round(this.scheduledHours() * 60)
+        : null,
     };
     return MonthlyCalculations.calculateDailyPay(
       fakeEntry,
       this.state.settings().expectedHours,
       this.state.settings().salary,
       this.state.settings().overtimeCompensation,
-      this.holidays
+      this.holidays,
     );
   }
 
@@ -154,8 +168,9 @@ export class DayEditorComponent {
 
   public copyPrevious(): void {
     const current = this.currentDateString;
-    const previous = this.state.entries()
-      .filter(entry => entry.date < current && entry.status === WorkEntryStatus.Worked)
+    const previous = this.state
+      .entries()
+      .filter((entry) => entry.date < current && entry.status === WorkEntryStatus.Worked)
       .sort((left, right) => right.date.localeCompare(left.date))[0];
     this.copyEntry(previous);
   }
@@ -163,7 +178,7 @@ export class DayEditorComponent {
   public copyLastWeek(): void {
     const date = new Date(`${this.currentDateString}T00:00:00`);
     date.setDate(date.getDate() - 7);
-    this.copyEntry(this.state.entries().find(entry => entry.date === this.toDateString(date)));
+    this.copyEntry(this.state.entries().find((entry) => entry.date === this.toDateString(date)));
   }
 
   private copyEntry(entry?: WorkEntry): void {
@@ -199,7 +214,10 @@ export class DayEditorComponent {
   public async onSave(saveAndNext = false): Promise<void> {
     const e = this.state.selectedEntry();
     if (!e) return;
-    if (this.useScheduledHoursOverride() && (!Number.isFinite(this.scheduledHours()) || this.scheduledHours() < 0)) {
+    if (
+      this.useScheduledHoursOverride() &&
+      (!Number.isFinite(this.scheduledHours()) || this.scheduledHours() < 0)
+    ) {
       this.errorText.set('Scheduled hours must be zero or more.');
       return;
     }
@@ -211,7 +229,9 @@ export class DayEditorComponent {
       lunchMinutes: this.status() === WorkEntryStatus.Worked ? this.lunchMinutes() : 0,
       projectName: this.status() === WorkEntryStatus.Worked ? this.projectName() : null,
       notes: this.notes() || null,
-      scheduledMinutesOverride: this.useScheduledHoursOverride() ? Math.round(this.scheduledHours() * 60) : null
+      scheduledMinutesOverride: this.useScheduledHoursOverride()
+        ? Math.round(this.scheduledHours() * 60)
+        : null,
     };
     await this.state.saveEntry(updated);
     if (saveAndNext && this.state.isCatchUpOpen()) this.state.moveCatchUp(1);
@@ -227,5 +247,10 @@ export class DayEditorComponent {
   public onClose(): void {
     if (this.state.isCatchUpOpen()) this.state.closeCatchUp();
     else this.state.closeEditor();
+  }
+
+  @HostListener('window:dagsverk-save')
+  public onKeyboardSave(): void {
+    void this.onSave(this.state.isCatchUpOpen());
   }
 }

@@ -1,8 +1,8 @@
 # Dagsverk
 
-Dagsverk is an Angular and Electron fork of [Tidverk](https://github.com/agneswd/Tidverk). It keeps Tidverk's offline timesheet and salary workflow while adding Material 3 design and separate workspaces.
+Dagsverk is an Angular and Electron fork of [Tidverk](https://github.com/agneswd/Tidverk). It keeps Tidverk's offline timesheet, salary, tax, reporting, backup, and update workflows. Material 3 design and separate workspaces extend the original application.
 
-The project is under active development. Feature parity with Tidverk is not complete.
+Each workspace owns its identity, schedule, pay settings, projects, month records, and time entries. Application preferences and data tools stay global.
 
 ## Development
 

@@ -2,15 +2,17 @@ import { Injectable } from '@angular/core';
 import {
   AppPreferences,
   AppSettings,
+  BalanceHistoryMonth,
   DEFAULT_PREFERENCES,
   DEFAULT_SETTINGS,
   DEFAULT_WORKSPACE,
   MonthRecord,
   Project,
   ReportExportRequest,
+  UpdateState,
   WorkEntry,
   Workspace,
-  WorkspaceType
+  WorkspaceType,
 } from './models';
 
 declare global {
@@ -27,14 +29,30 @@ declare global {
       getWorkEntries: (year: number, month: number, workspaceId?: string) => Promise<WorkEntry[]>;
       saveWorkEntry: (entry: WorkEntry, workspaceId?: string) => Promise<void>;
       deleteWorkEntry: (date: string, workspaceId?: string) => Promise<void>;
-      getMonthRecord: (year: number, month: number, defaultOpening?: number, workspaceId?: string) => Promise<MonthRecord>;
+      getMonthRecord: (
+        year: number,
+        month: number,
+        defaultOpening?: number,
+        workspaceId?: string,
+      ) => Promise<MonthRecord>;
       saveMonthRecord: (record: MonthRecord, workspaceId?: string) => Promise<void>;
+      getBalanceHistory: (
+        year: number,
+        month: number,
+        workspaceId?: string,
+      ) => Promise<BalanceHistoryMonth[]>;
       getProjects: (workspaceId?: string) => Promise<Project[]>;
       saveProject: (project: Project, workspaceId?: string) => Promise<void>;
       deleteProject: (id: string, workspaceId?: string) => Promise<void>;
 
       createBackup: (folder?: string) => Promise<string>;
       restoreBackup: (filePath: string) => Promise<void>;
+      getDatabasePath: () => Promise<string>;
+      openDataFolder: () => Promise<void>;
+      getUpdateState: () => Promise<UpdateState>;
+      checkForUpdates: () => Promise<void>;
+      restartToUpdate: () => void;
+      onUpdateState: (callback: (state: UpdateState) => void) => () => void;
       exportExcel: (request: ReportExportRequest, outputPath: string) => Promise<void>;
       showSaveDialog: (options: any) => Promise<{ canceled: boolean; filePath?: string }>;
       showOpenDialog: (options: any) => Promise<{ canceled: boolean; filePaths: string[] }>;
@@ -47,7 +65,7 @@ declare global {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ElectronBridgeService {
   private isElectron = typeof window !== 'undefined' && Boolean(window.electronAPI);
@@ -88,11 +106,11 @@ export class ElectronBridgeService {
     }
     const local = this.getItem('dagsverk_workspaces');
     if (!local) return [DEFAULT_WORKSPACE];
-    return (JSON.parse(local) as Array<Workspace & { employerName?: string }>).map(workspace => ({
+    return (JSON.parse(local) as Array<Workspace & { employerName?: string }>).map((workspace) => ({
       ...workspace,
       type: workspace.type ?? WorkspaceType.Employment,
       organizationName: workspace.organizationName ?? workspace.employerName,
-      workerName: workspace.workerName ?? ''
+      workerName: workspace.workerName ?? '',
     }));
   }
 
@@ -101,7 +119,7 @@ export class ElectronBridgeService {
       await window.electronAPI!.saveWorkspace(ws);
       return;
     }
-    const list = (await this.getWorkspaces()).filter(item => item.id !== ws.id);
+    const list = (await this.getWorkspaces()).filter((item) => item.id !== ws.id);
     list.push(ws);
     this.setItem('dagsverk_workspaces', JSON.stringify(list));
   }
@@ -111,7 +129,7 @@ export class ElectronBridgeService {
       await window.electronAPI!.deleteWorkspace(id);
       return;
     }
-    const list = (await this.getWorkspaces()).filter(item => item.id !== id);
+    const list = (await this.getWorkspaces()).filter((item) => item.id !== id);
     if (list.length === 0) {
       throw new Error('Cannot delete the last remaining workspace');
     }
@@ -122,10 +140,10 @@ export class ElectronBridgeService {
   public async getAppPreferences(): Promise<AppPreferences> {
     if (this.isElectron) {
       const prefs = await window.electronAPI!.getAppPreferences();
-      return prefs || DEFAULT_PREFERENCES;
+      return prefs ? { ...DEFAULT_PREFERENCES, ...prefs } : DEFAULT_PREFERENCES;
     }
     const local = this.getItem('dagsverk_preferences');
-    return local ? JSON.parse(local) : DEFAULT_PREFERENCES;
+    return local ? { ...DEFAULT_PREFERENCES, ...JSON.parse(local) } : DEFAULT_PREFERENCES;
   }
 
   public async saveAppPreferences(prefs: AppPreferences): Promise<void> {
@@ -146,7 +164,10 @@ export class ElectronBridgeService {
     return local ? JSON.parse(local) : { ...DEFAULT_SETTINGS, workspaceId };
   }
 
-  public async saveSettings(settings: AppSettings, workspaceId: string = 'ws-default'): Promise<void> {
+  public async saveSettings(
+    settings: AppSettings,
+    workspaceId: string = 'ws-default',
+  ): Promise<void> {
     if (this.isElectron) {
       await window.electronAPI!.saveSettings(settings, workspaceId);
       return;
@@ -155,13 +176,17 @@ export class ElectronBridgeService {
   }
 
   // --- WorkEntries ---
-  public async getWorkEntries(year: number, month: number, workspaceId: string = 'ws-default'): Promise<WorkEntry[]> {
+  public async getWorkEntries(
+    year: number,
+    month: number,
+    workspaceId: string = 'ws-default',
+  ): Promise<WorkEntry[]> {
     if (this.isElectron) {
       return await window.electronAPI!.getWorkEntries(year, month, workspaceId);
     }
     const prefix = `${year}-${String(month).padStart(2, '0')}`;
     const all = this.getLocalEntries(workspaceId);
-    return all.filter(e => e.date.startsWith(prefix));
+    return all.filter((e) => e.date.startsWith(prefix));
   }
 
   public async saveWorkEntry(entry: WorkEntry, workspaceId: string = 'ws-default'): Promise<void> {
@@ -169,7 +194,7 @@ export class ElectronBridgeService {
       await window.electronAPI!.saveWorkEntry(entry, workspaceId);
       return;
     }
-    const all = this.getLocalEntries(workspaceId).filter(e => e.date !== entry.date);
+    const all = this.getLocalEntries(workspaceId).filter((e) => e.date !== entry.date);
     all.push({ ...entry, workspaceId });
     this.setItem(`dagsverk_entries_${workspaceId}`, JSON.stringify(all));
   }
@@ -179,7 +204,7 @@ export class ElectronBridgeService {
       await window.electronAPI!.deleteWorkEntry(date, workspaceId);
       return;
     }
-    const all = this.getLocalEntries(workspaceId).filter(e => e.date !== date);
+    const all = this.getLocalEntries(workspaceId).filter((e) => e.date !== date);
     this.setItem(`dagsverk_entries_${workspaceId}`, JSON.stringify(all));
   }
 
@@ -189,7 +214,12 @@ export class ElectronBridgeService {
   }
 
   // --- MonthRecords ---
-  public async getMonthRecord(year: number, month: number, defaultOpening = 0, workspaceId: string = 'ws-default'): Promise<MonthRecord> {
+  public async getMonthRecord(
+    year: number,
+    month: number,
+    defaultOpening = 0,
+    workspaceId: string = 'ws-default',
+  ): Promise<MonthRecord> {
     if (this.isElectron) {
       return await window.electronAPI!.getMonthRecord(year, month, defaultOpening, workspaceId);
     }
@@ -203,11 +233,14 @@ export class ElectronBridgeService {
       month,
       openingBalanceMinutes: defaultOpening,
       expectedMinutesOverride: null,
-      openingBalanceWasEdited: false
+      openingBalanceWasEdited: false,
     };
   }
 
-  public async saveMonthRecord(record: MonthRecord, workspaceId: string = 'ws-default'): Promise<void> {
+  public async saveMonthRecord(
+    record: MonthRecord,
+    workspaceId: string = 'ws-default',
+  ): Promise<void> {
     if (this.isElectron) {
       await window.electronAPI!.saveMonthRecord(record, workspaceId);
       return;
@@ -216,19 +249,80 @@ export class ElectronBridgeService {
     this.setItem(key, JSON.stringify({ ...record, workspaceId }));
   }
 
+  public async getBalanceHistory(
+    year: number,
+    month: number,
+    workspaceId: string = 'ws-default',
+  ): Promise<BalanceHistoryMonth[]> {
+    if (this.isElectron) return window.electronAPI!.getBalanceHistory(year, month, workspaceId);
+
+    const before = `${year}-${String(month).padStart(2, '0')}`;
+    const months = new Map<string, BalanceHistoryMonth>();
+    if (typeof localStorage === 'undefined') return [];
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index) || '';
+      const monthPrefix = `dagsverk_month_${workspaceId}_`;
+      if (key.startsWith(monthPrefix)) {
+        const record = JSON.parse(localStorage.getItem(key) || 'null') as MonthRecord | null;
+        if (record)
+          months.set(`${record.year}-${String(record.month).padStart(2, '0')}`, {
+            year: record.year,
+            month: record.month,
+            record,
+            entries: [],
+          });
+      }
+    }
+    for (const entry of this.getLocalEntries(workspaceId).filter(
+      (item) => item.status !== 0 && item.date.slice(0, 7) < before,
+    )) {
+      const key = entry.date.slice(0, 7);
+      const [entryYear, entryMonth] = key.split('-').map(Number);
+      const item = months.get(key) || {
+        year: entryYear,
+        month: entryMonth,
+        record: null,
+        entries: [],
+      };
+      item.entries.push(entry);
+      months.set(key, item);
+    }
+    return [...months.entries()]
+      .filter(([key]) => key < before)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([, value]) => value)
+      .slice(-120);
+  }
+
   // --- Projects ---
   public async getProjects(workspaceId: string = 'ws-default'): Promise<Project[]> {
     if (this.isElectron) {
       const list = await window.electronAPI!.getProjects(workspaceId);
-      return list && list.length > 0 ? list : [
-        { workspaceId, id: 'proj-default', name: 'General', color: '#5F875F', isActive: true, isDefault: true }
-      ];
+      return list && list.length > 0
+        ? list
+        : [
+            {
+              workspaceId,
+              id: 'proj-default',
+              name: 'General',
+              color: '#5F875F',
+              isActive: true,
+              isDefault: true,
+            },
+          ];
     }
     const raw = this.getItem(`dagsverk_projects_${workspaceId}`);
     if (raw) return JSON.parse(raw);
 
     return [
-      { workspaceId, id: 'proj-default', name: 'General', color: '#5F875F', isActive: true, isDefault: true }
+      {
+        workspaceId,
+        id: 'proj-default',
+        name: 'General',
+        color: '#5F875F',
+        isActive: true,
+        isDefault: true,
+      },
     ];
   }
 
@@ -237,7 +331,7 @@ export class ElectronBridgeService {
       await window.electronAPI!.saveProject(project, workspaceId);
       return;
     }
-    const list = (await this.getProjects(workspaceId)).filter(p => p.id !== project.id);
+    const list = (await this.getProjects(workspaceId)).filter((p) => p.id !== project.id);
     list.push({ ...project, workspaceId });
     this.setItem(`dagsverk_projects_${workspaceId}`, JSON.stringify(list));
   }
@@ -247,7 +341,7 @@ export class ElectronBridgeService {
       await window.electronAPI!.deleteProject(id, workspaceId);
       return;
     }
-    const list = (await this.getProjects(workspaceId)).filter(p => p.id !== id);
+    const list = (await this.getProjects(workspaceId)).filter((p) => p.id !== id);
     this.setItem(`dagsverk_projects_${workspaceId}`, JSON.stringify(list));
   }
 
@@ -263,6 +357,32 @@ export class ElectronBridgeService {
     if (this.isElectron) {
       await window.electronAPI!.restoreBackup(filePath);
     }
+  }
+
+  public async getDatabasePath(): Promise<string> {
+    return this.isElectron ? window.electronAPI!.getDatabasePath() : 'Browser storage';
+  }
+
+  public async openDataFolder(): Promise<void> {
+    if (this.isElectron) await window.electronAPI!.openDataFolder();
+  }
+
+  public async getUpdateState(): Promise<UpdateState> {
+    return this.isElectron
+      ? window.electronAPI!.getUpdateState()
+      : { status: 'unavailable', currentVersion: 'development' };
+  }
+
+  public async checkForUpdates(): Promise<void> {
+    if (this.isElectron) await window.electronAPI!.checkForUpdates();
+  }
+
+  public restartToUpdate(): void {
+    if (this.isElectron) window.electronAPI!.restartToUpdate();
+  }
+
+  public onUpdateState(callback: (state: UpdateState) => void): () => void {
+    return this.isElectron ? window.electronAPI!.onUpdateState(callback) : () => undefined;
   }
 
   public async exportExcel(request: ReportExportRequest, outputPath: string): Promise<void> {

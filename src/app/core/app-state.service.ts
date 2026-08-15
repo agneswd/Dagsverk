@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   AppPreferences,
   AppSettings,
+  BalanceHistoryMonth,
   DEFAULT_PREFERENCES,
   DEFAULT_SETTINGS,
   DEFAULT_WORKSPACE,
@@ -10,24 +11,27 @@ import {
   MonthViewPreference,
   Project,
   ReportExportRequest,
+  ExportLanguagePreference,
   TaxEstimate,
   ThemePreference,
   WorkEntry,
   WorkEntryStatus,
-  Workspace
+  Workspace,
 } from './models';
 import { ElectronBridgeService } from './electron-bridge.service';
 import { SwedishHolidayService } from './swedish-holiday.service';
 import { TaxCalculatorService } from './tax-calculator.service';
 import { MonthlyCalculations } from './monthly-calculations';
+import { LocalizationService } from './localization.service';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AppStateService {
   private bridge = inject(ElectronBridgeService);
   private holidays = inject(SwedishHolidayService);
   private taxCalculator = inject(TaxCalculatorService);
+  private localization = inject(LocalizationService);
 
   // Global Multi-Tenancy & Preferences Signals
   public workspaces = signal<Workspace[]>([DEFAULT_WORKSPACE]);
@@ -45,7 +49,7 @@ export class AppStateService {
     month: new Date().getMonth() + 1,
     openingBalanceMinutes: 0,
     expectedMinutesOverride: null,
-    openingBalanceWasEdited: false
+    openingBalanceWasEdited: false,
   });
   public entries = signal<WorkEntry[]>([]);
   public selectedDate = signal<string | null>(null);
@@ -59,11 +63,14 @@ export class AppStateService {
   // Computed Signals
   public activeWorkspace = computed<Workspace>(() => {
     const list = this.workspaces();
-    const active = list.find(w => w.id === this.activeWorkspaceId());
+    const active = list.find((w) => w.id === this.activeWorkspaceId());
     return active || list[0] || DEFAULT_WORKSPACE;
   });
 
   public isCatchUpOpen = computed(() => this.catchUpDates().length > 0);
+  public isMonthUnstarted = computed(
+    () => !this.entries().some((entry) => entry.status !== WorkEntryStatus.Incomplete),
+  );
   public catchUpProgress = computed(() => {
     const count = this.catchUpDates().length;
     return count ? `${this.catchUpIndex() + 1} of ${count}` : '';
@@ -79,14 +86,14 @@ export class AppStateService {
 
   public formattedMonthTitle = computed<string>(() => {
     const d = new Date(Date.UTC(this.currentYear(), this.currentMonth() - 1, 1));
-    const lang = this.preferences().languagePreference === 2 ? 'sv-SE' : 'en-US';
+    const lang = this.localization.language() === 'sv' ? 'sv-SE' : 'en-US';
     return d.toLocaleDateString(lang, { month: 'long', year: 'numeric' });
   });
 
   public selectedEntry = computed<WorkEntry | null>(() => {
     const date = this.selectedDate();
     if (!date) return null;
-    const found = this.entries().find(e => e.date === date);
+    const found = this.entries().find((e) => e.date === date);
     if (found) return found;
 
     return {
@@ -98,7 +105,7 @@ export class AppStateService {
       lunchMinutes: this.settings().defaultLunchMinutes ?? 30,
       projectName: this.settings().defaultProject || 'General',
       notes: null,
-      scheduledMinutesOverride: null
+      scheduledMinutesOverride: null,
     };
   });
 
@@ -110,7 +117,7 @@ export class AppStateService {
       this.settings().salary,
       this.settings().overtimeCompensation,
       this.holidays,
-      this.todayString()
+      this.todayString(),
     );
   });
 
@@ -124,6 +131,12 @@ export class AppStateService {
   });
 
   public constructor() {
+    if (typeof window !== 'undefined') {
+      window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+        if (this.preferences().themePreference === ThemePreference.System)
+          this.setTheme(event.matches);
+      });
+    }
     this.init();
   }
 
@@ -132,7 +145,7 @@ export class AppStateService {
       // 1. Load workspaces and global preferences
       const [wsList, prefs] = await Promise.all([
         this.bridge.getWorkspaces(),
-        this.bridge.getAppPreferences()
+        this.bridge.getAppPreferences(),
       ]);
 
       this.workspaces.set(wsList);
@@ -140,11 +153,7 @@ export class AppStateService {
       const activeWsId = prefs.activeWorkspaceId || wsList[0]?.id || 'ws-default';
       this.activeWorkspaceId.set(activeWsId);
       this.activeView.set(prefs.monthViewPreference ?? MonthViewPreference.Ledger);
-
-      // Set initial theme from global preferences
-      const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const isDark = prefs.themePreference === ThemePreference.Dark || (prefs.themePreference === ThemePreference.System && prefersDark);
-      this.setTheme(isDark);
+      this.applyPreferences(prefs);
 
       // 2. Load workspace-scoped data
       await this.loadWorkspaceData(activeWsId);
@@ -160,7 +169,7 @@ export class AppStateService {
 
     const updatedPrefs: AppPreferences = {
       ...this.preferences(),
-      activeWorkspaceId: workspaceId
+      activeWorkspaceId: workspaceId,
     };
     this.preferences.set(updatedPrefs);
     await this.bridge.saveAppPreferences(updatedPrefs);
@@ -185,15 +194,61 @@ export class AppStateService {
     const wsId = this.activeWorkspaceId();
     const y = this.currentYear();
     const m = this.currentMonth();
-    const defaultOpening = this.settings().openingBalanceMinutes || 0;
+    const defaultOpening = await this.estimateOpeningBalance(y, m);
 
     const [monthRec, monthEntries] = await Promise.all([
       this.bridge.getMonthRecord(y, m, defaultOpening, wsId),
-      this.bridge.getWorkEntries(y, m, wsId)
+      this.bridge.getWorkEntries(y, m, wsId),
     ]);
 
     this.monthRecord.set(monthRec);
     this.entries.set(monthEntries);
+  }
+
+  private async estimateOpeningBalance(year: number, month: number): Promise<number> {
+    const history = await this.bridge.getBalanceHistory(year, month, this.activeWorkspaceId());
+    let opening = this.settings().openingBalanceMinutes || 0;
+    let lastEdited = -1;
+    for (let index = history.length - 1; index >= 0; index--) {
+      if (history[index].record?.openingBalanceWasEdited) {
+        lastEdited = index;
+        break;
+      }
+    }
+    const relevant = lastEdited >= 0 ? history.slice(lastEdited) : history;
+
+    for (const item of relevant) {
+      if (item.record?.openingBalanceWasEdited) opening = item.record.openingBalanceMinutes;
+      if (!item.entries.some((entry) => entry.status !== WorkEntryStatus.Incomplete)) continue;
+      const record = item.record || this.newHistoryRecord(item, opening);
+      const summary = MonthlyCalculations.calculateMonthlySummary(
+        {
+          ...record,
+          openingBalanceMinutes: record.openingBalanceWasEdited
+            ? record.openingBalanceMinutes
+            : opening,
+        },
+        item.entries,
+        this.settings().expectedHours,
+        this.settings().salary,
+        this.settings().overtimeCompensation,
+        this.holidays,
+        this.todayString(),
+      );
+      opening = summary.closingBalanceMinutes;
+    }
+    return opening;
+  }
+
+  private newHistoryRecord(item: BalanceHistoryMonth, openingBalanceMinutes: number): MonthRecord {
+    return {
+      workspaceId: this.activeWorkspaceId(),
+      year: item.year,
+      month: item.month,
+      openingBalanceMinutes,
+      expectedMinutesOverride: null,
+      openingBalanceWasEdited: false,
+    };
   }
 
   public async selectMonth(year: number, month: number): Promise<void> {
@@ -234,6 +289,21 @@ export class AppStateService {
     this.isEditorOpen.set(true);
   }
 
+  public startMonth(): void {
+    const today = new Date();
+    const isCurrentMonth =
+      today.getFullYear() === this.currentYear() && today.getMonth() + 1 === this.currentMonth();
+    const target = isCurrentMonth
+      ? this.todayString()
+      : MonthlyCalculations.getExpectedWorkdays(
+          this.currentYear(),
+          this.currentMonth(),
+          this.settings().expectedHours,
+          this.holidays,
+        )[0] || `${this.currentYear()}-${String(this.currentMonth()).padStart(2, '0')}-01`;
+    this.openEditor(target);
+  }
+
   public closeEditor(): void {
     this.isEditorOpen.set(false);
     this.selectedDate.set(null);
@@ -243,7 +313,7 @@ export class AppStateService {
     const wsId = this.activeWorkspaceId();
     const scopedEntry = { ...entry, workspaceId: wsId };
     await this.bridge.saveWorkEntry(scopedEntry, wsId);
-    const updated = this.entries().filter(e => e.date !== entry.date);
+    const updated = this.entries().filter((e) => e.date !== entry.date);
     updated.push(scopedEntry);
     this.entries.set([...updated]);
   }
@@ -251,7 +321,7 @@ export class AppStateService {
   public async deleteEntry(dateStr: string): Promise<void> {
     const wsId = this.activeWorkspaceId();
     await this.bridge.deleteWorkEntry(dateStr, wsId);
-    const updated = this.entries().filter(e => e.date !== dateStr);
+    const updated = this.entries().filter((e) => e.date !== dateStr);
     this.entries.set([...updated]);
     this.closeEditor();
   }
@@ -278,7 +348,7 @@ export class AppStateService {
     const wsId = this.activeWorkspaceId();
     const scopedProj = { ...project, workspaceId: wsId };
     await this.bridge.saveProject(scopedProj, wsId);
-    const list = this.projects().filter(p => p.id !== project.id);
+    const list = this.projects().filter((p) => p.id !== project.id);
     list.push(scopedProj);
     this.projects.set([...list]);
   }
@@ -286,13 +356,13 @@ export class AppStateService {
   public async deleteProject(id: string): Promise<void> {
     const wsId = this.activeWorkspaceId();
     await this.bridge.deleteProject(id, wsId);
-    const list = this.projects().filter(p => p.id !== id);
+    const list = this.projects().filter((p) => p.id !== id);
     this.projects.set([...list]);
   }
 
   public async saveWorkspace(ws: Workspace): Promise<void> {
     await this.bridge.saveWorkspace(ws);
-    const list = this.workspaces().filter(item => item.id !== ws.id);
+    const list = this.workspaces().filter((item) => item.id !== ws.id);
     list.push(ws);
     this.workspaces.set([...list]);
   }
@@ -302,7 +372,7 @@ export class AppStateService {
       throw new Error('Cannot delete the only remaining workspace');
     }
     await this.bridge.deleteWorkspace(id);
-    const list = this.workspaces().filter(item => item.id !== id);
+    const list = this.workspaces().filter((item) => item.id !== id);
     this.workspaces.set([...list]);
 
     if (this.activeWorkspaceId() === id) {
@@ -328,17 +398,37 @@ export class AppStateService {
     this.setTheme(next);
     const updated: AppPreferences = {
       ...this.preferences(),
-      themePreference: next ? ThemePreference.Dark : ThemePreference.Light
+      themePreference: next ? ThemePreference.Dark : ThemePreference.Light,
     };
     this.preferences.set(updated);
     this.bridge.saveAppPreferences(updated);
+  }
+
+  public async updatePreferences(preferences: AppPreferences): Promise<void> {
+    this.preferences.set(preferences);
+    this.activeView.set(preferences.monthViewPreference);
+    this.applyPreferences(preferences);
+    await this.bridge.saveAppPreferences(preferences);
+  }
+
+  private applyPreferences(preferences: AppPreferences): void {
+    const prefersDark =
+      typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    this.setTheme(
+      preferences.themePreference === ThemePreference.Dark ||
+        (preferences.themePreference === ThemePreference.System && Boolean(prefersDark)),
+    );
+    this.localization.setPreference(preferences.languagePreference);
+    if (typeof document !== 'undefined') {
+      document.body.style.zoom = `${preferences.interfaceScalePercent || 100}%`;
+    }
   }
 
   public setView(view: MonthViewPreference): void {
     this.activeView.set(view);
     const updated: AppPreferences = {
       ...this.preferences(),
-      monthViewPreference: view
+      monthViewPreference: view,
     };
     this.preferences.set(updated);
     this.bridge.saveAppPreferences(updated);
@@ -378,19 +468,27 @@ export class AppStateService {
       employerName: workspace.organizationName || '',
       entries: this.entries(),
       summary: this.summary(),
-      language: this.settings().exportLanguagePreference ?? 2,
+      language:
+        this.settings().exportLanguagePreference === ExportLanguagePreference.System
+          ? this.localization.language() === 'en'
+            ? ExportLanguagePreference.English
+            : ExportLanguagePreference.Swedish
+          : this.settings().exportLanguagePreference,
       overtimeMode: this.settings().overtimeCompensation.mode,
-      dailyOvertimeThresholdHours: this.settings().overtimeCompensation.dailyThresholdHours
+      dailyOvertimeThresholdHours: this.settings().overtimeCompensation.dailyThresholdHours,
     };
 
     const monthStr = String(this.currentMonth()).padStart(2, '0');
-    const safeName = (workspace.workerName || workspace.name || 'report').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeName = (workspace.workerName || workspace.name || 'report').replace(
+      /[^a-zA-Z0-9_-]/g,
+      '_',
+    );
     const defaultFilename = `Dagsverk_${safeName}_${this.currentYear()}-${monthStr}.xlsx`;
 
     const res = await this.bridge.showSaveDialog({
       title: 'Export Timesheet Report',
       defaultPath: defaultFilename,
-      filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }]
+      filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }],
     });
 
     if (!res.canceled && res.filePath) {
