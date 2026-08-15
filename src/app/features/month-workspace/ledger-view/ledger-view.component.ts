@@ -18,6 +18,7 @@ export interface LedgerRow {
   isWeekend: boolean;
   holidayName: string | null;
   isScheduledWorkday: boolean;
+  isMissing: boolean;
   status: WorkEntryStatus;
   entry?: WorkEntry;
   startTime: string | null;
@@ -59,6 +60,7 @@ export class LedgerViewComponent {
     const today = this.state.todayString();
     const expected = this.state.settings().expectedHours;
     const overtime = this.state.settings().overtimeCompensation;
+    const monthStarted = !this.state.isMonthUnstarted();
 
     const entriesMap = new Map<string, WorkEntry>();
     for (const e of this.state.entries()) {
@@ -111,6 +113,11 @@ export class LedgerViewComponent {
         isWeekend,
         holidayName,
         isScheduledWorkday: isScheduled,
+        isMissing:
+          monthStarted &&
+          date < today &&
+          isScheduled &&
+          status === WorkEntryStatus.Incomplete,
         status,
         entry,
         startTime: start,

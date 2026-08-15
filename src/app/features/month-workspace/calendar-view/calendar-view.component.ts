@@ -17,6 +17,7 @@ export interface CalendarDayCell {
   isWeekend: boolean;
   holidayName: string | null;
   isScheduledWorkday: boolean;
+  isMissing: boolean;
   entry?: WorkEntry;
   status: WorkEntryStatus;
   startTime?: string | null;
@@ -48,6 +49,7 @@ export class CalendarViewComponent {
     const today = this.state.todayString();
     const expected = this.state.settings().expectedHours;
     const overtime = this.state.settings().overtimeCompensation;
+    const monthStarted = !this.state.isMonthUnstarted();
 
     const entriesMap = new Map<string, WorkEntry>();
     for (const e of this.state.entries()) {
@@ -74,6 +76,7 @@ export class CalendarViewComponent {
         isWeekend: true,
         holidayName: null,
         isScheduledWorkday: false,
+        isMissing: false,
         status: WorkEntryStatus.Incomplete,
         startTime: null,
         endTime: null,
@@ -124,6 +127,11 @@ export class CalendarViewComponent {
         isWeekend,
         holidayName,
         isScheduledWorkday: isScheduled,
+        isMissing:
+          monthStarted &&
+          date < today &&
+          isScheduled &&
+          status === WorkEntryStatus.Incomplete,
         entry,
         status,
         startTime: start,
@@ -149,6 +157,7 @@ export class CalendarViewComponent {
         isWeekend: true,
         holidayName: null,
         isScheduledWorkday: false,
+        isMissing: false,
         status: WorkEntryStatus.Incomplete,
         startTime: null,
         endTime: null,
@@ -173,7 +182,7 @@ export class CalendarViewComponent {
     if (cell.status === WorkEntryStatus.Worked)
       return `${dateStr}, ${this.localization.t('Worked')} ${cell.workedHours.toFixed(1)} h`;
     if (cell.status === WorkEntryStatus.Off) return `${dateStr}, ${this.localization.t('Day Off')}`;
-    if (cell.isScheduledWorkday) return `${dateStr}, ${this.localization.t('Unlogged')}`;
+    if (cell.isMissing) return `${dateStr}, ${this.localization.t('Unlogged')}`;
     return dateStr;
   }
 

@@ -40,11 +40,7 @@
         </div>
 
         <!-- Unlogged indicator directly under day number -->
-        @if (
-          cell.isCurrentMonth &&
-          cell.status === WorkEntryStatus.Incomplete &&
-          cell.isScheduledWorkday
-        ) {
+        @if (cell.isMissing) {
           <div class="unlogged-banner">
             <span class="unlogged-dot"></span>
             <span class="unlogged-label label-small">Unlogged</span>
