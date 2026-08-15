@@ -14,6 +14,7 @@ export interface ReportExportRequest {
 
 export class ExcelExportService {
   public static async exportToFile(request: ReportExportRequest, outputPath: string): Promise<void> {
+    this.validateRequest(request);
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Dagsverk';
     workbook.created = new Date();
@@ -203,7 +204,36 @@ export class ExcelExportService {
   }
 
   private static timeToMinutes(timeStr: string): number {
+    if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) {
+      throw new Error(`Invalid time value: ${timeStr}`);
+    }
     const [h, m] = timeStr.split(':').map(Number);
     return h * 60 + m;
+  }
+
+  private static validateRequest(request: ReportExportRequest): void {
+    if (!Number.isInteger(request.year) || request.month < 1 || request.month > 12) {
+      throw new Error('The report month is invalid.');
+    }
+
+    const monthPrefix = `${request.year}-${String(request.month).padStart(2, '0')}-`;
+    const dates = new Set<string>();
+    for (const entry of request.entries) {
+      if (typeof entry.date !== 'string' || !entry.date.startsWith(monthPrefix)) {
+        throw new Error('The report contains an entry outside the selected month.');
+      }
+      if (dates.has(entry.date)) {
+        throw new Error(`The report contains duplicate entries for ${entry.date}.`);
+      }
+      dates.add(entry.date);
+
+      if (entry.status === 1) {
+        this.timeToMinutes(entry.startTime || '');
+        this.timeToMinutes(entry.endTime || '');
+        if (!Number.isInteger(entry.lunchMinutes) || entry.lunchMinutes < 0) {
+          throw new Error(`The lunch duration for ${entry.date} is invalid.`);
+        }
+      }
+    }
   }
 }
