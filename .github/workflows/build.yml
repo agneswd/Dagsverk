@@ -1,0 +1,90 @@
+name: Build and package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --global npm@12.0.2
+      - run: npm ci
+      - run: npm run verify
+
+  package:
+    name: Package ${{ matrix.rid }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            channel: linux
+          - os: windows-latest
+            rid: win-x64
+            channel: win
+    env:
+      DAGSVERK_SKIP_RELEASE_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - run: npm install --global npm@12.0.2
+      - shell: bash
+        run: scripts/package-${{ matrix.rid }}.sh
+      - if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          test -f artifacts/releases/linux/releases.linux.json
+          appimage=$(find artifacts/releases/linux -maxdepth 1 -type f -name '*.AppImage' -print -quit)
+          test -n "$appimage"
+          test -f artifacts/extras/linux/Dagsverk-*-linux-x64.tar.gz
+          chmod +x "$appimage"
+          "$appimage" --appimage-extract >/dev/null
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem artifacts/releases/win -Filter "*Setup.exe" | Select-Object -First 1
+          if (-not $setup) { throw "Velopack Setup.exe was not created" }
+          if (-not (Test-Path artifacts/releases/win/releases.win.json)) { throw "Windows update feed was not created" }
+          $installDirectory = Join-Path $env:RUNNER_TEMP "Dagsverk-install"
+          $install = Start-Process -FilePath $setup.FullName -ArgumentList "--silent", "--installto", $installDirectory -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Setup.exe failed with exit code $($install.ExitCode)" }
+          if (-not (Test-Path (Join-Path $installDirectory "Dagsverk.exe"))) { throw "Dagsverk was not installed" }
+          if (-not (Test-Path (Join-Path $installDirectory "Update.exe"))) { throw "Velopack updater was not installed" }
+          $uninstall = Start-Process -FilePath (Join-Path $installDirectory "Update.exe") -ArgumentList "--silent", "uninstall" -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Velopack uninstall failed with exit code $($uninstall.ExitCode)" }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: velopack-${{ matrix.channel }}
+          path: artifacts/releases/${{ matrix.channel }}/*
+          if-no-files-found: error
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-installer-bundle
+          path: artifacts/extras/linux/*.tar.gz
+          if-no-files-found: error
