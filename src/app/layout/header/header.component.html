@@ -93,8 +93,8 @@
             mat-flat-button
             color="primary"
             class="catchup-btn label-large"
-            (click)="state.quickCatchUp()"
-            matTooltip="Auto-fill {{ state.missingDaysCount() }} unlogged past workdays"
+            (click)="state.startCatchUp()"
+            matTooltip="Review unlogged past workdays"
           >
             <mat-icon>auto_fix_high</mat-icon>
             <span>Catch Up ({{ state.missingDaysCount() }})</span>

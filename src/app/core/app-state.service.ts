@@ -53,12 +53,20 @@ export class AppStateService {
   public activeView = signal<MonthViewPreference>(MonthViewPreference.Ledger);
   public isDarkTheme = signal<boolean>(false);
   public isInitialized = signal<boolean>(false);
+  public catchUpDates = signal<string[]>([]);
+  public catchUpIndex = signal<number>(0);
 
   // Computed Signals
   public activeWorkspace = computed<Workspace>(() => {
     const list = this.workspaces();
     const active = list.find(w => w.id === this.activeWorkspaceId());
     return active || list[0] || DEFAULT_WORKSPACE;
+  });
+
+  public isCatchUpOpen = computed(() => this.catchUpDates().length > 0);
+  public catchUpProgress = computed(() => {
+    const count = this.catchUpDates().length;
+    return count ? `${this.catchUpIndex() + 1} of ${count}` : '';
   });
 
   public todayString = computed<string>(() => {
@@ -336,29 +344,29 @@ export class AppStateService {
     this.bridge.saveAppPreferences(updated);
   }
 
-  public async quickCatchUp(): Promise<void> {
-    const missing = this.summary().missingPastDays;
-    if (missing.length === 0) return;
+  public startCatchUp(): void {
+    const dates = [...this.summary().missingPastDays];
+    if (!dates.length) return;
+    this.catchUpDates.set(dates);
+    this.catchUpIndex.set(0);
+    this.openEditor(dates[0]);
+  }
 
-    const defaultStart = this.settings().defaultStartTime || '08:00';
-    const defaultEnd = this.settings().defaultEndTime || '16:30';
-    const defaultLunch = this.settings().defaultLunchMinutes ?? 30;
-    const defaultProj = this.settings().defaultProject || 'General';
-
-    for (const date of missing) {
-      const entry: WorkEntry = {
-        workspaceId: this.activeWorkspaceId(),
-        date,
-        status: WorkEntryStatus.Worked,
-        startTime: defaultStart,
-        endTime: defaultEnd,
-        lunchMinutes: defaultLunch,
-        projectName: defaultProj,
-        notes: null,
-        scheduledMinutesOverride: null
-      };
-      await this.saveEntry(entry);
+  public moveCatchUp(delta: number): void {
+    const next = this.catchUpIndex() + delta;
+    if (next < 0) return;
+    if (next >= this.catchUpDates().length) {
+      this.closeCatchUp();
+      return;
     }
+    this.catchUpIndex.set(next);
+    this.openEditor(this.catchUpDates()[next]);
+  }
+
+  public closeCatchUp(): void {
+    this.catchUpDates.set([]);
+    this.catchUpIndex.set(0);
+    this.closeEditor();
   }
 
   public async exportExcel(): Promise<void> {

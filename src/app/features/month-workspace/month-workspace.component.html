@@ -21,7 +21,7 @@
     position="end"
     [mode]="isWideScreen() ? 'side' : 'over'"
     [opened]="state.isEditorOpen()"
-    (closed)="state.closeEditor()"
+    (closed)="state.isCatchUpOpen() ? state.closeCatchUp() : state.closeEditor()"
     class="m3-day-editor-drawer"
   >
     <app-day-editor></app-day-editor>
