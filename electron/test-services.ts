@@ -3,6 +3,7 @@ import { ExcelExportService, ReportExportRequest } from './excel-export.service'
 import * as path from 'path';
 import * as fs from 'fs';
 import * as ExcelJS from 'exceljs';
+import Database from 'better-sqlite3';
 
 async function runTests() {
   console.log('--- Starting Dagsverk Backend Tests ---');
@@ -66,7 +67,48 @@ async function runTests() {
     throw new Error('Backup creation failed');
   }
   console.log('✔ SQLite Backup creation verified:', backupFile);
-  fs.unlinkSync(backupFile);
+
+  db.saveWorkEntry({
+    date: '2026-08-18',
+    status: 1,
+    startTime: '08:00',
+    endTime: '16:30',
+    lunchMinutes: 30,
+    projectName: 'General',
+    notes: 'Created after backup',
+    scheduledMinutesOverride: null
+  });
+  await db.restoreBackup(backupFile);
+  if (db.getWorkEntries(2026, 8).some(entry => entry.date === '2026-08-18')) {
+    throw new Error('Valid backup did not replace the current database');
+  }
+  console.log('✔ Valid backup restore verified');
+
+  const unrelatedPath = path.join(__dirname, 'unrelated.db');
+  fs.rmSync(unrelatedPath, { force: true });
+  const unrelated = new Database(unrelatedPath);
+  unrelated.exec('CREATE TABLE OtherData (Id INTEGER PRIMARY KEY)');
+  unrelated.close();
+
+  let unrelatedRejected = false;
+  try {
+    await db.restoreBackup(unrelatedPath);
+  } catch {
+    unrelatedRejected = true;
+  }
+  if (!unrelatedRejected || db.getWorkEntries(2026, 8).length !== 1) {
+    throw new Error('Invalid backup changed the current database');
+  }
+  console.log('✔ Invalid backup rejection verified');
+
+  for (let index = 0; index < 7; index++) {
+    await db.createBackup(__dirname, `retention-${index}`);
+  }
+  const retained = fs.readdirSync(__dirname).filter(file => file.startsWith('dagsverk-backup-') && file.endsWith('.db'));
+  if (retained.length !== 5) {
+    throw new Error(`Backup retention kept ${retained.length} files instead of 5`);
+  }
+  console.log('✔ Backup retention verified');
 
   // 2. Test Excel Export Service
   const testExcelPath = path.join(__dirname, 'test-report.xlsx');
@@ -120,6 +162,10 @@ async function runTests() {
   // Clean up
   fs.unlinkSync(tempDbPath);
   fs.unlinkSync(testExcelPath);
+  fs.rmSync(unrelatedPath, { force: true });
+  for (const file of fs.readdirSync(__dirname).filter(file => file.startsWith('dagsverk-backup-') && file.endsWith('.db'))) {
+    fs.rmSync(path.join(__dirname, file), { force: true });
+  }
 
   console.log('--- ALL BACKEND TESTS PASSED SUCCESSFULLY ---');
 }

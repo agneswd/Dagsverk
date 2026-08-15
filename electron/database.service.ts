@@ -1,7 +1,18 @@
 import Database from 'better-sqlite3';
 import * as path from 'path';
 import * as fs from 'fs';
+import { randomUUID } from 'crypto';
 import { app } from 'electron';
+
+const RETAINED_BACKUP_COUNT = 5;
+const REQUIRED_TABLES = [
+  'Workspaces',
+  'AppPreferences',
+  'WorkspaceSettings',
+  'WorkEntries',
+  'MonthRecords',
+  'Projects'
+];
 
 export class DatabaseService {
   private db: Database.Database;
@@ -18,9 +29,7 @@ export class DatabaseService {
       this.dbPath = path.join(userData, 'dagsverk.db');
     }
 
-    this.db = new Database(this.dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('foreign_keys = ON');
+    this.db = this.openDatabase();
     this.initSchema();
   }
 
@@ -36,6 +45,7 @@ export class DatabaseService {
       const legacyWorkEntries = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='WorkEntries'").get();
 
       if (legacyWorkEntries) {
+        this.createMigrationSafetyBackup();
         this.migrateFromLegacySchema();
         return;
       }
@@ -717,22 +727,110 @@ export class DatabaseService {
   }
 
   // --- Backups ---
-  public async createBackup(destinationFolder?: string): Promise<string> {
-    const folder = destinationFolder || path.dirname(this.dbPath);
+  public async createBackup(destinationFolder?: string, reason = 'manual'): Promise<string> {
+    const folder = destinationFolder || path.join(path.dirname(this.dbPath), 'backups');
+    fs.mkdirSync(folder, { recursive: true });
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(folder, `dagsverk-backup-${timestamp}.db`);
+    const safeReason = reason.replace(/[^a-z0-9-]/gi, '') || 'backup';
+    const backupPath = path.join(folder, `dagsverk-backup-${timestamp}-${safeReason}.db`);
     await this.db.backup(backupPath);
+    this.pruneBackups(folder);
     return backupPath;
   }
 
-  public restoreBackup(backupFilePath: string): void {
+  public async restoreBackup(backupFilePath: string): Promise<void> {
     if (!fs.existsSync(backupFilePath)) {
       throw new Error(`Backup file does not exist: ${backupFilePath}`);
     }
-    this.db.close();
-    fs.copyFileSync(backupFilePath, this.dbPath);
-    this.db = new Database(this.dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('foreign_keys = ON');
+
+    const backupFolder = path.join(path.dirname(this.dbPath), 'backups');
+    fs.mkdirSync(backupFolder, { recursive: true });
+    const candidatePath = path.join(backupFolder, `.restore-${randomUUID()}.db`);
+    let safetyBackupPath: string | null = null;
+
+    try {
+      const source = new Database(backupFilePath, { readonly: true, fileMustExist: true });
+      try {
+        await source.backup(candidatePath);
+      } finally {
+        source.close();
+      }
+
+      this.validateDatabase(candidatePath);
+      safetyBackupPath = await this.createBackup(undefined, 'before-restore');
+
+      this.db.close();
+      this.removeDatabaseSidecars();
+
+      try {
+        fs.copyFileSync(candidatePath, this.dbPath);
+        this.db = this.openDatabase();
+        this.validateDatabase(this.dbPath);
+      } catch (error) {
+        this.removeDatabaseSidecars();
+        if (safetyBackupPath) {
+          fs.copyFileSync(safetyBackupPath, this.dbPath);
+        }
+        this.db = this.openDatabase();
+        throw error;
+      }
+    } finally {
+      fs.rmSync(candidatePath, { force: true });
+    }
+  }
+
+  private openDatabase(): Database.Database {
+    const database = new Database(this.dbPath);
+    database.pragma('journal_mode = WAL');
+    database.pragma('foreign_keys = ON');
+    return database;
+  }
+
+  private validateDatabase(databasePath: string): void {
+    const database = new Database(databasePath, { readonly: true, fileMustExist: true });
+    try {
+      const integrityRows = database.pragma('quick_check') as Array<Record<string, string>>;
+      const integrity = integrityRows[0] ? Object.values(integrityRows[0])[0] : null;
+      if (integrity !== 'ok') {
+        throw new Error('The selected database failed SQLite integrity validation.');
+      }
+
+      const placeholders = REQUIRED_TABLES.map(() => '?').join(', ');
+      const rows = database.prepare(`
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name IN (${placeholders})
+      `).all(...REQUIRED_TABLES) as Array<{ name: string }>;
+
+      if (rows.length !== REQUIRED_TABLES.length) {
+        throw new Error('The selected file is not a Dagsverk database.');
+      }
+    } finally {
+      database.close();
+    }
+  }
+
+  private removeDatabaseSidecars(): void {
+    fs.rmSync(`${this.dbPath}-wal`, { force: true });
+    fs.rmSync(`${this.dbPath}-shm`, { force: true });
+  }
+
+  private pruneBackups(folder: string): void {
+    const backups = fs.readdirSync(folder)
+      .filter(file => file.startsWith('dagsverk-backup-') && file.endsWith('.db'))
+      .sort((left, right) => right.localeCompare(left));
+
+    for (const expired of backups.slice(RETAINED_BACKUP_COUNT)) {
+      fs.rmSync(path.join(folder, expired), { force: true });
+    }
+  }
+
+  private createMigrationSafetyBackup(): void {
+    const folder = path.join(path.dirname(this.dbPath), 'backups');
+    fs.mkdirSync(folder, { recursive: true });
+    this.db.pragma('wal_checkpoint(TRUNCATE)');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    fs.copyFileSync(this.dbPath, path.join(folder, `dagsverk-backup-${timestamp}-before-migration.db`));
+    this.pruneBackups(folder);
   }
 }
