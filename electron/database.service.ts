@@ -39,6 +39,10 @@ export class DatabaseService {
     return this.dbPath;
   }
 
+  public close(): void {
+    if (this.db.open) this.db.close();
+  }
+
   private initSchema(): void {
     const tableExists = this.db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='Workspaces'")

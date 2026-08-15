@@ -126,6 +126,8 @@ function createWindow() {
   });
 
   mainWindow.on('closed', () => {
+    dbService?.close();
+    dbService = null;
     mainWindow = null;
   });
 }

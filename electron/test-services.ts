@@ -312,6 +312,7 @@ async function runTests() {
   console.log('✔ Excel export validation verified');
 
   // Clean up
+  db.close();
   fs.unlinkSync(tempDbPath);
   fs.unlinkSync(testExcelPath);
   fs.unlinkSync(testOdsPath);
