@@ -120,15 +120,23 @@
       </div>
 
       <!-- Export to Excel -->
-      <button
-        mat-icon-button
-        (click)="onExport()"
-        [disabled]="state.entries().length === 0"
-        aria-label="Export to Excel"
-        matTooltip="Export to Excel (.xlsx)"
+      <span
+        class="export-action"
+        [matTooltip]="
+          state.entries().length === 0
+            ? 'Add at least one time entry before exporting'
+            : 'Export to Excel (.xlsx)'
+        "
       >
-        <mat-icon>download</mat-icon>
-      </button>
+        <button
+          mat-icon-button
+          (click)="onExport()"
+          [disabled]="state.entries().length === 0"
+          aria-label="Export to Excel"
+        >
+          <mat-icon>download</mat-icon>
+        </button>
+      </span>
 
       <!-- Theme Switcher -->
       <button

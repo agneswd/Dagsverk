@@ -200,6 +200,14 @@
 
   button[mat-icon-button] {
     color: var(--app-on-surface-variant);
+
+    &:disabled {
+      color: color-mix(in srgb, var(--app-on-surface) 38%, transparent);
+    }
+  }
+
+  .export-action {
+    display: inline-flex;
   }
 }
 
