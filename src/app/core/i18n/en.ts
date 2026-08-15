@@ -10,6 +10,30 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   Ledger: 'Ledger',
   Calendar: 'Calendar',
   Today: 'Today',
+  'Month actions': 'Month actions',
+  'Fill normal workdays': 'Fill normal workdays',
+  'Copy month': 'Copy month',
+  'Paste month': 'Paste month',
+  'Reset month': 'Reset month',
+  'Fill normal workdays?': 'Fill normal workdays?',
+  'Fill workdays': 'Fill workdays',
+  'Paste copied month?': 'Paste copied month?',
+  'Paste entries': 'Paste entries',
+  'Reset this month?': 'Reset this month?',
+  'All scheduled workdays already have entries.':
+    'All scheduled workdays already have entries.',
+  'There are no copied entries to paste.': 'There are no copied entries to paste.',
+  'Add your default hours to {0} empty scheduled workdays? Existing entries will be kept.':
+    'Add your default hours to {0} empty scheduled workdays? Existing entries will be kept.',
+  '{0} normal workdays added.': '{0} normal workdays added.',
+  '{0} copied. Open another month and choose Paste month.':
+    '{0} copied. Open another month and choose Paste month.',
+  'Add {0} entries from {1} by matching each weekday occurrence? Existing entries will be kept.':
+    'Add {0} entries from {1} by matching each weekday occurrence? Existing entries will be kept.',
+  '{0} entries pasted.': '{0} entries pasted.',
+  'Delete every entry and balance adjustment for {0}? This cannot be undone.':
+    'Delete every entry and balance adjustment for {0}? This cannot be undone.',
+  '{0} was reset.': '{0} was reset.',
   'Worked Time': 'Worked time',
   'Overtime & OB': 'Overtime and OB',
   'Time Balance': 'Time balance',
@@ -78,6 +102,7 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   'Backup and restore': 'Backup and restore',
   'Create backup': 'Create backup',
   'Restore from backup': 'Restore from backup',
+  'Import from Tidverk': 'Import from Tidverk',
   'Restore database?': 'Restore database?',
   'Restore database': 'Restore database',
   'Export monthly report': 'Export monthly report',

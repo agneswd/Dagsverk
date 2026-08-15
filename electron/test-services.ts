@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as ExcelJS from 'exceljs';
 import Database from 'better-sqlite3';
+import { createHash } from 'crypto';
 
 async function runTests() {
   console.log('--- Starting Dagsverk Backend Tests ---');
@@ -68,6 +69,78 @@ async function runTests() {
   }
   console.log('✔ Projects management verified');
 
+  const tidverkPath = path.join(__dirname, 'test-tidverk.db');
+  fs.rmSync(tidverkPath, { force: true });
+  const tidverk = new Database(tidverkPath);
+  tidverk.exec(`
+    CREATE TABLE Settings (
+      Id INTEGER PRIMARY KEY,
+      EmployeeName TEXT,
+      EmployerName TEXT,
+      DefaultProject TEXT,
+      HourlyRate TEXT,
+      ExpectedHoursPerWorkday TEXT,
+      ExpectedWorkingWeekdays TEXT,
+      ExcludePublicHolidays INTEGER,
+      DefaultStartTime TEXT,
+      DefaultEndTime TEXT,
+      DefaultLunchMinutes INTEGER,
+      ThemePreference INTEGER,
+      MonthViewPreference INTEGER,
+      LanguagePreference INTEGER,
+      InterfaceScalePercent INTEGER,
+      CurrencyPreference INTEGER,
+      ExportLanguagePreference INTEGER,
+      OpeningBalanceMinutes INTEGER
+    );
+    CREATE TABLE WorkEntries (
+      Date TEXT PRIMARY KEY,
+      Status INTEGER,
+      StartTime TEXT,
+      EndTime TEXT,
+      LunchMinutes INTEGER,
+      ProjectName TEXT,
+      Notes TEXT,
+      ScheduledMinutesOverride INTEGER,
+      CreatedAt TEXT,
+      UpdatedAt TEXT
+    );
+    CREATE TABLE Months (
+      Year INTEGER,
+      Month INTEGER,
+      OpeningBalanceMinutes INTEGER,
+      ExpectedMinutesOverride INTEGER,
+      OpeningBalanceWasEdited INTEGER
+    );
+    CREATE TABLE Projects (Id TEXT, Name TEXT, IsActive INTEGER, IsDefault INTEGER);
+    INSERT INTO Settings VALUES (
+      1, 'Tidverk User', 'Imported AB', 'Imported Project', '275.5', '7.5',
+      '1,2,3,4,5', 1, '07:30:00', '16:00:00', 30, 2, 1, 2, 110, 1, 1, 45
+    );
+    INSERT INTO WorkEntries VALUES (
+      '2026-07-01', 1, '07:30:00', '16:00:00', 30, 'Imported Project', 'Imported', NULL,
+      '2026-07-01T06:00:00Z', '2026-07-01T15:00:00Z'
+    );
+    INSERT INTO Months VALUES (2026, 7, 45, NULL, 1);
+    INSERT INTO Projects VALUES ('tidverk-project', 'Imported Project', 1, 1);
+  `);
+  tidverk.close();
+  const sourceHash = createHash('sha256').update(fs.readFileSync(tidverkPath)).digest('hex');
+  const imported = await db.importTidverkDatabase(tidverkPath);
+  const importedEntry = db.getWorkEntries(2026, 7, imported.workspaceId)[0];
+  const importedSettings = db.getSettings(imported.workspaceId);
+  if (
+    imported.entryCount !== 1 ||
+    imported.workspaceName !== 'Imported AB' ||
+    importedEntry?.startTime !== '07:30' ||
+    importedSettings.salary.hourlyRate !== 275.5 ||
+    !fs.existsSync(imported.sourceBackupPath) ||
+    createHash('sha256').update(fs.readFileSync(tidverkPath)).digest('hex') !== sourceHash
+  ) {
+    throw new Error('Tidverk import did not preserve the source data');
+  }
+  console.log('✔ Tidverk database import verified');
+
   // Test Backup
   const backupFile = await db.createBackup(__dirname);
   if (!fs.existsSync(backupFile)) {
@@ -93,6 +166,8 @@ async function runTests() {
 
   const unrelatedPath = path.join(__dirname, 'unrelated.db');
   fs.rmSync(unrelatedPath, { force: true });
+  fs.rmSync(tidverkPath, { force: true });
+  fs.rmSync(path.join(__dirname, 'backups'), { recursive: true, force: true });
   const unrelated = new Database(unrelatedPath);
   unrelated.exec('CREATE TABLE OtherData (Id INTEGER PRIMARY KEY)');
   unrelated.close();

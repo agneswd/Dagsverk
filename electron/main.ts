@@ -7,6 +7,7 @@ import { ExcelExportService } from './excel-export.service';
 import { OdsExportService } from './ods-export.service';
 
 VelopackApp.build().run();
+app.setName('Dagsverk');
 
 let mainWindow: BrowserWindow | null = null;
 let dbService: DatabaseService | null = null;
@@ -147,6 +148,9 @@ function registerIpcHandlers() {
     dbService?.getWorkEntries(year, month, wsId),
   );
   ipcMain.handle('db:save-entry', async (_, entry, wsId) => dbService?.saveWorkEntry(entry, wsId));
+  ipcMain.handle('db:save-entries', async (_, entries, wsId) =>
+    dbService?.saveWorkEntries(entries, wsId),
+  );
   ipcMain.handle('db:delete-entry', async (_, date, wsId) =>
     dbService?.deleteWorkEntry(date, wsId),
   );
@@ -156,6 +160,9 @@ function registerIpcHandlers() {
   );
   ipcMain.handle('db:save-month', async (_, record, wsId) =>
     dbService?.saveMonthRecord(record, wsId),
+  );
+  ipcMain.handle('db:reset-month', async (_, year, month, wsId) =>
+    dbService?.resetMonth(year, month, wsId),
   );
   ipcMain.handle('db:get-balance-history', async (_, year, month, wsId) =>
     dbService?.getBalanceHistory(year, month, wsId),
@@ -169,6 +176,9 @@ function registerIpcHandlers() {
 
   ipcMain.handle('db:backup', async (_, folder) => dbService?.createBackup(folder));
   ipcMain.handle('db:restore', async (_, filePath) => dbService?.restoreBackup(filePath));
+  ipcMain.handle('db:import-tidverk', async (_, filePath) =>
+    dbService?.importTidverkDatabase(filePath),
+  );
   ipcMain.handle('db:get-path', async () => dbService?.getDatabasePath());
   ipcMain.handle('db:open-folder', async () => {
     const databasePath = dbService?.getDatabasePath();

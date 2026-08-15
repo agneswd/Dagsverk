@@ -772,9 +772,15 @@ export class DatabaseService {
         entry.projectName,
         entry.notes,
         entry.scheduledMinutesOverride,
-        now,
-        now,
+        entry.createdAt || now,
+        entry.updatedAt || now,
       );
+  }
+
+  public saveWorkEntries(entries: any[], workspaceId: string = 'ws-default'): void {
+    this.db.transaction(() => {
+      for (const entry of entries) this.saveWorkEntry(entry, workspaceId);
+    })();
   }
 
   public deleteWorkEntry(date: string, workspaceId: string = 'ws-default'): void {
@@ -834,6 +840,18 @@ export class DatabaseService {
         record.expectedMinutesOverride,
         record.openingBalanceWasEdited ? 1 : 0,
       );
+  }
+
+  public resetMonth(year: number, month: number, workspaceId: string = 'ws-default'): void {
+    const monthPrefix = `${year}-${String(month).padStart(2, '0')}%`;
+    this.db.transaction(() => {
+      this.db
+        .prepare('DELETE FROM WorkEntries WHERE WorkspaceId = ? AND Date LIKE ?')
+        .run(workspaceId, monthPrefix);
+      this.db
+        .prepare('DELETE FROM MonthRecords WHERE WorkspaceId = ? AND Year = ? AND Month = ?')
+        .run(workspaceId, year, month);
+    })();
   }
 
   public getBalanceHistory(
@@ -936,6 +954,211 @@ export class DatabaseService {
   }
 
   // --- Backups ---
+  public async importTidverkDatabase(sourcePath: string): Promise<{
+    workspaceId: string;
+    workspaceName: string;
+    entryCount: number;
+    monthCount: number;
+    projectCount: number;
+    sourceBackupPath: string;
+    safetyBackupPath: string;
+  }> {
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error(`Tidverk database does not exist: ${sourcePath}`);
+    }
+    if (path.resolve(sourcePath) === path.resolve(this.dbPath)) {
+      throw new Error('Select the Tidverk database, not the current Dagsverk database.');
+    }
+
+    const backupFolder = path.join(path.dirname(this.dbPath), 'backups');
+    fs.mkdirSync(backupFolder, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const sourceBackupPath = path.join(backupFolder, `tidverk-import-${timestamp}.db`);
+    const sourceDatabase = new Database(sourcePath, { readonly: true, fileMustExist: true });
+
+    try {
+      const integrity = sourceDatabase.pragma('quick_check') as Array<Record<string, string>>;
+      if (Object.values(integrity[0] || {})[0] !== 'ok') {
+        throw new Error('The selected Tidverk database failed SQLite integrity validation.');
+      }
+      const tables = sourceDatabase
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('Settings', 'WorkEntries', 'Months', 'Projects')",
+        )
+        .all() as Array<{ name: string }>;
+      if (tables.length !== 4) {
+        throw new Error('The selected file is not a supported Tidverk database.');
+      }
+      await sourceDatabase.backup(sourceBackupPath);
+    } finally {
+      sourceDatabase.close();
+    }
+
+    const snapshot = new Database(sourceBackupPath, { readonly: true, fileMustExist: true });
+    try {
+      const settings = snapshot.prepare('SELECT * FROM Settings WHERE Id = 1').get() as any;
+      if (!settings) throw new Error('The Tidverk database does not contain settings.');
+      const entries = snapshot.prepare('SELECT * FROM WorkEntries ORDER BY Date').all() as any[];
+      const months = snapshot.prepare('SELECT * FROM Months ORDER BY Year, Month').all() as any[];
+      const projects = snapshot.prepare('SELECT * FROM Projects ORDER BY Name').all() as any[];
+      const safetyBackupPath = await this.createBackup(undefined, 'before-tidverk-import');
+      const pristine =
+        (this.db.prepare('SELECT COUNT(*) AS Count FROM Workspaces').get() as any).Count === 1 &&
+        (this.db.prepare('SELECT COUNT(*) AS Count FROM WorkEntries').get() as any).Count === 0 &&
+        !(this.db.prepare('SELECT HasCompletedSetup FROM AppPreferences WHERE Id = 1').get() as any)
+          ?.HasCompletedSetup;
+      const workspaceId = pristine ? 'ws-default' : `ws-${randomUUID()}`;
+      const workspaceName = String(settings.EmployerName || 'Imported workspace').trim();
+      const now = new Date().toISOString();
+      const time = (value: unknown): string | null =>
+        value === null || value === undefined ? null : String(value).slice(0, 5);
+      const number = (value: unknown, fallback: number): number => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+      };
+
+      this.db.transaction(() => {
+        if (pristine) {
+          this.db.prepare('DELETE FROM Projects WHERE WorkspaceId = ?').run(workspaceId);
+          this.db.prepare('DELETE FROM MonthRecords WHERE WorkspaceId = ?').run(workspaceId);
+          this.db.prepare('DELETE FROM WorkspaceSettings WHERE WorkspaceId = ?').run(workspaceId);
+        }
+
+        this.saveWorkspace({
+          id: workspaceId,
+          name: workspaceName,
+          color: '#5F875F',
+          type: 0,
+          workerName: settings.EmployeeName || '',
+          organizationName: settings.EmployerName || '',
+          createdAt: now,
+        });
+        this.saveSettings(
+          {
+            employeeName: settings.EmployeeName || '',
+            employerName: settings.EmployerName || '',
+            defaultProject: settings.DefaultProject || 'General',
+            salary: {
+              type: number(settings.SalaryType, 0),
+              hourlyRate: number(settings.HourlyRate, 0),
+              monthlySalary: number(settings.MonthlySalary, 0),
+              employmentPercent: number(settings.EmploymentPercent, 100),
+              hourlyPayBasis: number(settings.HourlyPayBasis, 0),
+            },
+            expectedHours: {
+              hoursPerWorkday: number(settings.ExpectedHoursPerWorkday, 8),
+              workingWeekdays: String(settings.ExpectedWorkingWeekdays || '1,2,3,4,5')
+                .split(',')
+                .map(Number),
+              excludePublicHolidays: Boolean(settings.ExcludePublicHolidays),
+            },
+            defaultStartTime: time(settings.DefaultStartTime) || '08:00',
+            defaultEndTime: time(settings.DefaultEndTime) || '16:30',
+            defaultLunchMinutes: number(settings.DefaultLunchMinutes, 30),
+            taxSettings: {
+              mode: number(settings.TaxMode, 0),
+              taxYear: number(settings.TaxYear, 2026),
+              tableNumber: number(settings.TaxTableNumber, 30),
+              column: number(settings.TaxColumn, 1),
+              manualMonthlyDeduction:
+                settings.ManualTaxValue === null ? null : number(settings.ManualTaxValue, 0),
+            },
+            openingBalanceMinutes: number(settings.OpeningBalanceMinutes, 0),
+            currencyPreference:
+              ['SEK', 'EUR', 'USD', 'GBP', 'NOK', 'DKK'][
+                number(settings.CurrencyPreference, 0)
+              ] || 'SEK',
+            exportLanguagePreference: number(settings.ExportLanguagePreference, 2),
+            overtimeCompensation: {
+              mode: number(settings.OvertimeCompensationMode, 0),
+              defaultRateType: number(settings.OvertimeDefaultRateType, 0),
+              defaultRateValue: number(settings.OvertimePremiumPercent, 50),
+              dailyThresholdHours: number(settings.OvertimeDailyThresholdHours, 8),
+              thresholdMode: number(settings.OvertimeThresholdMode, 0),
+              rateBands: JSON.parse(settings.OvertimeRateBandsJson || '[]'),
+              obOvertimeCombination: number(settings.ObOvertimeCombination, 0),
+            },
+          },
+          workspaceId,
+        );
+
+        for (const entry of entries) {
+          this.saveWorkEntry(
+            {
+              date: entry.Date,
+              status: entry.Status,
+              startTime: time(entry.StartTime),
+              endTime: time(entry.EndTime),
+              lunchMinutes: entry.LunchMinutes,
+              projectName: entry.ProjectName,
+              notes: entry.Notes,
+              scheduledMinutesOverride: entry.ScheduledMinutesOverride,
+              createdAt: entry.CreatedAt,
+              updatedAt: entry.UpdatedAt,
+            },
+            workspaceId,
+          );
+        }
+        for (const month of months) {
+          this.saveMonthRecord(
+            {
+              year: month.Year,
+              month: month.Month,
+              openingBalanceMinutes: month.OpeningBalanceMinutes,
+              expectedMinutesOverride: month.ExpectedMinutesOverride,
+              openingBalanceWasEdited: Boolean(month.OpeningBalanceWasEdited),
+            },
+            workspaceId,
+          );
+        }
+        for (const project of projects) {
+          this.saveProject(
+            {
+              id: project.Id,
+              name: project.Name,
+              color: '#5F875F',
+              isActive: Boolean(project.IsActive),
+              isDefault: Boolean(project.IsDefault),
+            },
+            workspaceId,
+          );
+        }
+        if (projects.length === 0) {
+          this.saveProject(
+            {
+              id: `proj-${randomUUID()}`,
+              name: settings.DefaultProject || 'General',
+              color: '#5F875F',
+              isActive: true,
+              isDefault: true,
+            },
+            workspaceId,
+          );
+        }
+        this.saveAppPreferences({
+          activeWorkspaceId: workspaceId,
+          themePreference: number(settings.ThemePreference, 0),
+          languagePreference: number(settings.LanguagePreference, 0),
+          interfaceScalePercent: number(settings.InterfaceScalePercent, 100),
+          monthViewPreference: number(settings.MonthViewPreference, 0),
+          hasCompletedSetup: true,
+        });
+      })();
+
+      return {
+        workspaceId,
+        workspaceName,
+        entryCount: entries.length,
+        monthCount: months.length,
+        projectCount: projects.length || 1,
+        sourceBackupPath,
+        safetyBackupPath,
+      };
+    } finally {
+      snapshot.close();
+    }
+  }
+
   public async createBackup(destinationFolder?: string, reason = 'manual'): Promise<string> {
     const folder = destinationFolder || path.join(path.dirname(this.dbPath), 'backups');
     fs.mkdirSync(folder, { recursive: true });

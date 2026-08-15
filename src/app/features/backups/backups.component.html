@@ -60,6 +60,11 @@
             <mat-icon>settings_backup_restore</mat-icon>
             <span>Restore from backup</span>
           </button>
+
+          <button mat-button class="action-btn restore-btn label-large" (click)="onImportTidverk()">
+            <mat-icon>move_to_inbox</mat-icon>
+            <span>Import from Tidverk</span>
+          </button>
         </div>
 
         @if (lastBackupPath()) {

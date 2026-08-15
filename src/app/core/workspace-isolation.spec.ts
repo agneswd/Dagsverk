@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ElectronBridgeService } from './electron-bridge.service';
 import { WorkEntry, WorkEntryStatus, Workspace, WorkspaceType } from './models';
+import { matchingWeekdayOccurrence } from './app-state.service';
 
 describe('Workspace Isolation & Multi-Tenancy', () => {
   let bridge: ElectronBridgeService;
@@ -100,5 +101,10 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
 
     expect(projsB.some(p => p.name === 'Beta Project')).toBe(true);
     expect(projsB.some(p => p.name === 'Alpha Project')).toBe(false);
+  });
+
+  it('matches copied entries by weekday occurrence', () => {
+    expect(matchingWeekdayOccurrence('2026-06-01', 2026, 7)).toBe('2026-07-06');
+    expect(matchingWeekdayOccurrence('2026-06-29', 2026, 2)).toBeNull();
   });
 });

@@ -24,6 +24,20 @@ import { TaxCalculatorService } from './tax-calculator.service';
 import { MonthlyCalculations } from './monthly-calculations';
 import { LocalizationService } from './localization.service';
 
+export function matchingWeekdayOccurrence(
+  sourceDate: string,
+  targetYear: number,
+  targetMonth: number,
+): string | null {
+  const source = new Date(`${sourceDate}T00:00:00`);
+  const occurrence = Math.floor((source.getDate() - 1) / 7);
+  const first = new Date(targetYear, targetMonth - 1, 1);
+  const offset = (source.getDay() - first.getDay() + 7) % 7;
+  const target = new Date(targetYear, targetMonth - 1, 1 + offset + occurrence * 7);
+  if (target.getMonth() !== targetMonth - 1) return null;
+  return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -59,6 +73,13 @@ export class AppStateService {
   public isInitialized = signal<boolean>(false);
   public catchUpDates = signal<string[]>([]);
   public catchUpIndex = signal<number>(0);
+  private copiedMonth = signal<{
+    workspaceId: string;
+    year: number;
+    month: number;
+    title: string;
+    entries: WorkEntry[];
+  } | null>(null);
 
   // Computed Signals
   public activeWorkspace = computed<Workspace>(() => {
@@ -70,6 +91,20 @@ export class AppStateService {
   public isCatchUpOpen = computed(() => this.catchUpDates().length > 0);
   public isMonthUnstarted = computed(
     () => !this.entries().some((entry) => entry.status !== WorkEntryStatus.Incomplete),
+  );
+  public canPasteMonth = computed(() => {
+    const copied = this.copiedMonth();
+    return Boolean(
+      copied &&
+        copied.workspaceId === this.activeWorkspaceId() &&
+        (copied.year !== this.currentYear() || copied.month !== this.currentMonth()),
+    );
+  });
+  public canResetMonth = computed(
+    () =>
+      this.entries().length > 0 ||
+      this.monthRecord().openingBalanceWasEdited ||
+      this.monthRecord().expectedMinutesOverride !== null,
   );
   public catchUpProgress = computed(() => {
     const count = this.catchUpDates().length;
@@ -166,6 +201,7 @@ export class AppStateService {
   public async switchWorkspace(workspaceId: string): Promise<void> {
     if (this.activeWorkspaceId() === workspaceId) return;
     this.activeWorkspaceId.set(workspaceId);
+    this.copiedMonth.set(null);
 
     const updatedPrefs: AppPreferences = {
       ...this.preferences(),
@@ -316,6 +352,102 @@ export class AppStateService {
     const updated = this.entries().filter((e) => e.date !== entry.date);
     updated.push(scopedEntry);
     this.entries.set([...updated]);
+  }
+
+  public async fillNormalWorkdays(): Promise<number> {
+    const entries = this.fillableDates().map<WorkEntry>((date) => ({
+        date,
+        status: WorkEntryStatus.Worked,
+        startTime: this.settings().defaultStartTime,
+        endTime: this.settings().defaultEndTime,
+        lunchMinutes: this.settings().defaultLunchMinutes,
+        projectName: this.settings().defaultProject,
+        notes: null,
+        scheduledMinutesOverride: null,
+      }));
+    if (!entries.length) return 0;
+    await this.bridge.saveWorkEntries(entries, this.activeWorkspaceId());
+    await this.loadCurrentMonth();
+    return entries.length;
+  }
+
+  public fillableWorkdayCount(): number {
+    return this.fillableDates().length;
+  }
+
+  private fillableDates(): string[] {
+    const existing = new Set(
+      this.entries()
+        .filter((entry) => entry.status !== WorkEntryStatus.Incomplete)
+        .map((entry) => entry.date),
+    );
+    return MonthlyCalculations.getExpectedWorkdays(
+      this.currentYear(),
+      this.currentMonth(),
+      this.settings().expectedHours,
+      this.holidays,
+    ).filter((date) => !existing.has(date));
+  }
+
+  public copyMonth(): number {
+    const entries = this.entries()
+      .filter((entry) => entry.status !== WorkEntryStatus.Incomplete)
+      .map((entry) => ({ ...entry }));
+    this.copiedMonth.set({
+      workspaceId: this.activeWorkspaceId(),
+      year: this.currentYear(),
+      month: this.currentMonth(),
+      title: this.formattedMonthTitle(),
+      entries,
+    });
+    return entries.length;
+  }
+
+  public copiedMonthTitle(): string {
+    return this.copiedMonth()?.title || '';
+  }
+
+  public pasteableEntryCount(): number {
+    return this.pasteEntries().length;
+  }
+
+  public async pasteMonth(): Promise<number> {
+    const entries = this.pasteEntries();
+    if (!entries.length) return 0;
+    await this.bridge.saveWorkEntries(entries, this.activeWorkspaceId());
+    await this.loadCurrentMonth();
+    return entries.length;
+  }
+
+  private pasteEntries(): WorkEntry[] {
+    const copied = this.copiedMonth();
+    if (!copied || !this.canPasteMonth()) return [];
+    const existing = new Set(
+      this.entries()
+        .filter((entry) => entry.status !== WorkEntryStatus.Incomplete)
+        .map((entry) => entry.date),
+    );
+    const result: WorkEntry[] = [];
+    for (const source of copied.entries) {
+      const date = matchingWeekdayOccurrence(
+        source.date,
+        this.currentYear(),
+        this.currentMonth(),
+      );
+      if (!date || existing.has(date)) continue;
+      result.push({ ...source, workspaceId: this.activeWorkspaceId(), date });
+    }
+    return result;
+  }
+
+  public async resetMonth(): Promise<void> {
+    await this.bridge.resetMonth(
+      this.currentYear(),
+      this.currentMonth(),
+      this.activeWorkspaceId(),
+    );
+    this.closeCatchUp();
+    await this.loadCurrentMonth();
   }
 
   public async deleteEntry(dateStr: string): Promise<void> {

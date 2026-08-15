@@ -10,6 +10,30 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   Ledger: 'Lista',
   Calendar: 'Kalender',
   Today: 'I dag',
+  'Month actions': 'Månadsåtgärder',
+  'Fill normal workdays': 'Fyll normala arbetsdagar',
+  'Copy month': 'Kopiera månad',
+  'Paste month': 'Klistra in månad',
+  'Reset month': 'Återställ månad',
+  'Fill normal workdays?': 'Fyll normala arbetsdagar?',
+  'Fill workdays': 'Fyll arbetsdagar',
+  'Paste copied month?': 'Klistra in kopierad månad?',
+  'Paste entries': 'Klistra in poster',
+  'Reset this month?': 'Återställ den här månaden?',
+  'All scheduled workdays already have entries.':
+    'Alla schemalagda arbetsdagar har redan poster.',
+  'There are no copied entries to paste.': 'Det finns inga kopierade poster att klistra in.',
+  'Add your default hours to {0} empty scheduled workdays? Existing entries will be kept.':
+    'Lägg till dina standardtider på {0} tomma schemalagda arbetsdagar? Befintliga poster behålls.',
+  '{0} normal workdays added.': '{0} normala arbetsdagar lades till.',
+  '{0} copied. Open another month and choose Paste month.':
+    '{0} kopierades. Öppna en annan månad och välj Klistra in månad.',
+  'Add {0} entries from {1} by matching each weekday occurrence? Existing entries will be kept.':
+    'Lägg till {0} poster från {1} genom att matcha varje veckodags förekomst? Befintliga poster behålls.',
+  '{0} entries pasted.': '{0} poster klistrades in.',
+  'Delete every entry and balance adjustment for {0}? This cannot be undone.':
+    'Ta bort alla poster och saldojusteringar för {0}? Detta går inte att ångra.',
+  '{0} was reset.': '{0} återställdes.',
   'Worked Time': 'Arbetad tid',
   'Overtime & OB': 'Övertid och OB',
   'Time Balance': 'Tidsbalans',
@@ -78,6 +102,7 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Backup and restore': 'Säkerhetskopiering och återställning',
   'Create backup': 'Skapa säkerhetskopia',
   'Restore from backup': 'Återställ från säkerhetskopia',
+  'Import from Tidverk': 'Importera från Tidverk',
   'Restore database?': 'Återställ databasen?',
   'Restore database': 'Återställ databas',
   'Export monthly report': 'Exportera månadsrapport',
