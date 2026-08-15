@@ -17,29 +17,16 @@
             (ngModelChange)="newProjectName.set($event)"
             placeholder="e.g. Client Alpha"
             (keydown.enter)="onAddProject()"
-          >
+          />
         </mat-form-field>
 
         <div class="color-picker-section">
           <label class="color-label label-small">COLOR TAG</label>
-          <div class="color-swatches-grid" role="radiogroup" aria-label="Project color selection">
-            @for (c of availableColors; track c.hex) {
-              <button
-                type="button"
-                class="color-swatch-btn"
-                [class.selected]="newProjectColor() === c.hex"
-                [style.background-color]="c.hex"
-                (click)="newProjectColor.set(c.hex)"
-                [attr.aria-label]="c.name + ' project color'"
-                [attr.aria-pressed]="newProjectColor() === c.hex"
-                matTooltip="{{ c.name }}"
-              >
-                @if (newProjectColor() === c.hex) {
-                  <mat-icon class="swatch-check-icon">check</mat-icon>
-                }
-              </button>
-            }
-          </div>
+          <app-color-picker
+            [color]="newProjectColor()"
+            (colorChange)="newProjectColor.set($event)"
+            label="Choose project color"
+          />
         </div>
 
         <button
@@ -78,6 +65,11 @@
               </div>
 
               <div class="project-row-actions">
+                <app-color-picker
+                  [color]="p.color || '#5F875F'"
+                  (colorChange)="onProjectColorChange(p, $event)"
+                  label="Change project color"
+                />
                 @if (!p.isDefault) {
                   <button
                     mat-button

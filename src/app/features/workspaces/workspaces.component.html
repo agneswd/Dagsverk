@@ -93,22 +93,11 @@
 
         <div class="color-picker-row">
           <label class="color-label label-small">COLOR ACCENT</label>
-          <div class="color-swatches-grid">
-            @for (c of availableColors; track c) {
-              <button
-                type="button"
-                class="color-swatch-btn"
-                [class.selected]="newWorkspaceColor() === c"
-                [style.background-color]="c"
-                (click)="newWorkspaceColor.set(c)"
-                aria-label="Workspace color"
-              >
-                @if (newWorkspaceColor() === c) {
-                  <mat-icon class="swatch-check-icon">check</mat-icon>
-                }
-              </button>
-            }
-          </div>
+          <app-color-picker
+            [color]="newWorkspaceColor()"
+            (colorChange)="newWorkspaceColor.set($event)"
+            label="Choose workspace color"
+          />
         </div>
 
         <div class="form-actions">
@@ -162,13 +151,10 @@
                 </button>
               }
 
-              <input
-                type="color"
-                class="workspace-color-input"
-                [value]="ws.color || '#5F875F'"
-                (change)="onWorkspaceColorChange(ws, $event)"
-                [attr.aria-label]="'Change ' + ws.name + ' color'"
-                matTooltip="Change workspace color"
+              <app-color-picker
+                [color]="ws.color || '#5F875F'"
+                (colorChange)="onWorkspaceColorChange(ws, $event)"
+                label="Change workspace color"
               />
 
               @if (state.workspaces().length > 1) {

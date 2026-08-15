@@ -14,6 +14,7 @@ import { firstValueFrom } from 'rxjs';
 import { AppStateService } from '../../core/app-state.service';
 import { Workspace, WorkspaceType } from '../../core/models';
 import { ConfirmDialogComponent } from '../../core/confirm-dialog.component';
+import { ColorPickerComponent } from '../../shared/color-picker/color-picker.component';
 
 @Component({
   selector: 'app-workspaces',
@@ -30,6 +31,7 @@ import { ConfirmDialogComponent } from '../../core/confirm-dialog.component';
     MatTooltipModule,
     MatSnackBarModule,
     MatDialogModule,
+    ColorPickerComponent,
   ],
   templateUrl: './workspaces.component.html',
   styleUrls: ['./workspaces.component.scss'],
@@ -47,18 +49,6 @@ export class WorkspacesComponent {
   public newWorkspaceColor = signal<string>('#5F875F');
   public isAdding = signal<boolean>(false);
   public WorkspaceType = WorkspaceType;
-
-  public availableColors = [
-    '#5F875F', // Dagsverk green
-    '#0B57D0', // Blue
-    '#00838F', // Teal
-    '#2E7D32', // Green
-    '#ED6C02', // Orange
-    '#C2185B', // Pink
-    '#7B1FA2', // Purple
-    '#5C6BC0', // Indigo
-    '#455A64', // Slate
-  ];
 
   public async onAddWorkspace(): Promise<void> {
     const name = this.newWorkspaceName().trim();
@@ -88,8 +78,7 @@ export class WorkspacesComponent {
     this.state.switchWorkspace(ws.id);
   }
 
-  public onWorkspaceColorChange(ws: Workspace, event: Event): void {
-    const color = (event.target as HTMLInputElement).value;
+  public onWorkspaceColorChange(ws: Workspace, color: string): void {
     void this.state.saveWorkspace({ ...ws, color, updatedAt: new Date().toISOString() });
   }
 
