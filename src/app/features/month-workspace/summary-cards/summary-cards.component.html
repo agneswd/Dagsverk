@@ -23,13 +23,23 @@
       <mat-icon>more_time</mat-icon>
     </div>
     <div class="metric-data">
-      <span class="metric-label label-small">Overtime & OB</span>
+      <span class="metric-label label-small">
+        {{ usesMonthlyHourlyPayBasis() ? 'Paid Time & Comp' : 'Overtime & OB' }}
+      </span>
       <div class="metric-val-row">
-        <span class="metric-value title-medium numeric"
-          >{{ state.summary().overtimeHours | number: '1.2-2' }}h</span
-        >
+        <span class="metric-value title-medium numeric">
+          @if (usesMonthlyHourlyPayBasis()) {
+            {{ state.summary().ordinaryPaidHours | number: '1.2-2' }}h
+          } @else {
+            {{ state.summary().overtimeHours | number: '1.2-2' }}h
+          }
+        </span>
         <span class="metric-qualifier body-small">
-          @if (state.settings().overtimeCompensation.mode === OvertimeCompensationMode.CompTime) {
+          @if (usesMonthlyHourlyPayBasis()) {
+            +{{ compTimeEarnedHours() | number: '1.2-2' }}h comp
+          } @else if (
+            state.settings().overtimeCompensation.mode === OvertimeCompensationMode.CompTime
+          ) {
             Comp-Time
           } @else {
             Paid

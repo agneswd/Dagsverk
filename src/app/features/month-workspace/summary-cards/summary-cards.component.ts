@@ -2,7 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { AppStateService } from '../../../core/app-state.service';
-import { OvertimeCompensationMode } from '../../../core/models';
+import { HourlyPayBasis, OvertimeCompensationMode, SalaryType } from '../../../core/models';
 
 @Component({
   selector: 'app-summary-cards',
@@ -27,5 +27,19 @@ export class SummaryCardsComponent {
     return this.state.isMonthUnstarted()
       ? this.state.monthRecord().openingBalanceMinutes
       : this.state.summary().closingBalanceMinutes;
+  }
+
+  public usesMonthlyHourlyPayBasis(): boolean {
+    const settings = this.state.settings();
+    return (
+      settings.salary.type === SalaryType.Hourly &&
+      settings.salary.hourlyPayBasis === HourlyPayBasis.MonthlyExpectedHours &&
+      settings.overtimeCompensation.mode === OvertimeCompensationMode.CompTime
+    );
+  }
+
+  public compTimeEarnedHours(): number {
+    const summary = this.state.summary();
+    return Math.max(0, summary.workedHours - summary.ordinaryPaidHours);
   }
 }

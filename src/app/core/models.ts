@@ -78,6 +78,16 @@ export enum SalaryType {
   Monthly = 1,
 }
 
+export enum HourlyPayBasis {
+  DailyRegularHours = 0,
+  MonthlyExpectedHours = 1,
+}
+
+export enum ObOvertimeCombinationMode {
+  ExcludeOb = 0,
+  IncludeOb = 1,
+}
+
 export enum TaxMode {
   Disabled = 0,
   PrimaryIncomeTaxTable = 1,
@@ -148,6 +158,7 @@ export interface SalarySettings {
   hourlyRate: number;
   monthlySalary: number;
   employmentPercent: number;
+  hourlyPayBasis: HourlyPayBasis;
 }
 
 export interface ExpectedHoursSettings {
@@ -171,6 +182,7 @@ export interface OvertimeCompensationSettings {
   dailyThresholdHours: number;
   thresholdMode: OvertimeThresholdMode;
   rateBands: OvertimeRateBand[];
+  obOvertimeCombination: ObOvertimeCombinationMode;
 }
 
 export interface AppSettings {
@@ -226,6 +238,7 @@ export interface MonthlySummary {
   workedMinutes: number;
   regularMinutes: number;
   overtimeMinutes: number;
+  ordinaryPaidMinutes: number;
   balanceEligibleMinutes: number;
   expectedMinutes: number;
   monthlyDifferenceMinutes: number;
@@ -241,6 +254,7 @@ export interface MonthlySummary {
   workedHours: number;
   regularHours: number;
   overtimeHours: number;
+  ordinaryPaidHours: number;
   obHours: number;
   expectedHours: number;
 }
@@ -273,6 +287,7 @@ export interface ReportExportRequest {
   overtimeSettings?: OvertimeCompensationSettings;
   overtimeMode: OvertimeCompensationMode;
   dailyOvertimeThresholdHours: number;
+  hourlyPayBasis: HourlyPayBasis;
 }
 
 export const DEFAULT_WORKSPACE: Workspace = {
@@ -305,6 +320,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     hourlyRate: 250,
     monthlySalary: 40000,
     employmentPercent: 100,
+    hourlyPayBasis: HourlyPayBasis.DailyRegularHours,
   },
   expectedHours: {
     hoursPerWorkday: 8,
@@ -335,5 +351,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     dailyThresholdHours: 8,
     thresholdMode: OvertimeThresholdMode.ScheduledHours,
     rateBands: [],
+    obOvertimeCombination: ObOvertimeCombinationMode.ExcludeOb,
   },
 };

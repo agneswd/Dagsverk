@@ -32,6 +32,7 @@ export class DatabaseService {
     this.db = this.openDatabase();
     this.initSchema();
     this.ensureWorkspaceIdentitySchema();
+    this.ensurePayrollParitySchema();
   }
 
   public getDatabasePath(): string {
@@ -439,6 +440,21 @@ export class DatabaseService {
     }
   }
 
+  private ensurePayrollParitySchema(): void {
+    const columns = this.db.pragma('table_info(WorkspaceSettings)') as Array<{ name: string }>;
+    const names = new Set(columns.map((column) => column.name));
+    if (!names.has('HourlyPayBasis')) {
+      this.db.exec(
+        'ALTER TABLE WorkspaceSettings ADD COLUMN HourlyPayBasis INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+    if (!names.has('OvertimeObCombination')) {
+      this.db.exec(
+        'ALTER TABLE WorkspaceSettings ADD COLUMN OvertimeObCombination INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+  }
+
   // --- Workspaces ---
   public getWorkspaces(): any[] {
     const rows = this.db.prepare('SELECT * FROM Workspaces ORDER BY CreatedAt ASC').all() as any[];
@@ -578,6 +594,7 @@ export class DatabaseService {
         hourlyRate: Number(row.HourlyRate),
         monthlySalary: Number(row.MonthlySalary),
         employmentPercent: Number(row.EmploymentPercent),
+        hourlyPayBasis: row.HourlyPayBasis ?? 0,
       },
       expectedHours: {
         hoursPerWorkday: Number(row.ExpectedHoursPerWorkday),
@@ -605,6 +622,7 @@ export class DatabaseService {
         dailyThresholdHours: Number(row.OvertimeDailyThresholdHours),
         thresholdMode: row.OvertimeThresholdMode,
         rateBands: JSON.parse(row.OvertimeRateBandsJson || '[]'),
+        obOvertimeCombination: row.OvertimeObCombination ?? 0,
       },
     };
   }
@@ -620,20 +638,21 @@ export class DatabaseService {
         `
       INSERT INTO WorkspaceSettings (
         WorkspaceId, EmployeeName, EmployerName, DefaultProject, HourlyRate, SalaryType,
-        MonthlySalary, EmploymentPercent, ExpectedHoursPerWorkday, ExpectedWorkingWeekdays,
+        MonthlySalary, EmploymentPercent, HourlyPayBasis, ExpectedHoursPerWorkday, ExpectedWorkingWeekdays,
         ExcludePublicHolidays, DefaultStartTime, DefaultEndTime, DefaultLunchMinutes,
         TaxMode, TaxYear, TaxTableNumber, TaxColumn, ManualTaxValue,
         OpeningBalanceMinutes, CurrencyPreference, ExportLanguagePreference,
         OvertimeCompensationMode, OvertimePremiumPercent, OvertimeDailyThresholdHours,
-        OvertimeThresholdMode, OvertimeDefaultRateType, OvertimeRateBandsJson
+        OvertimeThresholdMode, OvertimeDefaultRateType, OvertimeRateBandsJson,
+        OvertimeObCombination
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
         ?, ?, ?,
         ?, ?, ?,
-        ?, ?, ?
+        ?, ?, ?, ?
       )
       ON CONFLICT(WorkspaceId) DO UPDATE SET
         EmployeeName = excluded.EmployeeName,
@@ -643,6 +662,7 @@ export class DatabaseService {
         SalaryType = excluded.SalaryType,
         MonthlySalary = excluded.MonthlySalary,
         EmploymentPercent = excluded.EmploymentPercent,
+        HourlyPayBasis = excluded.HourlyPayBasis,
         ExpectedHoursPerWorkday = excluded.ExpectedHoursPerWorkday,
         ExpectedWorkingWeekdays = excluded.ExpectedWorkingWeekdays,
         ExcludePublicHolidays = excluded.ExcludePublicHolidays,
@@ -662,7 +682,8 @@ export class DatabaseService {
         OvertimeDailyThresholdHours = excluded.OvertimeDailyThresholdHours,
         OvertimeThresholdMode = excluded.OvertimeThresholdMode,
         OvertimeDefaultRateType = excluded.OvertimeDefaultRateType,
-        OvertimeRateBandsJson = excluded.OvertimeRateBandsJson
+        OvertimeRateBandsJson = excluded.OvertimeRateBandsJson,
+        OvertimeObCombination = excluded.OvertimeObCombination
     `,
       )
       .run(
@@ -674,6 +695,7 @@ export class DatabaseService {
         settings.salary?.type || 0,
         settings.salary?.monthlySalary || 0,
         settings.salary?.employmentPercent || 100,
+        settings.salary?.hourlyPayBasis ?? 0,
         settings.expectedHours?.hoursPerWorkday || 8,
         (settings.expectedHours?.workingWeekdays || [1, 2, 3, 4, 5]).join(','),
         settings.expectedHours?.excludePublicHolidays ? 1 : 0,
@@ -694,6 +716,7 @@ export class DatabaseService {
         settings.overtimeCompensation?.thresholdMode || 0,
         settings.overtimeCompensation?.defaultRateType || 0,
         JSON.stringify(settings.overtimeCompensation?.rateBands || []),
+        settings.overtimeCompensation?.obOvertimeCombination ?? 0,
       );
   }
 

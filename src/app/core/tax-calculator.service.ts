@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { TaxEstimate, TaxMode, TaxSettings, TaxUnavailableReason } from './models';
+import Decimal from 'decimal.js';
 
 export interface TaxTableRange {
   TableNumber: number;
@@ -21,7 +22,7 @@ export interface TaxTableFile {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class TaxCalculatorService {
   private http = inject(HttpClient);
@@ -34,9 +35,7 @@ export class TaxCalculatorService {
     }
 
     try {
-      const file = await firstValueFrom(
-        this.http.get<TaxTableFile>(`tax-data/tax-${year}.json`)
-      );
+      const file = await firstValueFrom(this.http.get<TaxTableFile>(`tax-data/tax-${year}.json`));
 
       const tableMap = new Map<number, TaxTableRange[]>();
       for (const range of file.Ranges) {
@@ -86,37 +85,46 @@ export class TaxCalculatorService {
           preliminaryTax: 0,
           estimatedNetPay: grossPay,
           unavailableReason: 'None',
-          isAvailable: true
+          isAvailable: true,
         };
 
       case TaxMode.SecondaryIncomeThirtyPercent: {
-        const tax = Math.min(grossPay, Math.floor(grossPay * 0.30));
+        const tax = Decimal.min(
+          grossPay,
+          new Decimal(grossPay).times('0.30').truncated(),
+        ).toNumber();
         return {
           grossPay,
           preliminaryTax: tax,
-          estimatedNetPay: grossPay - tax,
+          estimatedNetPay: new Decimal(grossPay).minus(tax).toNumber(),
           unavailableReason: 'None',
-          isAvailable: true
+          isAvailable: true,
         };
       }
 
       case TaxMode.ManualMonthlyDeduction: {
-        if (settings.manualMonthlyDeduction === null || settings.manualMonthlyDeduction === undefined) {
+        if (
+          settings.manualMonthlyDeduction === null ||
+          settings.manualMonthlyDeduction === undefined
+        ) {
           return {
             grossPay,
             preliminaryTax: null,
             estimatedNetPay: null,
             unavailableReason: 'ManualDeductionNotConfigured',
-            isAvailable: false
+            isAvailable: false,
           };
         }
-        const deduction = Math.min(grossPay, Math.max(0, settings.manualMonthlyDeduction));
+        const deduction = Decimal.min(
+          grossPay,
+          Decimal.max(0, settings.manualMonthlyDeduction),
+        ).toNumber();
         return {
           grossPay,
           preliminaryTax: deduction,
-          estimatedNetPay: grossPay - deduction,
+          estimatedNetPay: new Decimal(grossPay).minus(deduction).toNumber(),
           unavailableReason: 'None',
-          isAvailable: true
+          isAvailable: true,
         };
       }
 
@@ -129,7 +137,7 @@ export class TaxCalculatorService {
           preliminaryTax: null,
           estimatedNetPay: null,
           unavailableReason: 'TaxYearNotBundled',
-          isAvailable: false
+          isAvailable: false,
         };
     }
   }
@@ -141,7 +149,7 @@ export class TaxCalculatorService {
         preliminaryTax: null,
         estimatedNetPay: null,
         unavailableReason: 'TaxYearNotBundled',
-        isAvailable: false
+        isAvailable: false,
       };
     }
 
@@ -151,7 +159,7 @@ export class TaxCalculatorService {
         preliminaryTax: 0,
         estimatedNetPay: 0,
         unavailableReason: 'None',
-        isAvailable: true
+        isAvailable: true,
       };
     }
 
@@ -163,7 +171,7 @@ export class TaxCalculatorService {
         preliminaryTax: null,
         estimatedNetPay: null,
         unavailableReason: 'TaxYearNotBundled',
-        isAvailable: false
+        isAvailable: false,
       };
     }
 
@@ -175,23 +183,24 @@ export class TaxCalculatorService {
         preliminaryTax: null,
         estimatedNetPay: null,
         unavailableReason: 'TaxYearNotBundled',
-        isAvailable: false
+        isAvailable: false,
       };
     }
 
     const colIndex = Math.max(0, Math.min(5, settings.column - 1));
     const rawVal = range.Columns[colIndex] ?? 0;
-    const preliminaryTax = range.AmountKind === '%'
-      ? Math.floor((wholeKrona * rawVal) / 100)
-      : rawVal;
+    const preliminaryTax =
+      range.AmountKind === '%'
+        ? new Decimal(wholeKrona).times(rawVal).dividedBy(100).floor().toNumber()
+        : rawVal;
 
     const clampedTax = Math.min(grossPay, Math.max(0, preliminaryTax));
     return {
       grossPay,
       preliminaryTax: clampedTax,
-      estimatedNetPay: grossPay - clampedTax,
+      estimatedNetPay: new Decimal(grossPay).minus(clampedTax).toNumber(),
       unavailableReason: 'None',
-      isAvailable: true
+      isAvailable: true,
     };
   }
 
