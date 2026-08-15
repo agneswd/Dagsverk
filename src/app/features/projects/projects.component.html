@@ -18,16 +18,13 @@
             placeholder="e.g. Client Alpha"
             (keydown.enter)="onAddProject()"
           />
-        </mat-form-field>
-
-        <div class="color-picker-section">
-          <label class="color-label label-small">COLOR TAG</label>
           <app-color-picker
+            matSuffix
             [color]="newProjectColor()"
             (colorChange)="newProjectColor.set($event)"
             label="Choose project color"
           />
-        </div>
+        </mat-form-field>
 
         <button
           mat-flat-button
