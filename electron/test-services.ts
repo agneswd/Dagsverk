@@ -159,6 +159,20 @@ async function runTests() {
   const sheet2 = workbook.worksheets[1];
   console.log(`✔ Excel Export verified: Sheet 1 "${sheet1.name}", Sheet 2 "${sheet2.name}"`);
 
+  let invalidExportRejected = false;
+  try {
+    await ExcelExportService.exportToFile({
+      ...req,
+      entries: [{ ...req.entries[0], date: '2026-09-17' }]
+    }, testExcelPath);
+  } catch {
+    invalidExportRejected = true;
+  }
+  if (!invalidExportRejected) {
+    throw new Error('Out-of-month report entry was not rejected');
+  }
+  console.log('✔ Excel export validation verified');
+
   // Clean up
   fs.unlinkSync(tempDbPath);
   fs.unlinkSync(testExcelPath);

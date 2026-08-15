@@ -105,7 +105,8 @@
       <!-- Export to Excel -->
       <button
         mat-icon-button
-        (click)="state.exportExcel()"
+        (click)="onExport()"
+        [disabled]="state.entries().length === 0"
         aria-label="Export to Excel"
         matTooltip="Export to Excel (.xlsx)"
       >
