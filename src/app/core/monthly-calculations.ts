@@ -466,12 +466,6 @@ export class MonthlyCalculations {
     }
 
     const monthEntries = [...entriesByDate.values()];
-    const fullExpectedMinutes = this.calculateExpectedMinutes(
-      monthRecord,
-      monthEntries,
-      expectedHours,
-      holidays,
-    );
     const expectedMinutes = this.calculateExpectedMinutes(
       monthRecord,
       monthEntries,
@@ -533,7 +527,7 @@ export class MonthlyCalculations {
       (salary.hourlyPayBasis ?? HourlyPayBasis.DailyRegularHours) ===
         HourlyPayBasis.MonthlyExpectedHours
     ) {
-      ordinaryPaidMinutes = Math.min(totalWorkedMinutes, fullExpectedMinutes);
+      ordinaryPaidMinutes = Math.min(totalWorkedMinutes, expectedMinutes);
       totalGrossSalary = new Decimal(ordinaryPaidMinutes)
         .times(salary.hourlyRate)
         .dividedBy(60)
