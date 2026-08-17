@@ -205,6 +205,41 @@ describe('MonthlyCalculations & Engine', () => {
     expect(summary.monthlyDifferenceMinutes).toBe(300);
   });
 
+  it('uses accrued expected hours for in-progress monthly pay and comp time', () => {
+    const entries = [
+      [3, 480],
+      [4, 480],
+      [5, 480],
+      [6, 480],
+      [7, 480],
+      [10, 540],
+      [11, 480],
+      [12, 690],
+      [13, 810],
+      [17, 480],
+    ].map(([day, minutes]) => workedEntry(`2026-08-${String(day).padStart(2, '0')}`, minutes));
+
+    const summary = MonthlyCalculations.calculateMonthlySummary(
+      month(2026, 8, null),
+      entries,
+      { ...standardSchedule, excludePublicHolidays: false },
+      {
+        ...hourlySalary,
+        hourlyRate: 202,
+        hourlyPayBasis: HourlyPayBasis.MonthlyExpectedHours,
+      },
+      compTimeOvertime,
+      holidays,
+      '2026-08-17',
+    );
+
+    expect(summary.workedHours).toBe(90);
+    expect(summary.expectedHours).toBe(88);
+    expect(summary.ordinaryPaidHours).toBe(88);
+    expect(summary.grossSalary).toBe(17776);
+    expect(summary.monthlyDifferenceMinutes).toBe(120);
+  });
+
   it('counts overnight work and applies OB on the real clock date', () => {
     const overnight = workedEntry('2026-07-01', 8 * 60, 0, '22:00');
     const compensation: OvertimeCompensationSettings = {
