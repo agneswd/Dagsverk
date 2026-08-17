@@ -1,6 +1,6 @@
 {
   "name": "dagsverk",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Offline-first time, salary, and workspace tracking for desktop.",
   "author": "agneswd",
   "main": "dist-electron/main.js",
