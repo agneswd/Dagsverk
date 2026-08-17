@@ -83,11 +83,17 @@
 }
 
 @media (min-width: 1600px) {
+  .app-top-toolbar .timesheet-controls-plane {
+    .toolbar-left,
+    .toolbar-center {
+      transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+  }
+
   .app-top-toolbar.editor-open .timesheet-controls-plane {
     .toolbar-left,
     .toolbar-center {
       transform: translateX(-208px);
-      transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
   }
 }
