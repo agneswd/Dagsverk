@@ -235,6 +235,7 @@ export class DayEditorComponent {
     };
     await this.state.saveEntry(updated);
     if (saveAndNext && this.state.isCatchUpOpen()) this.state.moveCatchUp(1);
+    else this.state.closeEditor();
   }
 
   public async onReset(): Promise<void> {
