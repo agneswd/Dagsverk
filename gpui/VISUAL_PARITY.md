@@ -69,6 +69,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - Application Settings uses outlined Material selects for Theme, Language, Interface scale, and Export language.
 - Salary and Tax Settings uses outlined Material selects and shows only fields that apply to the selected modes.
 - Overtime and OB Settings uses outlined Material selects for its top-level modes and shows mode-specific fields conditionally.
+- Overtime and OB rate bands use outlined Material selects for rule type, day category, and rate type.
 
 ## Comparison tolerances
 

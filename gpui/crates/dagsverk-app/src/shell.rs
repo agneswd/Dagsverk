@@ -111,6 +111,24 @@ const RATE_TYPE_OPTIONS: [CompensationRateType; 3] = [
     CompensationRateType::FixedHourlyAmount,
     CompensationRateType::FullTimeMonthlySalaryDivisor,
 ];
+const RULE_TYPE_OPTIONS: [CompensationRuleType; 2] =
+    [CompensationRuleType::Overtime, CompensationRuleType::Ob];
+const OVERTIME_DAY_OPTIONS: [OvertimeDayCategory; 14] = [
+    OvertimeDayCategory::AllDays,
+    OvertimeDayCategory::ScheduledWorkdays,
+    OvertimeDayCategory::NonWorkdays,
+    OvertimeDayCategory::Monday,
+    OvertimeDayCategory::Tuesday,
+    OvertimeDayCategory::Wednesday,
+    OvertimeDayCategory::Thursday,
+    OvertimeDayCategory::Friday,
+    OvertimeDayCategory::Saturday,
+    OvertimeDayCategory::Sunday,
+    OvertimeDayCategory::PublicHolidays,
+    OvertimeDayCategory::ScheduledWeekdays,
+    OvertimeDayCategory::Weekends,
+    OvertimeDayCategory::MajorHolidays,
+];
 
 impl ExportFormat {
     const fn extension(self) -> &'static str {
@@ -326,6 +344,9 @@ struct RateBandInputs {
     start: Entity<TextInput>,
     end: Entity<TextInput>,
     value: Entity<TextInput>,
+    rule_type: Entity<M3Select>,
+    day_category: Entity<M3Select>,
+    rate_type: Entity<M3Select>,
 }
 
 impl RateBandInputs {
@@ -335,6 +356,33 @@ impl RateBandInputs {
             start: cx.new(|cx| TextInput::new(cx, "Start time")),
             end: cx.new(|cx| TextInput::new(cx, "End time")),
             value: cx.new(|cx| TextInput::new(cx, "Rate value")),
+            rule_type: cx.new(|cx| {
+                M3Select::new(
+                    "Rule type",
+                    ["Overtime", "OB"],
+                    option_index(&RULE_TYPE_OPTIONS, band.compensation_type),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            day_category: cx.new(|cx| {
+                M3Select::new(
+                    "Day category",
+                    OVERTIME_DAY_OPTIONS.map(overtime_day_category_label),
+                    option_index(&OVERTIME_DAY_OPTIONS, band.day_category),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            rate_type: cx.new(|cx| {
+                M3Select::new(
+                    "Rate type",
+                    ["Premium percent", "Fixed amount", "Monthly divisor"],
+                    option_index(&RATE_TYPE_OPTIONS, band.rate_type),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
         };
         fields
             .name
@@ -348,12 +396,91 @@ impl RateBandInputs {
         fields.value.update(cx, |input, cx| {
             input.set_text(band.rate_value.to_string(), cx)
         });
+        fields.subscribe(cx);
         fields
+    }
+
+    fn subscribe(&self, cx: &mut Context<AppShell>) {
+        cx.subscribe(
+            &self.rule_type,
+            |shell, emitter, event: &M3SelectEvent, cx| {
+                let Some(index) = shell
+                    .rate_band_inputs
+                    .iter()
+                    .position(|inputs| inputs.rule_type == emitter)
+                else {
+                    return;
+                };
+                if let (Some(band), Some(value)) = (
+                    shell
+                        .settings_draft
+                        .overtime_compensation
+                        .rate_bands
+                        .get_mut(index),
+                    RULE_TYPE_OPTIONS.get(event.0),
+                ) {
+                    band.compensation_type = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &self.day_category,
+            |shell, emitter, event: &M3SelectEvent, cx| {
+                let Some(index) = shell
+                    .rate_band_inputs
+                    .iter()
+                    .position(|inputs| inputs.day_category == emitter)
+                else {
+                    return;
+                };
+                if let (Some(band), Some(value)) = (
+                    shell
+                        .settings_draft
+                        .overtime_compensation
+                        .rate_bands
+                        .get_mut(index),
+                    OVERTIME_DAY_OPTIONS.get(event.0),
+                ) {
+                    band.day_category = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &self.rate_type,
+            |shell, emitter, event: &M3SelectEvent, cx| {
+                let Some(index) = shell
+                    .rate_band_inputs
+                    .iter()
+                    .position(|inputs| inputs.rate_type == emitter)
+                else {
+                    return;
+                };
+                if let (Some(band), Some(value)) = (
+                    shell
+                        .settings_draft
+                        .overtime_compensation
+                        .rate_bands
+                        .get_mut(index),
+                    RATE_TYPE_OPTIONS.get(event.0),
+                ) {
+                    band.rate_type = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
     }
 
     fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
         for input in [&self.name, &self.start, &self.end, &self.value] {
             input.update(cx, |input, cx| input.set_scale(scale, cx));
+        }
+        for select in [&self.rule_type, &self.day_category, &self.rate_type] {
+            select.update(cx, |select, cx| select.set_scale(scale, cx));
         }
     }
 }
@@ -3499,11 +3626,38 @@ impl AppShell {
         self.overtime_selects.default_rate.update(cx, |select, cx| {
             select.set_colors(colors, cx);
             select.set_options(
-                rate_labels,
+                rate_labels.clone(),
                 option_index(&RATE_TYPE_OPTIONS, overtime.default_rate_type),
                 cx,
             );
         });
+        for (band, inputs) in overtime.rate_bands.iter().zip(&self.rate_band_inputs) {
+            inputs.rule_type.update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    [self.text("Overtime"), self.text("OB")],
+                    option_index(&RULE_TYPE_OPTIONS, band.compensation_type),
+                    cx,
+                );
+            });
+            inputs.day_category.update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    OVERTIME_DAY_OPTIONS
+                        .map(|category| self.text(overtime_day_category_label(category))),
+                    option_index(&OVERTIME_DAY_OPTIONS, band.day_category),
+                    cx,
+                );
+            });
+            inputs.rate_type.update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    rate_labels.clone(),
+                    option_index(&RATE_TYPE_OPTIONS, band.rate_type),
+                    cx,
+                );
+            });
+        }
         div()
             .flex()
             .flex_col()
@@ -3520,11 +3674,14 @@ impl AppShell {
                 |settings| settings.child(self.settings_inputs.overtime_threshold.clone()),
             )
             .child(self.overtime_selects.ob_combination.clone())
-            .when(overtime.mode == OvertimeCompensationMode::Paid, |settings| {
-                settings
-                    .child(self.overtime_selects.default_rate.clone())
-                    .child(self.settings_inputs.default_rate_value.clone())
-            })
+            .when(
+                overtime.mode == OvertimeCompensationMode::Paid,
+                |settings| {
+                    settings
+                        .child(self.overtime_selects.default_rate.clone())
+                        .child(self.settings_inputs.default_rate_value.clone())
+                },
+            )
             .child(
                 div()
                     .id("add-overtime-rule")
@@ -3590,7 +3747,7 @@ impl AppShell {
                     .rate_bands
                     .into_iter()
                     .enumerate()
-                    .map(|(index, band)| {
+                    .map(|(index, _band)| {
                         let inputs = &self.rate_band_inputs[index];
                         div()
                             .p(scale.px(16.0))
@@ -3604,40 +3761,7 @@ impl AppShell {
                                     .flex()
                                     .gap(scale.px(10.0))
                                     .child(div().flex_1().child(inputs.name.clone()))
-                                    .child(
-                                        setting_chip(
-                                            self.ui_language(),
-                                            ("band-type", index),
-                                            if band.compensation_type
-                                                == CompensationRuleType::Overtime
-                                            {
-                                                "Overtime"
-                                            } else {
-                                                "OB"
-                                            },
-                                            true,
-                                            colors,
-                                            scale,
-                                        )
-                                        .on_click(cx.listener(move |shell, _, _, cx| {
-                                            if let Some(band) = shell
-                                                .settings_draft
-                                                .overtime_compensation
-                                                .rate_bands
-                                                .get_mut(index)
-                                            {
-                                                band.compensation_type =
-                                                    if band.compensation_type
-                                                        == CompensationRuleType::Overtime
-                                                    {
-                                                        CompensationRuleType::Ob
-                                                    } else {
-                                                        CompensationRuleType::Overtime
-                                                    };
-                                            }
-                                            cx.notify();
-                                        })),
-                                    ),
+                                    .child(div().flex_1().child(inputs.rule_type.clone())),
                             )
                             .child(
                                 div()
@@ -3652,61 +3776,8 @@ impl AppShell {
                                     .flex()
                                     .items_center()
                                     .gap(scale.px(10.0))
-                                    .child(
-                                        setting_chip(
-                                            self.ui_language(),
-                                            ("cycle-band-day", index),
-                                            overtime_day_category_label(band.day_category),
-                                            false,
-                                            colors,
-                                            scale,
-                                        )
-                                        .on_click(cx.listener(move |shell, _, _, cx| {
-                                            shell.cycle_band_day(index);
-                                            cx.notify();
-                                        })),
-                                    )
-                                    .child(
-                                        setting_chip(
-                                            self.ui_language(),
-                                            ("cycle-band-rate", index),
-                                            match band.rate_type {
-                                                CompensationRateType::HourlyPremiumPercent => {
-                                                    "Premium percent"
-                                                }
-                                                CompensationRateType::FixedHourlyAmount => {
-                                                    "Fixed amount"
-                                                }
-                                                CompensationRateType::FullTimeMonthlySalaryDivisor => {
-                                                    "Monthly divisor"
-                                                }
-                                            },
-                                            false,
-                                            colors,
-                                            scale,
-                                        )
-                                        .on_click(cx.listener(move |shell, _, _, cx| {
-                                            if let Some(band) = shell
-                                                .settings_draft
-                                                .overtime_compensation
-                                                .rate_bands
-                                                .get_mut(index)
-                                            {
-                                                band.rate_type = match band.rate_type {
-                                                    CompensationRateType::HourlyPremiumPercent => {
-                                                        CompensationRateType::FixedHourlyAmount
-                                                    }
-                                                    CompensationRateType::FixedHourlyAmount => {
-                                                        CompensationRateType::FullTimeMonthlySalaryDivisor
-                                                    }
-                                                    CompensationRateType::FullTimeMonthlySalaryDivisor => {
-                                                        CompensationRateType::HourlyPremiumPercent
-                                                    }
-                                                };
-                                            }
-                                            cx.notify();
-                                        })),
-                                    )
+                                    .child(div().flex_1().child(inputs.day_category.clone()))
+                                    .child(div().flex_1().child(inputs.rate_type.clone()))
                                     .child(div().flex_1())
                                     .child(
                                         div()
@@ -3942,21 +4013,6 @@ impl AppShell {
             .overtime_compensation
             .rate_bands
             .push(band);
-    }
-
-    fn cycle_band_day(&mut self, index: usize) {
-        let Some(band) = self
-            .settings_draft
-            .overtime_compensation
-            .rate_bands
-            .get_mut(index)
-        else {
-            return;
-        };
-        let next = (i32::from(band.day_category) + 1) % 14;
-        if let Ok(category) = OvertimeDayCategory::try_from(i64::from(next)) {
-            band.day_category = category;
-        }
     }
 
     fn timesheet(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
@@ -6531,8 +6587,9 @@ mod tests {
     use dagsverk_core::{
         clock::FixedClock,
         models::{
-            CompensationRuleType, CurrencyPreference, LanguagePreference, MonthViewPreference,
-            OvertimeCompensationMode, OvertimeThresholdMode, SalaryType, TaxMode, ThemePreference,
+            CompensationRateType, CompensationRuleType, CurrencyPreference, LanguagePreference,
+            MonthViewPreference, OvertimeCompensationMode, OvertimeDayCategory,
+            OvertimeThresholdMode, SalaryType, TaxMode, ThemePreference,
         },
         tax::TaxEngine,
     };
@@ -6724,6 +6781,29 @@ mod tests {
             shell.save_settings(cx);
         });
         assert!(shell.read_with(cx, |shell, _| shell.model.transient_error.is_some()));
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::SettingsOvertime, cx)
+        });
+        cx.refresh().expect("refresh rate-band controls");
+        let (day_category, rate_type) = shell.read_with(cx, |shell, _| {
+            let controls = shell.rate_band_inputs.last().expect("new rule controls");
+            (controls.day_category.clone(), controls.rate_type.clone())
+        });
+        cx.update(|window, app| window.focus(&day_category.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter end enter");
+        cx.update(|window, app| window.focus(&rate_type.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter end enter");
+        assert!(shell.read_with(cx, |shell, _| {
+            shell
+                .settings_draft
+                .overtime_compensation
+                .rate_bands
+                .last()
+                .is_some_and(|band| {
+                    band.day_category == OvertimeDayCategory::MajorHolidays
+                        && band.rate_type == CompensationRateType::FullTimeMonthlySalaryDivisor
+                })
+        }));
         shell.update(cx, |shell, cx| {
             shell
                 .rate_band_inputs
