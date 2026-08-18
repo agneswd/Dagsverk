@@ -10,12 +10,13 @@ use dagsverk_core::{
         Money, MonthViewPreference, ObOvertimeCombinationMode, OvertimeCompensationMode,
         OvertimeDayCategory, OvertimeRateBand, OvertimeThresholdMode, Project, ProjectId,
         SalaryType, TaxMode, ThemePreference, WorkEntryStatus, WorkspaceId, WorkspaceType,
+        YearMonth,
     },
 };
 use dagsverk_data::DataMaintenance;
 use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
-    m3::{M3ColorScheme, ResolvedTheme as UiTheme, m3_icon},
+    m3::{M3ColorScheme, ResolvedTheme as UiTheme, m3_icon, m3_state_layer},
     text_input::TextInput,
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
 };
@@ -224,6 +225,9 @@ pub struct AppShell {
     confirm_import: Option<PathBuf>,
     last_backup: Option<PathBuf>,
     notice: Option<String>,
+    month_actions_open: bool,
+    export_menu_open: bool,
+    month_menu_open: bool,
 }
 
 pub struct AppShellServices {
@@ -340,6 +344,9 @@ impl AppShell {
             confirm_import: None,
             last_backup: None,
             notice: None,
+            month_actions_open: false,
+            export_menu_open: false,
+            month_menu_open: false,
         }
     }
 
@@ -570,6 +577,13 @@ impl AppShell {
     }
 
     fn close_surface(&mut self, _: &CloseSurface, _: &mut Window, cx: &mut Context<Self>) {
+        if self.month_actions_open || self.export_menu_open || self.month_menu_open {
+            self.month_actions_open = false;
+            self.export_menu_open = false;
+            self.month_menu_open = false;
+            cx.notify();
+            return;
+        }
         if self.confirm_restore.take().is_some() {
             cx.notify();
             return;
@@ -3236,6 +3250,7 @@ impl Render for AppShell {
             )
             .child(
                 div()
+                    .relative()
                     .min_w_0()
                     .flex_1()
                     .h_full()
@@ -3243,6 +3258,7 @@ impl Render for AppShell {
                     .flex_col()
                     .child(
                         div()
+                            .relative()
                             .h(px(64.0 * scale))
                             .px(px(24.0))
                             .flex()
@@ -3253,7 +3269,7 @@ impl Render for AppShell {
                                 div()
                                     .flex()
                                     .items_center()
-                                    .gap(px(16.0))
+                                    .gap(px(4.0))
                                     .child(
                                         div()
                                             .id("previous-month")
@@ -3270,7 +3286,30 @@ impl Render for AppShell {
                                                 shell.load_month(key, cx);
                                             })),
                                     )
-                                    .child(div().text_size(px(18.0)).child(month))
+                                    .child(
+                                        div()
+                                            .id("month-selector")
+                                            .w(px(164.0))
+                                            .h(px(40.0))
+                                            .px(px(12.0))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .gap(px(4.0))
+                                            .rounded(px(20.0))
+                                            .cursor_pointer()
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
+                                            })
+                                            .child(div().text_size(px(16.0)).child(month))
+                                            .child(m3_icon("arrow_drop_down", 20.0, colors))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.month_menu_open = !shell.month_menu_open;
+                                                shell.month_actions_open = false;
+                                                shell.export_menu_open = false;
+                                                cx.notify();
+                                            })),
+                                    )
                                     .child(
                                         div()
                                             .id("next-month")
@@ -3286,128 +3325,51 @@ impl Render for AppShell {
                                                 let key = shell.model.next_month();
                                                 shell.load_month(key, cx);
                                             })),
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap(px(10.0))
+                                    )
                                     .child(
                                         div()
-                                            .id("fill-month")
-                                            .p(px(8.0))
-                                            .rounded_full()
+                                            .id("today")
+                                            .h(px(40.0))
+                                            .ml(px(8.0))
+                                            .px(px(16.0))
+                                            .flex()
+                                            .items_center()
+                                            .rounded(px(20.0))
+                                            .border_1()
+                                            .border_color(colors.outline_variant)
                                             .cursor_pointer()
-                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
+                                            })
                                             .active(|style| {
                                                 style.bg(colors.surface_container_highest)
                                             })
-                                            .child(m3_icon("playlist_add", 22.0, colors))
-                                            .on_click(
-                                                cx.listener(|shell, _, _, cx| shell.fill_month(cx)),
-                                            ),
+                                            .child(self.text("Today"))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                let key = shell.model.go_to_today();
+                                                shell.load_month(key, cx);
+                                            })),
                                     )
                                     .child(
                                         div()
-                                            .id("copy-month")
+                                            .id("month-actions")
                                             .p(px(8.0))
                                             .rounded_full()
                                             .cursor_pointer()
-                                            .opacity(if self.model.is_month_unstarted() {
-                                                0.38
-                                            } else {
-                                                1.0
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
                                             })
-                                            .child(m3_icon("content_copy", 22.0, colors))
-                                            .when(!self.model.is_month_unstarted(), |button| {
-                                                button
-                                                    .hover(|style| {
-                                                        style.bg(colors.surface_container_high)
-                                                    })
-                                                    .active(|style| {
-                                                        style.bg(colors.surface_container_highest)
-                                                    })
-                                                    .on_click(cx.listener(|shell, _, _, cx| {
-                                                        shell.copy_month(cx)
-                                                    }))
-                                            }),
-                                    )
-                                    .child(
-                                        div()
-                                            .id("paste-month")
-                                            .p(px(8.0))
-                                            .rounded_full()
-                                            .cursor_pointer()
-                                            .opacity(if self.model.can_paste_month() {
-                                                1.0
-                                            } else {
-                                                0.38
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
                                             })
-                                            .child(m3_icon("content_paste", 22.0, colors))
-                                            .when(self.model.can_paste_month(), |button| {
-                                                button
-                                                    .hover(|style| {
-                                                        style.bg(colors.surface_container_high)
-                                                    })
-                                                    .active(|style| {
-                                                        style.bg(colors.surface_container_highest)
-                                                    })
-                                                    .on_click(cx.listener(|shell, _, _, cx| {
-                                                        shell.paste_month(cx)
-                                                    }))
-                                            }),
-                                    )
-                                    .child(
-                                        div()
-                                            .id("reset-month")
-                                            .p(px(8.0))
-                                            .rounded_full()
-                                            .cursor_pointer()
-                                            .opacity(if self.model.can_reset_month() {
-                                                1.0
-                                            } else {
-                                                0.38
-                                            })
-                                            .child(m3_icon("delete_sweep", 22.0, colors))
-                                            .when(self.model.can_reset_month(), |button| {
-                                                button
-                                                    .hover(|style| {
-                                                        style.bg(colors.surface_container_high)
-                                                    })
-                                                    .active(|style| {
-                                                        style.bg(colors.surface_container_highest)
-                                                    })
-                                                    .on_click(cx.listener(|shell, _, _, cx| {
-                                                        shell.confirm_reset = true;
-                                                        cx.notify();
-                                                    }))
-                                            }),
-                                    )
-                                    .when(self.model.missing_days_count() > 0, |actions| {
-                                        actions.child(
-                                            div()
-                                                .id("catch-up")
-                                                .h(px(40.0))
-                                                .px(px(14.0))
-                                                .flex()
-                                                .items_center()
-                                                .rounded(px(20.0))
-                                                .cursor_pointer()
-                                                .bg(colors.primary)
-                                                .text_color(colors.on_primary)
-                                                .child(format!(
-                                                    "Catch Up ({})",
-                                                    self.model.missing_days_count()
-                                                ))
-                                                .on_click(cx.listener(|shell, _, _, cx| {
-                                                    shell.model.start_catch_up();
-                                                    shell.sync_editor_inputs(cx);
-                                                    shell.refresh_month_view(cx);
-                                                    cx.notify();
-                                                })),
-                                        )
-                                    }),
+                                            .child(m3_icon("more_vert", 24.0, colors))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.month_actions_open =
+                                                    !shell.month_actions_open;
+                                                shell.export_menu_open = false;
+                                                cx.notify();
+                                            })),
+                                    ),
                             )
                             .child(
                                 div()
@@ -3476,50 +3438,85 @@ impl Render for AppShell {
                             .child(
                                 div()
                                     .flex()
-                                    .gap(px(6.0))
-                                    .child(
-                                        maintenance_button(
-                                            "export-xlsx",
-                                            "XLSX",
-                                            !self.maintenance_busy,
-                                            colors,
+                                    .items_center()
+                                    .gap(px(8.0))
+                                    .when(self.model.missing_days_count() > 0, |actions| {
+                                        actions.child(
+                                            div()
+                                                .id("catch-up")
+                                                .h(px(40.0))
+                                                .px(px(16.0))
+                                                .flex()
+                                                .items_center()
+                                                .gap(px(8.0))
+                                                .rounded(px(20.0))
+                                                .cursor_pointer()
+                                                .bg(colors.primary)
+                                                .text_color(colors.on_primary)
+                                                .hover(|style| {
+                                                    style.bg(colors.primary_container)
+                                                        .text_color(colors.on_primary_container)
+                                                })
+                                                .child(m3_icon("auto_fix_high", 18.0, colors))
+                                                .child(format!(
+                                                    "Catch Up ({})",
+                                                    self.model.missing_days_count()
+                                                ))
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.model.start_catch_up();
+                                                    shell.sync_editor_inputs(cx);
+                                                    shell.refresh_month_view(cx);
+                                                    cx.notify();
+                                                })),
                                         )
-                                        .when(!self.maintenance_busy, |button| {
-                                            button.on_click(cx.listener(|shell, _, _, cx| {
-                                                shell.export_report(ExportFormat::Xlsx, cx)
-                                            }))
-                                        }),
+                                    })
+                                    .child(
+                                        div()
+                                            .id("export-report")
+                                            .p(px(8.0))
+                                            .rounded_full()
+                                            .opacity(if self.maintenance_busy { 0.38 } else { 1.0 })
+                                            .child(m3_icon("download", 24.0, colors))
+                                            .when(!self.maintenance_busy, |button| {
+                                                button
+                                                    .cursor_pointer()
+                                                    .hover(|style| {
+                                                        style.bg(colors.surface_container_high)
+                                                    })
+                                                    .active(|style| {
+                                                        style.bg(colors.surface_container_highest)
+                                                    })
+                                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                                        shell.export_menu_open =
+                                                            !shell.export_menu_open;
+                                                        shell.month_actions_open = false;
+                                                        shell.month_menu_open = false;
+                                                        cx.notify();
+                                                    }))
+                                            }),
                                     )
                                     .child(
-                                        maintenance_button(
-                                            "export-ods",
-                                            "ODS",
-                                            !self.maintenance_busy,
-                                            colors,
-                                        )
-                                        .when(!self.maintenance_busy, |button| {
-                                            button.on_click(cx.listener(|shell, _, _, cx| {
-                                                shell.export_report(ExportFormat::Ods, cx)
-                                            }))
-                                        }),
+                                        div()
+                                            .id("toggle-theme")
+                                            .p(px(8.0))
+                                            .rounded_full()
+                                            .cursor_pointer()
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
+                                            })
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
+                                            .child(m3_icon("dark_mode", 24.0, colors))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                if let Err(error) = shell.model.toggle_theme() {
+                                                    shell.model.transient_error =
+                                                        Some(error.to_string());
+                                                }
+                                                shell.refresh_month_view(cx);
+                                                cx.notify();
+                                            })),
                                     ),
-                            )
-                            .child(
-                                div()
-                                    .id("toggle-theme")
-                                    .p(px(8.0))
-                                    .rounded_full()
-                                    .cursor_pointer()
-                                    .hover(|style| style.bg(colors.surface_container_high))
-                                    .active(|style| style.bg(colors.surface_container_highest))
-                                    .child(m3_icon("dark_mode", 24.0, colors))
-                                    .on_click(cx.listener(|shell, _, _, cx| {
-                                        if let Err(error) = shell.model.toggle_theme() {
-                                            shell.model.transient_error = Some(error.to_string());
-                                        }
-                                        shell.refresh_month_view(cx);
-                                        cx.notify();
-                                    })),
                             ),
                     )
                     .child(
@@ -3565,6 +3562,231 @@ impl Render for AppShell {
                             }),
                     ),
             )
+            .when(self.month_actions_open, |root| {
+                root.child(
+                    div()
+                        .absolute()
+                        .top(px(56.0))
+                        .left(px(sidebar_width + 300.0))
+                        .w(px(240.0))
+                        .p(px(8.0))
+                        .flex()
+                        .flex_col()
+                        .rounded(px(12.0))
+                        .bg(colors.surface_container)
+                        .shadow_lg()
+                        .child(
+                            header_menu_item(
+                                "menu-fill-month",
+                                "playlist_add",
+                                self.text("Fill normal workdays"),
+                                true,
+                                colors,
+                            )
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.month_actions_open = false;
+                                shell.fill_month(cx);
+                            })),
+                        )
+                        .child(
+                            header_menu_item(
+                                "menu-copy-month",
+                                "content_copy",
+                                self.text("Copy month"),
+                                !self.model.is_month_unstarted(),
+                                colors,
+                            )
+                            .when(!self.model.is_month_unstarted(), |item| {
+                                item.on_click(cx.listener(|shell, _, _, cx| {
+                                    shell.month_actions_open = false;
+                                    shell.copy_month(cx);
+                                }))
+                            }),
+                        )
+                        .child(
+                            header_menu_item(
+                                "menu-paste-month",
+                                "content_paste",
+                                self.text("Paste month"),
+                                self.model.can_paste_month(),
+                                colors,
+                            )
+                            .when(self.model.can_paste_month(), |item| {
+                                item.on_click(cx.listener(|shell, _, _, cx| {
+                                    shell.month_actions_open = false;
+                                    shell.paste_month(cx);
+                                }))
+                            }),
+                        )
+                        .child(div().h(px(1.0)).my(px(4.0)).bg(colors.outline_variant))
+                        .child(
+                            header_menu_item(
+                                "menu-reset-month",
+                                "delete_sweep",
+                                self.text("Reset month"),
+                                self.model.can_reset_month(),
+                                colors,
+                            )
+                            .text_color(colors.error)
+                            .when(self.model.can_reset_month(), |item| {
+                                item.on_click(cx.listener(|shell, _, _, cx| {
+                                    shell.month_actions_open = false;
+                                    shell.confirm_reset = true;
+                                    cx.notify();
+                                }))
+                            }),
+                        ),
+                )
+            })
+            .when(self.export_menu_open, |root| {
+                root.child(
+                    div()
+                        .absolute()
+                        .top(px(56.0))
+                        .right(px(56.0))
+                        .w(px(240.0))
+                        .p(px(8.0))
+                        .flex()
+                        .flex_col()
+                        .rounded(px(12.0))
+                        .bg(colors.surface_container)
+                        .shadow_lg()
+                        .child(
+                            header_menu_item(
+                                "menu-export-xlsx",
+                                "table_view",
+                                "Excel (.xlsx)",
+                                true,
+                                colors,
+                            )
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.export_menu_open = false;
+                                shell.export_report(ExportFormat::Xlsx, cx);
+                            })),
+                        )
+                        .child(
+                            header_menu_item(
+                                "menu-export-ods",
+                                "grid_on",
+                                "OpenDocument (.ods)",
+                                true,
+                                colors,
+                            )
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.export_menu_open = false;
+                                shell.export_report(ExportFormat::Ods, cx);
+                            })),
+                        ),
+                )
+            })
+            .when(self.month_menu_open, |root| {
+                let year = self.model.current_month.year;
+                let month = self.model.current_month.month;
+                let names = if self.model.language == crate::state::Language::Swedish {
+                    [
+                        "Jan", "Feb", "Mar", "Apr", "Maj", "Jun", "Jul", "Aug", "Sep",
+                        "Okt", "Nov", "Dec",
+                    ]
+                } else {
+                    [
+                        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
+                        "Oct", "Nov", "Dec",
+                    ]
+                };
+                root.child(
+                    div()
+                        .absolute()
+                        .top(px(56.0))
+                        .left(px(sidebar_width + 52.0))
+                        .w(px(280.0))
+                        .p(px(8.0))
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.0))
+                        .rounded(px(12.0))
+                        .bg(colors.surface_container)
+                        .shadow_lg()
+                        .child(
+                            div()
+                                .h(px(40.0))
+                                .flex()
+                                .items_center()
+                                .justify_between()
+                                .child(
+                                    div()
+                                        .id("previous-year")
+                                        .p(px(8.0))
+                                        .rounded_full()
+                                        .cursor_pointer()
+                                        .hover(|style| {
+                                            style.bg(colors.surface_container_high)
+                                        })
+                                        .child(m3_icon("chevron_left", 20.0, colors))
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            let key = shell.model.select_month(
+                                                YearMonth::new(year - 1, month)
+                                                    .unwrap_or_else(|_| unreachable!()),
+                                            );
+                                            shell.load_month(key, cx);
+                                        })),
+                                )
+                                .child(div().child(year.to_string()))
+                                .child(
+                                    div()
+                                        .id("next-year")
+                                        .p(px(8.0))
+                                        .rounded_full()
+                                        .cursor_pointer()
+                                        .hover(|style| {
+                                            style.bg(colors.surface_container_high)
+                                        })
+                                        .child(m3_icon("chevron_right", 20.0, colors))
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            let key = shell.model.select_month(
+                                                YearMonth::new(year + 1, month)
+                                                    .unwrap_or_else(|_| unreachable!()),
+                                            );
+                                            shell.load_month(key, cx);
+                                        })),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .grid()
+                                .grid_cols(3)
+                                .gap(px(4.0))
+                                .children(names.into_iter().enumerate().map(|(index, name)| {
+                                    let selected = index as u32 + 1 == month;
+                                    div()
+                                        .id(("select-month", index))
+                                        .h(px(40.0))
+                                        .px(px(8.0))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded(px(8.0))
+                                        .cursor_pointer()
+                                        .bg(if selected {
+                                            colors.primary_container
+                                        } else {
+                                            colors.surface_container
+                                        })
+                                        .hover(|style| {
+                                            style.bg(colors.surface_container_high)
+                                        })
+                                        .child(name)
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            shell.month_menu_open = false;
+                                            let key = shell.model.select_month(
+                                                YearMonth::new(year, index as u32 + 1)
+                                                    .unwrap_or_else(|_| unreachable!()),
+                                            );
+                                            shell.load_month(key, cx);
+                                        }))
+                                })),
+                        ),
+                )
+            })
             .when_some(message, |root, message| {
                 root.child(
                     div()
@@ -3597,7 +3819,7 @@ impl Render for AppShell {
                                 .flex()
                                 .flex_col()
                                 .gap(px(18.0))
-                                .rounded(px(24.0))
+                                .rounded(px(28.0))
                                 .bg(colors.surface_container_high)
                                 .child(div().text_size(px(20.0)).child(self.text("Reset month")))
                                 .child(
@@ -3652,7 +3874,7 @@ impl Render for AppShell {
                                 .flex()
                                 .flex_col()
                                 .gap(px(18.0))
-                                .rounded(px(24.0))
+                                .rounded(px(28.0))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
@@ -3708,7 +3930,7 @@ impl Render for AppShell {
                                 .flex()
                                 .flex_col()
                                 .gap(px(18.0))
-                                .rounded(px(24.0))
+                                .rounded(px(28.0))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
@@ -3763,7 +3985,7 @@ impl Render for AppShell {
                                 .flex()
                                 .flex_col()
                                 .gap(px(18.0))
-                                .rounded(px(24.0))
+                                .rounded(px(28.0))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
@@ -3821,7 +4043,7 @@ impl Render for AppShell {
                                 .flex()
                                 .flex_col()
                                 .gap(px(18.0))
-                                .rounded(px(24.0))
+                                .rounded(px(28.0))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
@@ -3882,7 +4104,7 @@ impl Render for AppShell {
                                 .flex()
                                 .flex_col()
                                 .gap(px(18.0))
-                                .rounded(px(24.0))
+                                .rounded(px(28.0))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
@@ -4006,6 +4228,16 @@ fn setting_chip(
     selected: bool,
     colors: M3ColorScheme,
 ) -> Stateful<gpui::Div> {
+    let background = if selected {
+        colors.secondary_container
+    } else {
+        colors.surface_container
+    };
+    let foreground = if selected {
+        colors.on_secondary_container
+    } else {
+        colors.on_surface
+    };
     div()
         .id(id)
         .h(px(36.0))
@@ -4014,13 +4246,9 @@ fn setting_chip(
         .items_center()
         .rounded(px(18.0))
         .cursor_pointer()
-        .bg(if selected {
-            colors.secondary_container
-        } else {
-            colors.surface_container
-        })
-        .hover(|style| style.bg(colors.surface_container_high))
-        .active(|style| style.bg(colors.surface_container_highest))
+        .bg(background)
+        .hover(move |style| style.bg(m3_state_layer(background, foreground, 0.08)))
+        .active(move |style| style.bg(m3_state_layer(background, foreground, 0.12)))
         .child(translate(language, label.into().as_ref()).into_owned())
 }
 
@@ -4030,6 +4258,8 @@ fn maintenance_button(
     enabled: bool,
     colors: M3ColorScheme,
 ) -> Stateful<gpui::Div> {
+    let background = colors.secondary_container;
+    let foreground = colors.on_secondary_container;
     div()
         .id(id)
         .h(px(40.0))
@@ -4037,15 +4267,42 @@ fn maintenance_button(
         .flex()
         .items_center()
         .rounded(px(20.0))
-        .bg(colors.secondary_container)
-        .text_color(colors.on_secondary_container)
+        .bg(background)
+        .text_color(foreground)
         .opacity(if enabled { 1.0 } else { 0.38 })
         .when(enabled, |button| {
             button
                 .cursor_pointer()
-                .hover(|style| style.bg(colors.surface_container_high))
-                .active(|style| style.bg(colors.surface_container_highest))
+                .hover(move |style| style.bg(m3_state_layer(background, foreground, 0.08)))
+                .active(move |style| style.bg(m3_state_layer(background, foreground, 0.12)))
         })
+        .child(label.into())
+}
+
+fn header_menu_item(
+    id: impl Into<ElementId>,
+    icon: &'static str,
+    label: impl Into<SharedString>,
+    enabled: bool,
+    colors: M3ColorScheme,
+) -> Stateful<gpui::Div> {
+    let background = colors.surface_container;
+    let foreground = colors.on_surface;
+    div()
+        .id(id)
+        .h(px(48.0))
+        .px(px(12.0))
+        .flex()
+        .items_center()
+        .gap(px(12.0))
+        .rounded(px(8.0))
+        .opacity(if enabled { 1.0 } else { 0.38 })
+        .when(enabled, |item| {
+            item.cursor_pointer()
+                .hover(move |style| style.bg(m3_state_layer(background, foreground, 0.08)))
+                .active(move |style| style.bg(m3_state_layer(background, foreground, 0.12)))
+        })
+        .child(m3_icon(icon, 24.0, colors))
         .child(label.into())
 }
 
@@ -4213,6 +4470,17 @@ mod tests {
             shell.read_with(cx, |shell, _| shell.text("Settings").to_string()),
             "Inställningar"
         );
+
+        shell.update(cx, |shell, cx| {
+            shell.month_menu_open = true;
+            shell.month_actions_open = true;
+            shell.export_menu_open = true;
+            cx.notify();
+        });
+        cx.simulate_keystrokes("escape");
+        assert!(shell.read_with(cx, |shell, _| {
+            !shell.month_menu_open && !shell.month_actions_open && !shell.export_menu_open
+        }));
     }
 
     #[test]

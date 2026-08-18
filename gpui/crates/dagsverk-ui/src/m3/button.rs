@@ -97,8 +97,8 @@ impl Render for M3Button {
                 self.colors.background,
             ),
         };
-        let hover = state_color(background, foreground, 0.08);
-        let pressed = state_color(background, foreground, 0.12);
+        let hover = m3_state_layer(background, foreground, 0.08);
+        let pressed = m3_state_layer(background, foreground, 0.12);
 
         div()
             .id(self.id.clone())
@@ -131,22 +131,22 @@ impl Render for M3Button {
     }
 }
 
-fn state_color(background: gpui::Hsla, foreground: gpui::Hsla, opacity: f32) -> gpui::Hsla {
+pub fn m3_state_layer(background: gpui::Hsla, foreground: gpui::Hsla, opacity: f32) -> gpui::Hsla {
     background.blend(foreground.opacity(opacity))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::state_color;
+    use super::m3_state_layer;
 
     #[test]
     fn state_layer_changes_the_button_color() {
         let background: gpui::Hsla = gpui::rgb(0x5f875f).into();
         let foreground: gpui::Hsla = gpui::white();
-        assert_ne!(state_color(background, foreground, 0.08), background);
+        assert_ne!(m3_state_layer(background, foreground, 0.08), background);
         assert_ne!(
-            state_color(background, foreground, 0.08),
-            state_color(background, foreground, 0.12)
+            m3_state_layer(background, foreground, 0.08),
+            m3_state_layer(background, foreground, 0.12)
         );
     }
 }

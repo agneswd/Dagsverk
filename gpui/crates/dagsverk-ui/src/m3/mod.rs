@@ -8,7 +8,7 @@ mod selection;
 mod theme;
 mod typography;
 
-pub use button::{M3Button, M3ButtonEvent, M3ButtonVariant};
+pub use button::{M3Button, M3ButtonEvent, M3ButtonVariant, m3_state_layer};
 pub use card::m3_card;
 pub use dialog::{M3Dialog, M3DialogEvent};
 pub use icon::m3_icon;
