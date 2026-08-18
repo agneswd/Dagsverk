@@ -25,3 +25,7 @@ The TypeScript engine generates committed parity fixtures. Rust tests read those
 ## Database connections
 
 `dagsverk-data` owns the database path. It opens one SQLite connection per operation. Each connection enables WAL, foreign keys, and a five-second busy timeout. Multi-row writes use transactions. The UI never receives a SQLite connection.
+
+## Report generation
+
+`dagsverk-export` validates typed report requests before it writes files. `rust_xlsxwriter` creates XLSX workbooks. The ODS writer uses ZIP and escaped XML directly. File dialogs remain outside this crate.

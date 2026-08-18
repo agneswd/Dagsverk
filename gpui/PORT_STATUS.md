@@ -9,3 +9,4 @@
 | Tax | `src/app/core/tax-calculator.service.ts` | `dagsverk-core` | Yes | N/A | N/A | Behavior complete | All modes, columns, sampled boundaries, and the canonical tax-data SHA pass. |
 | Balance and month copy | `src/app/core/app-state.service.ts` | `dagsverk-core` | Yes | No | No | Behavior complete | Latest explicit balance edits and weekday-occurrence mapping are tested. |
 | SQLite | `electron/database.service.ts` | `dagsverk-data` | Yes | N/A | N/A | Behavior complete | Electron-to-Rust, Rust-to-Electron, round-trip, migration, backup, restore, and Tidverk tests pass. |
+| XLSX and ODS export | `electron/*-export.service.ts` | `dagsverk-export` | Yes | N/A | N/A | Behavior complete | Semantic ZIP, XML, worksheet, formula, cached value, localization, and validation tests pass. |

@@ -23,13 +23,16 @@ dagsverk-export = { path = "crates/dagsverk-export" }
 dagsverk-ui = { path = "crates/dagsverk-ui" }
 gpui = { version = "=0.2.2" }
 rust_decimal = { version = "=1.42.1", features = ["serde-str"] }
+quick-xml = "=0.41.0"
 rusqlite = { version = "=0.40.2", features = ["backup", "bundled"] }
+rust_xlsxwriter = { version = "=0.98.2", features = ["rust_decimal"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 sha2 = "=0.10.9"
 tempfile = "=3.27.0"
 thiserror = "=2.0.20"
 uuid = { version = "=1.24.1", features = ["v4"] }
+zip = { version = "=7.2.0", default-features = false, features = ["deflate"] }
 unicode-segmentation = "=1.13.3"
 
 [workspace.lints.rust]
