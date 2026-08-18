@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use chrono::Datelike;
 use dagsverk_core::{
+    DomainError,
     calculations::{
         PasteMonthError, calculate_monthly_summary, estimate_opening_balance, expected_workdays,
         paste_month_entries,
@@ -11,8 +12,8 @@ use dagsverk_core::{
     models::{
         AppPreferences, AppSettings, IsoDate, LanguagePreference, Minutes, MonthRecord,
         MonthViewPreference, MonthlySummary, Project, ProjectId, TaxEstimate, ThemePreference,
-        UpdateState, UpdateStatus, WorkEntry, WorkEntryStatus, Workspace, WorkspaceId, YearMonth,
-        default_preferences, default_settings, default_workspace,
+        UpdateState, UpdateStatus, WorkEntry, WorkEntryStatus, Workspace, WorkspaceId,
+        WorkspaceType, YearMonth, default_preferences, default_settings, default_workspace,
     },
     tax::TaxEngine,
 };
@@ -86,6 +87,8 @@ pub struct WorkspaceMonthData {
 pub enum AppStateError {
     #[error(transparent)]
     Data(#[from] DataError),
+    #[error(transparent)]
+    Domain(#[from] DomainError),
     #[error("the database contains no workspaces")]
     NoWorkspaces,
     #[error("workspace {0} does not exist")]
@@ -574,6 +577,29 @@ impl AppModel {
         Ok(())
     }
 
+    pub fn create_workspace(
+        &mut self,
+        name: String,
+        color: String,
+        workspace_type: WorkspaceType,
+        worker_name: Option<String>,
+        organization_name: Option<String>,
+    ) -> Result<WorkspaceId> {
+        let id = WorkspaceId::new(format!("ws-{}", uuid::Uuid::new_v4()))?;
+        let now = self.clock.now_utc();
+        self.save_workspace(Workspace {
+            id: id.clone(),
+            name,
+            color,
+            workspace_type,
+            worker_name,
+            organization_name,
+            created_at: now,
+            updated_at: now,
+        })?;
+        Ok(id)
+    }
+
     pub fn delete_workspace(&mut self, id: &WorkspaceId) -> Result<()> {
         self.repository.delete_workspace(id)?;
         self.workspaces.retain(|workspace| &workspace.id != id);
@@ -707,7 +733,9 @@ mod tests {
     use chrono::{DateTime, Utc};
     use dagsverk_core::{
         clock::FixedClock,
-        models::{IsoDate, Money, MonthViewPreference, Project, ProjectId, WorkspaceId, YearMonth},
+        models::{
+            IsoDate, Money, MonthViewPreference, Project, ProjectId, WorkspaceType, YearMonth,
+        },
         tax::TaxEngine,
     };
     use dagsverk_data::Database;
@@ -812,12 +840,21 @@ mod tests {
     fn workspace_and_preference_mutations_follow_persistence() {
         let (_directory, mut model) = model();
         model.initialize().expect("initialize state");
-        let mut workspace = model.workspaces[0].clone();
-        workspace.id = WorkspaceId::new("ws-two").expect("workspace id");
-        workspace.name = "Second".to_owned();
-        model
-            .save_workspace(workspace.clone())
-            .expect("save workspace");
+        let workspace_id = model
+            .create_workspace(
+                "Second".to_owned(),
+                "#5F875F".to_owned(),
+                WorkspaceType::Contract,
+                Some("Worker".to_owned()),
+                Some("Client".to_owned()),
+            )
+            .expect("create workspace");
+        let workspace = model
+            .workspaces
+            .iter()
+            .find(|workspace| workspace.id == workspace_id)
+            .expect("created workspace")
+            .clone();
         model
             .switch_workspace(&workspace.id)
             .expect("switch workspace");

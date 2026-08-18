@@ -3,6 +3,7 @@ use dagsverk_core::{
     calculations::{calculate_daily_pay, normalize_time},
     models::{
         CurrencyPreference, Minutes, MonthViewPreference, Project, ProjectId, WorkEntryStatus,
+        WorkspaceId, WorkspaceType,
     },
 };
 use dagsverk_ui::{
@@ -40,10 +41,17 @@ pub struct AppShell {
     scheduled_input: Entity<TextInput>,
     project_name_input: Entity<TextInput>,
     project_color_input: Entity<TextInput>,
+    workspace_name_input: Entity<TextInput>,
+    workspace_worker_input: Entity<TextInput>,
+    workspace_organization_input: Entity<TextInput>,
+    workspace_color_input: Entity<TextInput>,
     focus: FocusHandle,
     sidebar_collapsed: bool,
     confirm_reset: bool,
     confirm_project_delete: Option<ProjectId>,
+    manage_workspaces: bool,
+    confirm_workspace_delete: Option<WorkspaceId>,
+    new_workspace_type: WorkspaceType,
     notice: Option<String>,
 }
 
@@ -71,6 +79,11 @@ impl AppShell {
         let project_name_input = cx.new(|cx| TextInput::new(cx, "Project name"));
         let project_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
         project_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
+        let workspace_name_input = cx.new(|cx| TextInput::new(cx, "Workspace name"));
+        let workspace_worker_input = cx.new(|cx| TextInput::new(cx, "Worker name"));
+        let workspace_organization_input = cx.new(|cx| TextInput::new(cx, "Organization"));
+        let workspace_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
+        workspace_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
         let focus = cx.focus_handle();
         window.focus(&focus);
         cx.subscribe(&month_view, |shell, _, event: &MonthViewEvent, cx| {
@@ -88,10 +101,17 @@ impl AppShell {
             scheduled_input,
             project_name_input,
             project_color_input,
+            workspace_name_input,
+            workspace_worker_input,
+            workspace_organization_input,
+            workspace_color_input,
             focus,
             sidebar_collapsed: false,
             confirm_reset: false,
             confirm_project_delete: None,
+            manage_workspaces: false,
+            confirm_workspace_delete: None,
+            new_workspace_type: WorkspaceType::Employment,
             notice: None,
         }
     }
@@ -307,6 +327,15 @@ impl AppShell {
             cx.notify();
             return;
         }
+        if self.confirm_workspace_delete.take().is_some() {
+            cx.notify();
+            return;
+        }
+        if self.manage_workspaces {
+            self.manage_workspaces = false;
+            cx.notify();
+            return;
+        }
         self.model.close_catch_up();
         cx.notify();
     }
@@ -440,6 +469,80 @@ impl AppShell {
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         self.confirm_project_delete = None;
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn create_workspace(&mut self, cx: &mut Context<Self>) {
+        let name = self.workspace_name_input.read(cx).text().trim().to_owned();
+        let color = self.workspace_color_input.read(cx).text().trim().to_owned();
+        if name.is_empty() || !is_hex_color(&color) {
+            self.model.transient_error =
+                Some("Enter a workspace name and a six-digit hex color.".to_owned());
+            cx.notify();
+            return;
+        }
+        let worker = nonempty(self.workspace_worker_input.read(cx).text());
+        let organization = nonempty(self.workspace_organization_input.read(cx).text());
+        match self.model.create_workspace(
+            name,
+            color,
+            self.new_workspace_type,
+            worker,
+            organization,
+        ) {
+            Ok(_) => {
+                self.workspace_name_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.notice = Some("Workspace created.".to_owned());
+            }
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        cx.notify();
+    }
+
+    fn switch_workspace(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
+        match self.model.switch_workspace(id) {
+            Ok(()) => {
+                self.notice = Some("Workspace changed.".to_owned());
+                self.manage_workspaces = false;
+            }
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn update_workspace_color(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
+        let color = self.workspace_color_input.read(cx).text().trim().to_owned();
+        if !is_hex_color(&color) {
+            self.model.transient_error = Some("Enter a six-digit hex color.".to_owned());
+            cx.notify();
+            return;
+        }
+        let Some(mut workspace) = self
+            .model
+            .workspaces
+            .iter()
+            .find(|workspace| &workspace.id == id)
+            .cloned()
+        else {
+            return;
+        };
+        workspace.color = color;
+        match self.model.save_workspace(workspace) {
+            Ok(()) => self.notice = Some("Workspace color updated.".to_owned()),
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        cx.notify();
+    }
+
+    fn delete_workspace(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
+        match self.model.delete_workspace(id) {
+            Ok(()) => self.notice = Some("Workspace deleted.".to_owned()),
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        self.confirm_workspace_delete = None;
         self.refresh_month_view(cx);
         cx.notify();
     }
@@ -649,6 +752,197 @@ impl AppShell {
                                 )
                             })
                     })),
+            )
+    }
+
+    fn workspace_dialog(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let workspaces = self.model.workspaces.clone();
+        let active = self.model.active_workspace_id.clone();
+        let can_delete = workspaces.len() > 1;
+        div()
+            .absolute()
+            .inset_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(gpui::black().opacity(0.45))
+            .child(
+                div()
+                    .w(px(760.0))
+                    .max_h(px(700.0))
+                    .p(px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(16.0))
+                    .rounded(px(28.0))
+                    .bg(colors.surface_container_high)
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(div().text_size(px(22.0)).child("Manage workspaces"))
+                            .child(
+                                div()
+                                    .id("close-workspaces")
+                                    .cursor_pointer()
+                                    .child(m3_icon("close", 24.0, colors))
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.manage_workspaces = false;
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .grid()
+                            .grid_cols(2)
+                            .gap(px(16.0))
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(10.0))
+                                    .child("Workspace name")
+                                    .child(self.workspace_name_input.clone())
+                                    .child("Worker name")
+                                    .child(self.workspace_worker_input.clone())
+                                    .child("Organization or client")
+                                    .child(self.workspace_organization_input.clone()),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(10.0))
+                                    .child("Type")
+                                    .child(
+                                        div().flex().gap(px(6.0)).children(
+                                            [
+                                                ("Employment", WorkspaceType::Employment),
+                                                ("Contract", WorkspaceType::Contract),
+                                                ("Personal", WorkspaceType::Personal),
+                                            ]
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(
+                                                |(index, (label, value))| {
+                                                    div()
+                                                        .id(("workspace-type", index))
+                                                        .h(px(36.0))
+                                                        .px(px(10.0))
+                                                        .flex()
+                                                        .items_center()
+                                                        .rounded(px(18.0))
+                                                        .cursor_pointer()
+                                                        .bg(if self.new_workspace_type == value {
+                                                            colors.secondary_container
+                                                        } else {
+                                                            colors.surface_container
+                                                        })
+                                                        .child(label)
+                                                        .on_click(cx.listener(
+                                                            move |shell, _, _, cx| {
+                                                                shell.new_workspace_type = value;
+                                                                cx.notify();
+                                                            },
+                                                        ))
+                                                },
+                                            ),
+                                        ),
+                                    )
+                                    .child("Accent color")
+                                    .child(self.workspace_color_input.clone())
+                                    .child(
+                                        div()
+                                            .id("create-workspace")
+                                            .h(px(40.0))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded(px(20.0))
+                                            .cursor_pointer()
+                                            .bg(colors.primary)
+                                            .text_color(colors.on_primary)
+                                            .child("Create workspace")
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.create_workspace(cx)
+                                            })),
+                                    ),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .id("workspace-list")
+                            .max_h(px(300.0))
+                            .overflow_y_scroll()
+                            .flex()
+                            .flex_col()
+                            .gap(px(8.0))
+                            .children(workspaces.into_iter().enumerate().map(
+                                |(index, workspace)| {
+                                    let switch_id = workspace.id.clone();
+                                    let color_id = workspace.id.clone();
+                                    let delete_id = workspace.id.clone();
+                                    let is_active = workspace.id == active;
+                                    div()
+                                        .h(px(60.0))
+                                        .px(px(14.0))
+                                        .flex()
+                                        .items_center()
+                                        .gap(px(12.0))
+                                        .rounded(px(12.0))
+                                        .bg(colors.surface_container)
+                                        .child(
+                                            div()
+                                                .size(px(12.0))
+                                                .rounded_full()
+                                                .bg(color_from_hex(&workspace.color)
+                                                    .unwrap_or(colors.primary)),
+                                        )
+                                        .child(div().flex_1().child(workspace.name))
+                                        .when(is_active, |row| row.child("Active"))
+                                        .when(!is_active, |row| {
+                                            row.child(
+                                                div()
+                                                    .id(("switch-workspace", index))
+                                                    .cursor_pointer()
+                                                    .child("Switch")
+                                                    .on_click(cx.listener(
+                                                        move |shell, _, _, cx| {
+                                                            shell.switch_workspace(&switch_id, cx)
+                                                        },
+                                                    )),
+                                            )
+                                        })
+                                        .child(
+                                            div()
+                                                .id(("workspace-color", index))
+                                                .cursor_pointer()
+                                                .child("Apply color")
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.update_workspace_color(&color_id, cx)
+                                                })),
+                                        )
+                                        .child(
+                                            div()
+                                                .id(("delete-workspace", index))
+                                                .opacity(if can_delete { 1.0 } else { 0.38 })
+                                                .text_color(colors.error)
+                                                .child("Delete")
+                                                .when(can_delete, |button| {
+                                                    button.cursor_pointer().on_click(cx.listener(
+                                                        move |shell, _, _, cx| {
+                                                            shell.confirm_workspace_delete =
+                                                                Some(delete_id.clone());
+                                                            cx.notify();
+                                                        },
+                                                    ))
+                                                }),
+                                        )
+                                },
+                            )),
+                    ),
             )
     }
 
@@ -1135,6 +1429,7 @@ impl Render for AppShell {
             .clone()
             .or_else(|| self.notice.clone());
         let project_delete = self.confirm_project_delete.clone();
+        let workspace_delete = self.confirm_workspace_delete.clone();
 
         div()
             .track_focus(&self.focus)
@@ -1185,14 +1480,20 @@ impl Render for AppShell {
                     )
                     .child(
                         div()
+                            .id("manage-workspaces")
                             .h(px(64.0))
                             .mx(px(12.0))
                             .px(px(16.0))
                             .flex()
                             .items_center()
                             .rounded(px(16.0))
+                            .cursor_pointer()
                             .bg(colors.surface_container)
-                            .when(!self.sidebar_collapsed, |item| item.child(workspace_name)),
+                            .when(!self.sidebar_collapsed, |item| item.child(workspace_name))
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.manage_workspaces = true;
+                                cx.notify();
+                            })),
                     )
                     .child(self.navigation_item(
                         "nav-timesheet",
@@ -1558,6 +1859,58 @@ impl Render for AppShell {
                         ),
                 )
             })
+            .when(self.manage_workspaces, |root| {
+                root.child(self.workspace_dialog(colors, cx))
+            })
+            .when_some(workspace_delete, |root, workspace_id| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.55))
+                        .child(
+                            div()
+                                .w(px(460.0))
+                                .p(px(24.0))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0))
+                                .rounded(px(24.0))
+                                .bg(colors.surface_container_high)
+                                .child(div().text_size(px(20.0)).child("Delete workspace?"))
+                                .child("Entries, projects, settings, and month records will be removed.")
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0))
+                                        .child(
+                                            div()
+                                                .id("cancel-workspace-delete")
+                                                .cursor_pointer()
+                                                .child("Cancel")
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_workspace_delete = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            div()
+                                                .id("confirm-workspace-delete")
+                                                .cursor_pointer()
+                                                .text_color(colors.error)
+                                                .child("Delete")
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.delete_workspace(&workspace_id, cx)
+                                                })),
+                                        ),
+                                ),
+                        ),
+                )
+            })
     }
 }
 
@@ -1610,6 +1963,11 @@ fn color_from_hex(value: &str) -> Option<gpui::Hsla> {
         .then(|| u32::from_str_radix(value, 16).ok())
         .flatten()
         .map(|value| gpui::rgb(value).into())
+}
+
+fn nonempty(value: &str) -> Option<String> {
+    let value = value.trim();
+    (!value.is_empty()).then(|| value.to_owned())
 }
 
 #[cfg(test)]
