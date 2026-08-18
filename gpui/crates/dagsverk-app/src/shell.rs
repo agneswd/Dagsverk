@@ -833,6 +833,8 @@ impl AppShell {
             } else {
                 colors.surface_container_low
             })
+            .hover(|style| style.bg(colors.surface_container_high))
+            .active(|style| style.bg(colors.surface_container_highest))
             .child(m3_icon(icon, 24.0, colors))
             .when(!self.sidebar_collapsed, |item| item.child(label))
             .on_click(cx.listener(move |shell, _, _, cx| shell.set_route(route, cx)))
@@ -2683,7 +2685,13 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("previous-month")
+                                            .p(px(8.0))
+                                            .rounded_full()
                                             .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
                                             .child(m3_icon("chevron_left", 24.0, colors))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 let key = shell.model.previous_month();
@@ -2694,7 +2702,13 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("next-month")
+                                            .p(px(8.0))
+                                            .rounded_full()
                                             .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
                                             .child(m3_icon("chevron_right", 24.0, colors))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 let key = shell.model.next_month();
@@ -2710,7 +2724,13 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("fill-month")
+                                            .p(px(8.0))
+                                            .rounded_full()
                                             .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
                                             .child(m3_icon("playlist_add", 22.0, colors))
                                             .on_click(
                                                 cx.listener(|shell, _, _, cx| shell.fill_month(cx)),
@@ -2719,6 +2739,8 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("copy-month")
+                                            .p(px(8.0))
+                                            .rounded_full()
                                             .cursor_pointer()
                                             .opacity(if self.model.is_month_unstarted() {
                                                 0.38
@@ -2727,14 +2749,23 @@ impl Render for AppShell {
                                             })
                                             .child(m3_icon("content_copy", 22.0, colors))
                                             .when(!self.model.is_month_unstarted(), |button| {
-                                                button.on_click(cx.listener(|shell, _, _, cx| {
-                                                    shell.copy_month(cx)
-                                                }))
+                                                button
+                                                    .hover(|style| {
+                                                        style.bg(colors.surface_container_high)
+                                                    })
+                                                    .active(|style| {
+                                                        style.bg(colors.surface_container_highest)
+                                                    })
+                                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                                        shell.copy_month(cx)
+                                                    }))
                                             }),
                                     )
                                     .child(
                                         div()
                                             .id("paste-month")
+                                            .p(px(8.0))
+                                            .rounded_full()
                                             .cursor_pointer()
                                             .opacity(if self.model.can_paste_month() {
                                                 1.0
@@ -2743,14 +2774,23 @@ impl Render for AppShell {
                                             })
                                             .child(m3_icon("content_paste", 22.0, colors))
                                             .when(self.model.can_paste_month(), |button| {
-                                                button.on_click(cx.listener(|shell, _, _, cx| {
-                                                    shell.paste_month(cx)
-                                                }))
+                                                button
+                                                    .hover(|style| {
+                                                        style.bg(colors.surface_container_high)
+                                                    })
+                                                    .active(|style| {
+                                                        style.bg(colors.surface_container_highest)
+                                                    })
+                                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                                        shell.paste_month(cx)
+                                                    }))
                                             }),
                                     )
                                     .child(
                                         div()
                                             .id("reset-month")
+                                            .p(px(8.0))
+                                            .rounded_full()
                                             .cursor_pointer()
                                             .opacity(if self.model.can_reset_month() {
                                                 1.0
@@ -2759,10 +2799,17 @@ impl Render for AppShell {
                                             })
                                             .child(m3_icon("delete_sweep", 22.0, colors))
                                             .when(self.model.can_reset_month(), |button| {
-                                                button.on_click(cx.listener(|shell, _, _, cx| {
-                                                    shell.confirm_reset = true;
-                                                    cx.notify();
-                                                }))
+                                                button
+                                                    .hover(|style| {
+                                                        style.bg(colors.surface_container_high)
+                                                    })
+                                                    .active(|style| {
+                                                        style.bg(colors.surface_container_highest)
+                                                    })
+                                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                                        shell.confirm_reset = true;
+                                                        cx.notify();
+                                                    }))
                                             }),
                                     )
                                     .when(self.model.missing_days_count() > 0, |actions| {
@@ -2808,6 +2855,10 @@ impl Render for AppShell {
                                             .items_center()
                                             .rounded(px(18.0))
                                             .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
                                             .bg(
                                                 if self.model.active_view
                                                     == MonthViewPreference::Ledger
@@ -2831,6 +2882,10 @@ impl Render for AppShell {
                                             .items_center()
                                             .rounded(px(18.0))
                                             .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
                                             .bg(
                                                 if self.model.active_view
                                                     == MonthViewPreference::Calendar
@@ -2849,7 +2904,11 @@ impl Render for AppShell {
                             .child(
                                 div()
                                     .id("toggle-theme")
+                                    .p(px(8.0))
+                                    .rounded_full()
                                     .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .active(|style| style.bg(colors.surface_container_highest))
                                     .child(m3_icon("dark_mode", 24.0, colors))
                                     .on_click(cx.listener(|shell, _, _, cx| {
                                         if let Err(error) = shell.model.toggle_theme() {
@@ -3289,6 +3348,8 @@ fn setting_chip(
         } else {
             colors.surface_container
         })
+        .hover(|style| style.bg(colors.surface_container_high))
+        .active(|style| style.bg(colors.surface_container_highest))
         .child(label.into())
 }
 
@@ -3308,7 +3369,12 @@ fn maintenance_button(
         .bg(colors.secondary_container)
         .text_color(colors.on_secondary_container)
         .opacity(if enabled { 1.0 } else { 0.38 })
-        .when(enabled, |button| button.cursor_pointer())
+        .when(enabled, |button| {
+            button
+                .cursor_pointer()
+                .hover(|style| style.bg(colors.surface_container_high))
+                .active(|style| style.bg(colors.surface_container_highest))
+        })
         .child(label.into())
 }
 
