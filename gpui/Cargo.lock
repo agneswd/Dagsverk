@@ -1371,6 +1371,7 @@ dependencies = [
  "dagsverk-ui",
  "gpui",
  "rfd",
+ "rust_decimal",
  "tempfile",
  "thiserror 2.0.20",
  "uuid",

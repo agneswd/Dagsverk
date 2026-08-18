@@ -17,6 +17,7 @@ dagsverk-export.workspace = true
 dagsverk-ui.workspace = true
 gpui.workspace = true
 rfd.workspace = true
+rust_decimal.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 

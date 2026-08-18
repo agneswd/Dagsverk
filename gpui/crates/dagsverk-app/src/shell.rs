@@ -2,8 +2,11 @@ use chrono::Duration;
 use dagsverk_core::{
     calculations::{calculate_daily_pay, normalize_time},
     models::{
-        CurrencyPreference, Minutes, MonthViewPreference, Project, ProjectId, WorkEntryStatus,
-        WorkspaceId, WorkspaceType,
+        AppPreferences, AppSettings, CompensationRateType, CompensationRuleType,
+        CurrencyPreference, ExportLanguagePreference, HourlyPayBasis, LanguagePreference, Minutes,
+        Money, MonthViewPreference, ObOvertimeCombinationMode, OvertimeCompensationMode,
+        OvertimeDayCategory, OvertimeRateBand, OvertimeThresholdMode, Project, ProjectId,
+        SalaryType, TaxMode, ThemePreference, WorkEntryStatus, WorkspaceId, WorkspaceType,
     },
 };
 use dagsverk_ui::{
@@ -12,9 +15,10 @@ use dagsverk_ui::{
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
 };
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, KeyBinding, Render, Window, actions,
-    div, prelude::*, px,
+    App, AppContext, Context, ElementId, Entity, FocusHandle, Focusable, KeyBinding, Render,
+    SharedString, Stateful, Window, actions, div, prelude::*, px,
 };
+use rust_decimal::{Decimal, prelude::ToPrimitive};
 
 use crate::state::{AppModel, ResolvedTheme, Route};
 
@@ -32,6 +36,107 @@ actions!(
     ]
 );
 
+struct SettingsInputs {
+    opening_balance: Entity<TextInput>,
+    expected_hours: Entity<TextInput>,
+    default_start: Entity<TextInput>,
+    default_end: Entity<TextInput>,
+    default_lunch: Entity<TextInput>,
+    overtime_threshold: Entity<TextInput>,
+    default_rate_value: Entity<TextInput>,
+    hourly_rate: Entity<TextInput>,
+    monthly_salary: Entity<TextInput>,
+    employment_percent: Entity<TextInput>,
+    tax_year: Entity<TextInput>,
+    tax_table: Entity<TextInput>,
+    tax_column: Entity<TextInput>,
+    manual_tax: Entity<TextInput>,
+}
+
+impl SettingsInputs {
+    fn new(settings: &AppSettings, cx: &mut Context<AppShell>) -> Self {
+        let inputs = Self {
+            opening_balance: cx.new(|cx| TextInput::new(cx, "Starting balance hours")),
+            expected_hours: cx.new(|cx| TextInput::new(cx, "Hours per workday")),
+            default_start: cx.new(|cx| TextInput::new(cx, "Default start")),
+            default_end: cx.new(|cx| TextInput::new(cx, "Default end")),
+            default_lunch: cx.new(|cx| TextInput::new(cx, "Lunch minutes")),
+            overtime_threshold: cx.new(|cx| TextInput::new(cx, "Daily threshold hours")),
+            default_rate_value: cx.new(|cx| TextInput::new(cx, "Default rate value")),
+            hourly_rate: cx.new(|cx| TextInput::new(cx, "Hourly rate")),
+            monthly_salary: cx.new(|cx| TextInput::new(cx, "Monthly salary")),
+            employment_percent: cx.new(|cx| TextInput::new(cx, "Employment percent")),
+            tax_year: cx.new(|cx| TextInput::new(cx, "Tax year")),
+            tax_table: cx.new(|cx| TextInput::new(cx, "Tax table")),
+            tax_column: cx.new(|cx| TextInput::new(cx, "Tax column")),
+            manual_tax: cx.new(|cx| TextInput::new(cx, "Manual monthly deduction")),
+        };
+        inputs.sync(settings, cx);
+        inputs
+    }
+
+    fn sync(&self, settings: &AppSettings, cx: &mut Context<AppShell>) {
+        let values = [
+            (
+                &self.opening_balance,
+                format_hours_input(settings.opening_balance_minutes.value()),
+            ),
+            (
+                &self.expected_hours,
+                settings.expected_hours.hours_per_workday.to_string(),
+            ),
+            (&self.default_start, settings.default_start_time.to_string()),
+            (&self.default_end, settings.default_end_time.to_string()),
+            (
+                &self.default_lunch,
+                settings.default_lunch_minutes.value().to_string(),
+            ),
+            (
+                &self.overtime_threshold,
+                settings
+                    .overtime_compensation
+                    .daily_threshold_hours
+                    .to_string(),
+            ),
+            (
+                &self.default_rate_value,
+                settings
+                    .overtime_compensation
+                    .default_rate_value
+                    .to_string(),
+            ),
+            (
+                &self.hourly_rate,
+                settings.salary.hourly_rate.decimal().to_string(),
+            ),
+            (
+                &self.monthly_salary,
+                settings.salary.monthly_salary.decimal().to_string(),
+            ),
+            (
+                &self.employment_percent,
+                settings.salary.employment_percent.to_string(),
+            ),
+            (&self.tax_year, settings.tax_settings.tax_year.to_string()),
+            (
+                &self.tax_table,
+                settings.tax_settings.table_number.to_string(),
+            ),
+            (&self.tax_column, settings.tax_settings.column.to_string()),
+            (
+                &self.manual_tax,
+                settings
+                    .tax_settings
+                    .manual_monthly_deduction
+                    .map_or_else(String::new, |money| money.decimal().to_string()),
+            ),
+        ];
+        for (input, value) in values {
+            input.update(cx, |input, cx| input.set_text(value, cx));
+        }
+    }
+}
+
 pub struct AppShell {
     model: AppModel,
     month_view: Entity<MonthView>,
@@ -45,6 +150,7 @@ pub struct AppShell {
     workspace_worker_input: Entity<TextInput>,
     workspace_organization_input: Entity<TextInput>,
     workspace_color_input: Entity<TextInput>,
+    settings_inputs: SettingsInputs,
     focus: FocusHandle,
     sidebar_collapsed: bool,
     confirm_reset: bool,
@@ -52,6 +158,10 @@ pub struct AppShell {
     manage_workspaces: bool,
     confirm_workspace_delete: Option<WorkspaceId>,
     new_workspace_type: WorkspaceType,
+    settings_tab: usize,
+    settings_draft: AppSettings,
+    preferences_draft: AppPreferences,
+    pending_currency: Option<CurrencyPreference>,
     notice: Option<String>,
 }
 
@@ -84,6 +194,9 @@ impl AppShell {
         let workspace_organization_input = cx.new(|cx| TextInput::new(cx, "Organization"));
         let workspace_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
         workspace_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
+        let settings_inputs = SettingsInputs::new(&model.settings, cx);
+        let settings_draft = model.settings.clone();
+        let preferences_draft = model.preferences.clone();
         let focus = cx.focus_handle();
         window.focus(&focus);
         cx.subscribe(&month_view, |shell, _, event: &MonthViewEvent, cx| {
@@ -105,6 +218,7 @@ impl AppShell {
             workspace_worker_input,
             workspace_organization_input,
             workspace_color_input,
+            settings_inputs,
             focus,
             sidebar_collapsed: false,
             confirm_reset: false,
@@ -112,6 +226,10 @@ impl AppShell {
             manage_workspaces: false,
             confirm_workspace_delete: None,
             new_workspace_type: WorkspaceType::Employment,
+            settings_tab: 0,
+            settings_draft,
+            preferences_draft,
+            pending_currency: None,
             notice: None,
         }
     }
@@ -124,6 +242,11 @@ impl AppShell {
     }
 
     fn set_route(&mut self, route: Route, cx: &mut Context<Self>) {
+        if route == Route::Settings && self.model.route != Route::Settings {
+            self.settings_draft = self.model.settings.clone();
+            self.preferences_draft = self.model.preferences.clone();
+            self.settings_inputs.sync(&self.settings_draft, cx);
+        }
         self.model.route = route;
         self.model.close_catch_up();
         cx.notify();
@@ -314,7 +437,11 @@ impl AppShell {
     }
 
     fn save_active(&mut self, _: &SaveActive, _: &mut Window, cx: &mut Context<Self>) {
-        self.save_editor(cx);
+        if self.model.route == Route::Settings {
+            self.save_settings(cx);
+        } else {
+            self.save_editor(cx);
+        }
     }
 
     fn close_surface(&mut self, _: &CloseSurface, _: &mut Window, cx: &mut Context<Self>) {
@@ -328,6 +455,10 @@ impl AppShell {
             return;
         }
         if self.confirm_workspace_delete.take().is_some() {
+            cx.notify();
+            return;
+        }
+        if self.pending_currency.take().is_some() {
             cx.notify();
             return;
         }
@@ -547,6 +678,101 @@ impl AppShell {
         cx.notify();
     }
 
+    fn save_settings(&mut self, cx: &mut Context<Self>) {
+        let result = self.parse_settings_inputs(cx);
+        let Ok(mut settings) = result else {
+            self.model.transient_error = result.err().map(str::to_owned);
+            cx.notify();
+            return;
+        };
+        settings.workspace_id = Some(self.model.active_workspace_id.clone());
+        if let Err(error) = self.model.update_settings(settings.clone()) {
+            self.model.transient_error = Some(error.to_string());
+            cx.notify();
+            return;
+        }
+        if let Err(error) = self
+            .model
+            .update_preferences(self.preferences_draft.clone())
+        {
+            self.model.transient_error = Some(error.to_string());
+            cx.notify();
+            return;
+        }
+        self.settings_draft = settings;
+        self.preferences_draft = self.model.preferences.clone();
+        self.notice = Some("Settings saved.".to_owned());
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn parse_settings_inputs(&self, cx: &Context<Self>) -> Result<AppSettings, &'static str> {
+        let mut settings = self.settings_draft.clone();
+        let opening =
+            parse_non_negative_decimal(self.settings_inputs.opening_balance.read(cx).text())?;
+        settings.opening_balance_minutes = Minutes::new(
+            (opening * Decimal::from(60))
+                .round()
+                .to_i64()
+                .ok_or("Starting balance is too large.")?,
+        );
+        settings.expected_hours.hours_per_workday =
+            parse_non_negative_decimal(self.settings_inputs.expected_hours.read(cx).text())?;
+        settings.default_start_time =
+            normalize_time(self.settings_inputs.default_start.read(cx).text())
+                .ok_or("Default start time is invalid.")?;
+        settings.default_end_time =
+            normalize_time(self.settings_inputs.default_end.read(cx).text())
+                .ok_or("Default end time is invalid.")?;
+        settings.default_lunch_minutes = Minutes::new(parse_non_negative_i64(
+            self.settings_inputs.default_lunch.read(cx).text(),
+        )?);
+        settings.overtime_compensation.daily_threshold_hours =
+            parse_non_negative_decimal(self.settings_inputs.overtime_threshold.read(cx).text())?;
+        settings.overtime_compensation.default_rate_value =
+            parse_non_negative_decimal(self.settings_inputs.default_rate_value.read(cx).text())?;
+        settings.salary.hourly_rate = Money::new(parse_non_negative_decimal(
+            self.settings_inputs.hourly_rate.read(cx).text(),
+        )?);
+        settings.salary.monthly_salary = Money::new(parse_non_negative_decimal(
+            self.settings_inputs.monthly_salary.read(cx).text(),
+        )?);
+        let employment =
+            parse_non_negative_decimal(self.settings_inputs.employment_percent.read(cx).text())?;
+        if employment < Decimal::ONE || employment > Decimal::ONE_HUNDRED {
+            return Err("Employment percent must be from 1 to 100.");
+        }
+        settings.salary.employment_percent = employment;
+        settings.tax_settings.tax_year = parse_i32(self.settings_inputs.tax_year.read(cx).text())?;
+        settings.tax_settings.table_number =
+            parse_i32(self.settings_inputs.tax_table.read(cx).text())?;
+        if settings.tax_settings.table_number <= 0 {
+            return Err("Tax table must be positive.");
+        }
+        settings.tax_settings.column = parse_i32(self.settings_inputs.tax_column.read(cx).text())?;
+        if !(1..=6).contains(&settings.tax_settings.column) {
+            return Err("Tax column must be from 1 to 6.");
+        }
+        let manual = self.settings_inputs.manual_tax.read(cx).text().trim();
+        settings.tax_settings.manual_monthly_deduction = if manual.is_empty() {
+            None
+        } else {
+            Some(Money::new(parse_non_negative_decimal(manual)?))
+        };
+        if ![80, 90, 100, 110, 125, 150].contains(&self.preferences_draft.interface_scale_percent) {
+            return Err("Interface scale is invalid.");
+        }
+        Ok(settings)
+    }
+
+    fn discard_settings(&mut self, cx: &mut Context<Self>) {
+        self.settings_draft = self.model.settings.clone();
+        self.preferences_draft = self.model.preferences.clone();
+        self.settings_inputs.sync(&self.settings_draft, cx);
+        self.model.transient_error = None;
+        cx.notify();
+    }
+
     fn navigation_item(
         &self,
         id: &'static str,
@@ -581,11 +807,7 @@ impl AppShell {
         match self.model.route {
             Route::Timesheet => self.timesheet(colors),
             Route::Projects => self.projects_page(colors, cx),
-            Route::Settings => self.placeholder_page(
-                "Settings",
-                "Workspace and application settings are connected to the state model.",
-                colors,
-            ),
+            Route::Settings => self.settings_page(colors, cx),
             Route::DataBackups => self.placeholder_page(
                 "Data & backups",
                 "Backup, restore, and import services are available in dagsverk-data.",
@@ -944,6 +1166,696 @@ impl AppShell {
                             )),
                     ),
             )
+    }
+
+    fn settings_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let dirty = self
+            .parse_settings_inputs(cx)
+            .map_or(true, |settings| settings != self.model.settings)
+            || self.preferences_draft != self.model.preferences;
+        let content = match self.settings_tab {
+            0 => self.general_settings(colors, cx),
+            1 => self.schedule_settings(colors, cx),
+            2 => self.overtime_settings(colors, cx),
+            3 => self.salary_tax_settings(colors, cx),
+            _ => self.application_settings(colors, cx),
+        };
+        div()
+            .max_w(px(1088.0))
+            .mx_auto()
+            .p(px(32.0))
+            .flex()
+            .flex_col()
+            .gap(px(20.0))
+            .child(div().text_size(px(24.0)).child("Settings"))
+            .child(
+                div()
+                    .h(px(44.0))
+                    .flex()
+                    .gap(px(4.0))
+                    .border_b_1()
+                    .border_color(colors.outline_variant)
+                    .children(
+                        [
+                            "General",
+                            "Schedule",
+                            "Overtime & OB",
+                            "Salary & Tax",
+                            "Application",
+                        ]
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, label)| {
+                            div()
+                                .id(("settings-tab", index))
+                                .h_full()
+                                .px(px(16.0))
+                                .flex()
+                                .items_center()
+                                .cursor_pointer()
+                                .border_b_2()
+                                .border_color(if self.settings_tab == index {
+                                    colors.primary
+                                } else {
+                                    gpui::transparent_black()
+                                })
+                                .child(label)
+                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                    shell.settings_tab = index;
+                                    cx.notify();
+                                }))
+                        }),
+                    ),
+            )
+            .child(
+                div()
+                    .p(px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(18.0))
+                    .rounded(px(16.0))
+                    .bg(colors.surface_container_low)
+                    .child(content),
+            )
+            .child(
+                div()
+                    .flex()
+                    .justify_end()
+                    .gap(px(16.0))
+                    .child(
+                        div()
+                            .id("discard-settings")
+                            .h(px(40.0))
+                            .px(px(18.0))
+                            .flex()
+                            .items_center()
+                            .rounded(px(20.0))
+                            .opacity(if dirty { 1.0 } else { 0.38 })
+                            .child("Discard")
+                            .when(dirty, |button| {
+                                button.cursor_pointer().on_click(
+                                    cx.listener(|shell, _, _, cx| shell.discard_settings(cx)),
+                                )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .id("save-settings")
+                            .h(px(40.0))
+                            .px(px(20.0))
+                            .flex()
+                            .items_center()
+                            .rounded(px(20.0))
+                            .opacity(if dirty { 1.0 } else { 0.38 })
+                            .bg(colors.primary)
+                            .text_color(colors.on_primary)
+                            .child("Save")
+                            .when(dirty, |button| {
+                                button.cursor_pointer().on_click(
+                                    cx.listener(|shell, _, _, cx| shell.save_settings(cx)),
+                                )
+                            }),
+                    ),
+            )
+    }
+
+    fn general_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let current_currency = self.settings_draft.currency_preference;
+        let projects = self.model.projects.clone();
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(14.0))
+            .child(div().text_size(px(18.0)).child("General"))
+            .child("Default project")
+            .child(
+                div().flex().flex_wrap().gap(px(8.0)).children(
+                    projects
+                        .into_iter()
+                        .filter(|project| project.is_active)
+                        .enumerate()
+                        .map(|(index, project)| {
+                            let name = project.name.clone();
+                            let selected = self.settings_draft.default_project == project.name;
+                            setting_chip(
+                                ("default-setting-project", index),
+                                project.name,
+                                selected,
+                                colors,
+                            )
+                            .on_click(cx.listener(
+                                move |shell, _, _, cx| {
+                                    shell.settings_draft.default_project = name.clone();
+                                    cx.notify();
+                                },
+                            ))
+                        }),
+                ),
+            )
+            .child("Currency")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("SEK", CurrencyPreference::Sek),
+                        ("EUR", CurrencyPreference::Eur),
+                        ("USD", CurrencyPreference::Usd),
+                        ("GBP", CurrencyPreference::Gbp),
+                        ("NOK", CurrencyPreference::Nok),
+                        ("DKK", CurrencyPreference::Dkk),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("currency", index),
+                            label,
+                            current_currency == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            if shell.settings_draft.currency_preference != value {
+                                shell.pending_currency = Some(value);
+                            }
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child("Starting time balance in hours")
+            .child(self.settings_inputs.opening_balance.clone())
+    }
+
+    fn schedule_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let weekdays = self.settings_draft.expected_hours.working_weekdays.clone();
+        let excluded = self.settings_draft.expected_hours.exclude_public_holidays;
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(14.0))
+            .child(div().text_size(px(18.0)).child("Schedule"))
+            .child("Target hours per workday")
+            .child(self.settings_inputs.expected_hours.clone())
+            .child("Scheduled weekdays")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("Mon", 1_u32),
+                        ("Tue", 2),
+                        ("Wed", 3),
+                        ("Thu", 4),
+                        ("Fri", 5),
+                        ("Sat", 6),
+                        ("Sun", 0),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, day))| {
+                        setting_chip(("weekday", index), label, weekdays.contains(&day), colors)
+                            .on_click(cx.listener(move |shell, _, _, cx| {
+                                let days =
+                                    &mut shell.settings_draft.expected_hours.working_weekdays;
+                                if let Some(position) = days.iter().position(|value| *value == day)
+                                {
+                                    if days.len() > 1 {
+                                        days.remove(position);
+                                    }
+                                } else {
+                                    days.push(day);
+                                    days.sort_unstable();
+                                }
+                                cx.notify();
+                            }))
+                    }),
+                ),
+            )
+            .child(
+                setting_chip(
+                    "exclude-holidays",
+                    "Exclude Swedish public holidays",
+                    excluded,
+                    colors,
+                )
+                .on_click(cx.listener(|shell, _, _, cx| {
+                    shell.settings_draft.expected_hours.exclude_public_holidays =
+                        !shell.settings_draft.expected_hours.exclude_public_holidays;
+                    cx.notify();
+                })),
+            )
+            .child("Default start")
+            .child(self.settings_inputs.default_start.clone())
+            .child("Default end")
+            .child(self.settings_inputs.default_end.clone())
+            .child("Default lunch minutes")
+            .child(self.settings_inputs.default_lunch.clone())
+    }
+
+    fn overtime_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let overtime = self.settings_draft.overtime_compensation.clone();
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(14.0))
+            .child(div().text_size(px(18.0)).child("Overtime & OB"))
+            .child("Compensation mode")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("Comp time", OvertimeCompensationMode::CompTime),
+                        ("Direct salary", OvertimeCompensationMode::Paid),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("overtime-mode", index),
+                            label,
+                            overtime.mode == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.settings_draft.overtime_compensation.mode = value;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child("Threshold")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("Fixed daily hours", OvertimeThresholdMode::FixedDailyHours),
+                        ("Scheduled hours", OvertimeThresholdMode::ScheduledHours),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("threshold-mode", index),
+                            label,
+                            overtime.threshold_mode == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.settings_draft.overtime_compensation.threshold_mode = value;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child("Fixed daily threshold")
+            .child(self.settings_inputs.overtime_threshold.clone())
+            .child("OB during overtime")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("Exclude", ObOvertimeCombinationMode::ExcludeOb),
+                        ("Include", ObOvertimeCombinationMode::IncludeOb),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("ob-combination", index),
+                            label,
+                            overtime.ob_overtime_combination == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell
+                                .settings_draft
+                                .overtime_compensation
+                                .ob_overtime_combination = value;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child("Default paid-overtime rate")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        (
+                            "Premium percent",
+                            CompensationRateType::HourlyPremiumPercent,
+                        ),
+                        ("Fixed amount", CompensationRateType::FixedHourlyAmount),
+                        (
+                            "Monthly divisor",
+                            CompensationRateType::FullTimeMonthlySalaryDivisor,
+                        ),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("default-rate", index),
+                            label,
+                            overtime.default_rate_type == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.settings_draft.overtime_compensation.default_rate_type = value;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child(self.settings_inputs.default_rate_value.clone())
+            .child(
+                div()
+                    .id("add-overtime-rule")
+                    .h(px(38.0))
+                    .px(px(14.0))
+                    .flex()
+                    .items_center()
+                    .rounded(px(19.0))
+                    .cursor_pointer()
+                    .bg(colors.secondary_container)
+                    .child("Add overtime rule")
+                    .on_click(cx.listener(|shell, _, _, cx| {
+                        shell.add_rate_band(CompensationRuleType::Overtime);
+                        cx.notify();
+                    })),
+            )
+            .child(
+                div()
+                    .id("add-ob-rule")
+                    .h(px(38.0))
+                    .px(px(14.0))
+                    .flex()
+                    .items_center()
+                    .rounded(px(19.0))
+                    .cursor_pointer()
+                    .bg(colors.secondary_container)
+                    .child("Add OB rule")
+                    .on_click(cx.listener(|shell, _, _, cx| {
+                        shell.add_rate_band(CompensationRuleType::Ob);
+                        cx.notify();
+                    })),
+            )
+            .children(
+                overtime
+                    .rate_bands
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, band)| {
+                        div()
+                            .p(px(14.0))
+                            .flex()
+                            .items_center()
+                            .gap(px(12.0))
+                            .rounded(px(12.0))
+                            .bg(colors.surface_container)
+                            .child(div().flex_1().child(format!(
+                                "{} - {:?}, {:?}, {}-{}, {:?} {}",
+                                band.name,
+                                band.compensation_type,
+                                band.day_category,
+                                band.start_time,
+                                band.end_time,
+                                band.rate_type,
+                                band.rate_value
+                            )))
+                            .child(
+                                div()
+                                    .id(("cycle-band-day", index))
+                                    .cursor_pointer()
+                                    .child("Next day category")
+                                    .on_click(cx.listener(move |shell, _, _, cx| {
+                                        shell.cycle_band_day(index);
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                div()
+                                    .id(("remove-band", index))
+                                    .cursor_pointer()
+                                    .text_color(colors.error)
+                                    .child("Remove")
+                                    .on_click(cx.listener(move |shell, _, _, cx| {
+                                        if index
+                                            < shell
+                                                .settings_draft
+                                                .overtime_compensation
+                                                .rate_bands
+                                                .len()
+                                        {
+                                            shell
+                                                .settings_draft
+                                                .overtime_compensation
+                                                .rate_bands
+                                                .remove(index);
+                                        }
+                                        cx.notify();
+                                    })),
+                            )
+                    }),
+            )
+    }
+
+    fn salary_tax_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let salary = self.settings_draft.salary.clone();
+        let tax = self.settings_draft.tax_settings.clone();
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(14.0))
+            .child(div().text_size(px(18.0)).child("Salary & Tax"))
+            .child("Salary model")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("Hourly", SalaryType::Hourly),
+                        ("Monthly", SalaryType::Monthly),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("salary-type", index),
+                            label,
+                            salary.salary_type == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.settings_draft.salary.salary_type = value;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child("Hourly rate")
+            .child(self.settings_inputs.hourly_rate.clone())
+            .child("Monthly salary")
+            .child(self.settings_inputs.monthly_salary.clone())
+            .child("Employment percent")
+            .child(self.settings_inputs.employment_percent.clone())
+            .child("Hourly pay basis")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("Regular hours per day", HourlyPayBasis::DailyRegularHours),
+                        (
+                            "Monthly expected hours",
+                            HourlyPayBasis::MonthlyExpectedHours,
+                        ),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("hourly-basis", index),
+                            label,
+                            salary.hourly_pay_basis == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.settings_draft.salary.hourly_pay_basis = value;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child("Tax mode")
+            .child(
+                div().flex().flex_wrap().gap(px(8.0)).children(
+                    [
+                        ("Disabled", TaxMode::Disabled),
+                        ("Primary table", TaxMode::PrimaryIncomeTaxTable),
+                        ("Secondary 30%", TaxMode::SecondaryIncomeThirtyPercent),
+                        ("Manual", TaxMode::ManualMonthlyDeduction),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(("tax-mode", index), label, tax.mode == value, colors)
+                            .on_click(cx.listener(move |shell, _, _, cx| {
+                                shell.settings_draft.tax_settings.mode = value;
+                                cx.notify();
+                            }))
+                    }),
+                ),
+            )
+            .child("Tax year")
+            .child(self.settings_inputs.tax_year.clone())
+            .child("Tax table")
+            .child(self.settings_inputs.tax_table.clone())
+            .child("Tax column 1-6")
+            .child(self.settings_inputs.tax_column.clone())
+            .child("Manual monthly deduction")
+            .child(self.settings_inputs.manual_tax.clone())
+    }
+
+    fn application_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let preferences = self.preferences_draft.clone();
+        let export_language = self.settings_draft.export_language_preference;
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(14.0))
+            .child(div().text_size(px(18.0)).child("Application"))
+            .child("Theme")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("System", ThemePreference::System),
+                        ("Light", ThemePreference::Light),
+                        ("Dark", ThemePreference::Dark),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("theme-setting", index),
+                            label,
+                            preferences.theme_preference == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.preferences_draft.theme_preference = value;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child("Language")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("System", LanguagePreference::System),
+                        ("English", LanguagePreference::English),
+                        ("Swedish", LanguagePreference::Swedish),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("language-setting", index),
+                            label,
+                            preferences.language_preference == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.preferences_draft.language_preference = value;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child("Interface scale")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [80, 90, 100, 110, 125, 150]
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, value)| {
+                            setting_chip(
+                                ("scale-setting", index),
+                                format!("{value}%"),
+                                preferences.interface_scale_percent == value,
+                                colors,
+                            )
+                            .on_click(cx.listener(
+                                move |shell, _, _, cx| {
+                                    shell.preferences_draft.interface_scale_percent = value;
+                                    cx.notify();
+                                },
+                            ))
+                        }),
+                ),
+            )
+            .child("Export language")
+            .child(
+                div().flex().gap(px(8.0)).children(
+                    [
+                        ("System", ExportLanguagePreference::System),
+                        ("English", ExportLanguagePreference::English),
+                        ("Swedish", ExportLanguagePreference::Swedish),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (label, value))| {
+                        setting_chip(
+                            ("export-language", index),
+                            label,
+                            export_language == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.settings_draft.export_language_preference = value;
+                            cx.notify();
+                        }))
+                    }),
+                ),
+            )
+            .child("Updates are unavailable in development builds.")
+            .child(
+                div()
+                    .id("open-data-backups")
+                    .h(px(40.0))
+                    .flex()
+                    .items_center()
+                    .cursor_pointer()
+                    .text_color(colors.primary)
+                    .child("Data & Backups")
+                    .on_click(
+                        cx.listener(|shell, _, _, cx| shell.set_route(Route::DataBackups, cx)),
+                    ),
+            )
+    }
+
+    fn add_rate_band(&mut self, compensation_type: CompensationRuleType) {
+        self.settings_draft
+            .overtime_compensation
+            .rate_bands
+            .push(OvertimeRateBand {
+                name: if compensation_type == CompensationRuleType::Overtime {
+                    "Overtime".to_owned()
+                } else {
+                    "Evening OB".to_owned()
+                },
+                compensation_type,
+                day_category: OvertimeDayCategory::ScheduledWorkdays,
+                start_time: "18:00".parse().unwrap_or_else(|_| unreachable!()),
+                end_time: "22:00".parse().unwrap_or_else(|_| unreachable!()),
+                rate_type: CompensationRateType::HourlyPremiumPercent,
+                rate_value: Decimal::from(50),
+            });
+    }
+
+    fn cycle_band_day(&mut self, index: usize) {
+        let Some(band) = self
+            .settings_draft
+            .overtime_compensation
+            .rate_bands
+            .get_mut(index)
+        else {
+            return;
+        };
+        let next = (i32::from(band.day_category) + 1) % 14;
+        if let Ok(category) = OvertimeDayCategory::try_from(i64::from(next)) {
+            band.day_category = category;
+        }
     }
 
     fn timesheet(&self, colors: M3ColorScheme) -> gpui::Div {
@@ -1430,6 +2342,7 @@ impl Render for AppShell {
             .or_else(|| self.notice.clone());
         let project_delete = self.confirm_project_delete.clone();
         let workspace_delete = self.confirm_workspace_delete.clone();
+        let pending_currency = self.pending_currency;
 
         div()
             .track_focus(&self.focus)
@@ -1911,6 +2824,57 @@ impl Render for AppShell {
                         ),
                 )
             })
+            .when_some(pending_currency, |root, currency| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.55))
+                        .child(
+                            div()
+                                .w(px(440.0))
+                                .p(px(24.0))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0))
+                                .rounded(px(24.0))
+                                .bg(colors.surface_container_high)
+                                .child(div().text_size(px(20.0)).child("Change currency?"))
+                                .child("Dagsverk will not convert existing rates or report values.")
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0))
+                                        .child(
+                                            div()
+                                                .id("cancel-currency")
+                                                .cursor_pointer()
+                                                .child("Cancel")
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.pending_currency = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            div()
+                                                .id("confirm-currency")
+                                                .cursor_pointer()
+                                                .text_color(colors.primary)
+                                                .child("Change")
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.settings_draft.currency_preference = currency;
+                                                    shell.pending_currency = None;
+                                                    cx.notify();
+                                                })),
+                                        ),
+                                ),
+                        ),
+                )
+            })
     }
 }
 
@@ -1970,6 +2934,59 @@ fn nonempty(value: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_owned())
 }
 
+fn setting_chip(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    selected: bool,
+    colors: M3ColorScheme,
+) -> Stateful<gpui::Div> {
+    div()
+        .id(id)
+        .h(px(36.0))
+        .px(px(12.0))
+        .flex()
+        .items_center()
+        .rounded(px(18.0))
+        .cursor_pointer()
+        .bg(if selected {
+            colors.secondary_container
+        } else {
+            colors.surface_container
+        })
+        .child(label.into())
+}
+
+fn parse_non_negative_decimal(value: &str) -> Result<Decimal, &'static str> {
+    let value = value
+        .trim()
+        .parse::<Decimal>()
+        .map_err(|_| "Enter a valid non-negative number.")?;
+    if value.is_sign_negative() {
+        Err("Enter a valid non-negative number.")
+    } else {
+        Ok(value)
+    }
+}
+
+fn parse_non_negative_i64(value: &str) -> Result<i64, &'static str> {
+    let value = value
+        .trim()
+        .parse::<i64>()
+        .map_err(|_| "Enter a valid non-negative whole number.")?;
+    if value < 0 {
+        Err("Enter a valid non-negative whole number.")
+    } else {
+        Ok(value)
+    }
+}
+
+fn parse_i32(value: &str) -> Result<i32, &'static str> {
+    value
+        .trim()
+        .parse::<i32>()
+        .map_err(|_| "Enter a valid whole number.")
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -1980,7 +2997,7 @@ mod tests {
     use gpui::TestAppContext;
     use tempfile::tempdir;
 
-    use super::{AppShell, parse_scheduled_minutes};
+    use super::{AppShell, parse_non_negative_decimal, parse_scheduled_minutes};
     use crate::state::AppModel;
 
     #[gpui::test]
@@ -2017,5 +3034,10 @@ mod tests {
         );
         assert!(parse_scheduled_minutes("-1").is_err());
         assert!(parse_scheduled_minutes("NaN").is_err());
+        assert_eq!(
+            parse_non_negative_decimal("123.45").expect("decimal value"),
+            "123.45".parse().expect("expected decimal")
+        );
+        assert!(parse_non_negative_decimal("-0.01").is_err());
     }
 }
