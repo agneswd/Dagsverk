@@ -7,10 +7,10 @@ The Angular and Electron application remains the visual reference. The GPUI impl
 ```bash
 npm run gpui:visual-fixture
 cd gpui
-cargo run --release -- --database fixtures/databases/visual-parity.db --today 2026-06-25
+cargo run --release -- --database fixtures/databases/visual-parity.db --today 2026-08-18
 ```
 
-The fixture contains two workspaces, multiple projects, worked and missing days, leave, overtime, OB, overnight work, notes, holidays, balance, and tax data. Its SHA-256 is `26e3fc04ad0445fe7a244deb14dfce88b2d14fa301d08aac95f0215d3068335a`.
+The fixture contains two workspaces, multiple projects, worked and missing days, leave, overtime, OB, overnight work, notes, holidays, balance, and tax data. Its SHA-256 is `65edb70a9e981ab5403bc97cde0fc3706f5deae180df237566859f109a570502`.
 
 ## Linux baseline
 
@@ -20,9 +20,21 @@ The current Niri Wayland captures use a 1366 x 820 window at device scale 1:
 - `04_calendar_fixture_wayland.png`
 - `05_timesheet_fixture_dark_wayland.png`
 
-Visual review confirmed card clipping, 52 px ledger rows, the six-week calendar grid, the 400 px editor breakpoint, Material colors, and light/dark rendering.
+These images predate the latest shell and editor polish. They remain historical evidence only. New matching captures are required before visual-complete status.
 
-Niri can capture the GPUI window without focusing it. The local compositor rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `open-focused false`. A live check confirmed that the previously focused application kept focus through GPUI launch and `screenshot-window --id` capture.
+The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `open-focused false`. Launch verification on 2026-08-18 confirmed that the GPUI window did not take focus. Niri created no file for an unfocused window on another workspace during the latest `screenshot-window --id` attempt. No desktop focus was changed to force a capture.
+
+## Current measured implementation
+
+- Electron metrics contain no unexpected `null` values.
+- Sidebar widths are 256 px and 80 px.
+- Header height is 64 px.
+- Ledger header and rows are 52 px.
+- The ledger uses the measured eight-column proportions.
+- The day editor is 416 px wide.
+- Header menus use trigger-relative GPUI anchors with an 8 px viewport margin.
+- Projects and workspaces use the 12 Electron color presets.
+- Text edits update the editor draft and pay estimate while typing.
 
 ## Comparison tolerances
 

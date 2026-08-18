@@ -9,18 +9,18 @@
 - Proposed solution: Apply the shared Material state-layer helper to all remaining clickable surfaces.
 - Test needed: Component interaction tests and light/dark visual review.
 
-## Production visual polish
+## Current GPUI comparison captures
 
-- Current behavior: Month actions and report formats now use Electron-style top-bar menus. Menus use 12px containers and 8px items. Dialogs use 28px corners.
-- Expected parity: Every control group, gap, radius, icon, menu position, and state must match the Electron reference.
-- Reason incomplete: The first behavior-complete UI pass used direct GPUI layout values. Screen-by-screen metric comparison is still in progress.
-- Files involved: `gpui/crates/dagsverk-app/src/shell.rs`, `gpui/crates/dagsverk-ui/src/m3/`, `reference/screenshots/`.
-- Proposed solution: Compare each deterministic screen with the Electron capture and apply measured values only.
-- Test needed: Comparable light/dark screenshots and keyboard interaction review for every route.
+- Current behavior: The complete deterministic Electron set is current. The committed GPUI images predate the latest shell, ledger, editor, and palette changes.
+- Expected parity: Every required Electron image has a current GPUI image at the same viewport, theme, fixture, and scale.
+- Reason incomplete: Niri did not write an image for the unfocused GPUI window on another workspace during the latest capture attempt.
+- Files involved: `reference/screenshots/gpui/`, `gpui/VISUAL_PARITY.md`.
+- Proposed solution: Capture through an isolated GPU-backed compositor or a Niri session where the preview workspace is visible without changing keyboard focus.
+- Test needed: Run `npm run visual:compare` for every required pair and inspect geometry and interaction states.
 
 ## Background GPUI capture
 
-- Current behavior: Tests and builds run without desktop focus. Niri captures the real GPUI Wayland window by ID without focusing it. GPUI 0.2.2 still fails to present through Xvfb and panics on a seatless headless Weston compositor.
+- Current behavior: Tests, builds, and GPUI launches run without taking desktop focus. GPUI 0.2.2 fails to present through Xvfb and panics on a seatless headless Weston compositor. The latest Niri window-ID capture created no file while the window was on another workspace.
 - Expected parity: Automated captures must not use the active desktop.
 - Reason incomplete: The pinned Linux backend needs a real Vulkan presentation surface and assumes a Wayland seat. The Niri method still uses the active compositor, but an app-specific rule prevents focus changes.
 - Files involved: `gpui/tools/visual-diff/`, `gpui/VISUAL_PARITY.md`.
@@ -29,11 +29,11 @@
 
 ## Day editor parity
 
-- Current behavior: Status, time, lunch, presets, copy actions, scheduled override, project, day-off reason, notes, reset, pay details, catch-up controls, and Ctrl+S are connected.
-- Expected parity: Multiline notes, dynamic pay updates during typing, and holiday details must match Electron.
-- Reason incomplete: This is the first M6 editor slice.
+- Current behavior: The editor uses a 416px tonal side sheet, localized date and holiday header, connected status control, shared switch, two-column time fields, live draft/pay updates, pay hierarchy, and a 64px footer.
+- Expected parity: Notes must be multiline. Project and day-off reason must use outlined selects. All fields need complete floating-label and error behavior.
+- Reason incomplete: The editing engine remains single-line and the select component is not complete.
 - Files involved: `gpui/crates/dagsverk-app/src/shell.rs`, `gpui/crates/dagsverk-ui/src/text_input.rs`.
-- Proposed solution: Add multiline input behavior and live draft calculation on the same save path.
+- Proposed solution: Add a multiline editing engine and one shared outlined select, then replace the remaining chip lists.
 - Test needed: GPUI editor focus, validation, save, reset, and catch-up tests.
 
 ## Phase 0 platform proof
@@ -44,3 +44,12 @@
 - Files involved: `gpui/crates/dagsverk-app`, `.github/workflows/gpui.yml`.
 - Proposed solution: Complete local Wayland checks and Windows CI.
 - Test needed: Manual platform checklist and CI release builds.
+
+## Filled Material Symbols
+
+- Current behavior: Selected icons use the bundled Material Symbols font with stronger weight. The bundled variable font exposes optical size and weight axes, but no fill axis.
+- Expected parity: Selected navigation icons use the filled Material Symbols appearance from Electron.
+- Reason incomplete: GPUI 0.2.2 does not expose a fill variation for the current font asset.
+- Files involved: `gpui/assets/fonts/`, `gpui/crates/dagsverk-ui/src/m3/icon.rs`.
+- Proposed solution: Bundle the required static filled Material SVGs or a compatible filled font asset with its license notice.
+- Test needed: Compare selected navigation icons on Windows and Linux.
