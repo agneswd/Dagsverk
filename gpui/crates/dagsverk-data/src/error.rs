@@ -11,6 +11,14 @@ pub enum DataError {
         path: PathBuf,
         source: std::io::Error,
     },
+    #[error("{operation} failed for {path}: {source}")]
+    Io {
+        operation: &'static str,
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("file does not exist: {0}")]
+    MissingFile(PathBuf),
     #[error("invalid value in column {column}: {value}")]
     InvalidValue { column: &'static str, value: String },
     #[error("failed to serialize compensation rules: {0}")]

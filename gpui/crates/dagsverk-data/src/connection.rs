@@ -21,11 +21,11 @@ use rusqlite::{Connection, OptionalExtension, Row, params, types::ValueRef};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use crate::{DataError, Result, schema};
+use crate::{DataError, Result, migration, schema};
 
 pub struct Database<C> {
-    path: PathBuf,
-    clock: C,
+    pub(crate) path: PathBuf,
+    pub(crate) clock: C,
 }
 
 impl<C: Clock> Database<C> {
@@ -39,7 +39,15 @@ impl<C: Clock> Database<C> {
         }
         let database = Self { path, clock };
         let connection = database.connection()?;
-        schema::initialize(&connection, &database.clock.now_utc().to_rfc3339())?;
+        if migration::is_legacy(&connection)? {
+            migration::migrate(
+                &connection,
+                &database.path,
+                &database.clock.now_utc().to_rfc3339(),
+            )?;
+        } else {
+            schema::initialize(&connection, &database.clock.now_utc().to_rfc3339())?;
+        }
         Ok(database)
     }
 
@@ -56,19 +64,7 @@ impl<C: Clock> Database<C> {
     }
 
     pub fn validate(&self) -> Result<()> {
-        let connection = self.connection()?;
-        let integrity: String = connection.query_row("PRAGMA quick_check", [], |row| row.get(0))?;
-        if integrity != "ok" {
-            return Err(DataError::Integrity(integrity));
-        }
-        let mut statement = connection
-            .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?1")?;
-        for table in schema::REQUIRED_TABLES {
-            if statement.query_row([table], |row| row.get::<_, i64>(0))? != 1 {
-                return Err(DataError::NotDagsverkDatabase);
-            }
-        }
-        Ok(())
+        schema::validate_path(&self.path)
     }
 
     pub fn list_workspaces(&self) -> Result<Vec<Workspace>> {

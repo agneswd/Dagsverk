@@ -1,6 +1,8 @@
-use rusqlite::Connection;
+use std::path::Path;
 
-use crate::Result;
+use rusqlite::{Connection, OpenFlags};
+
+use crate::{DataError, Result};
 
 pub const REQUIRED_TABLES: [&str; 6] = [
     "Workspaces",
@@ -117,6 +119,22 @@ pub fn initialize(connection: &Connection, now: &str) -> Result<()> {
         "ALTER TABLE WorkspaceSettings ADD COLUMN OvertimeObCombination INTEGER NOT NULL DEFAULT 0",
     )?;
     seed(connection, now)
+}
+
+pub fn validate_path(path: &Path) -> Result<()> {
+    let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let integrity: String = connection.query_row("PRAGMA quick_check", [], |row| row.get(0))?;
+    if integrity != "ok" {
+        return Err(DataError::Integrity(integrity));
+    }
+    let mut statement =
+        connection.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?1")?;
+    for table in REQUIRED_TABLES {
+        if statement.query_row([table], |row| row.get::<_, i64>(0))? != 1 {
+            return Err(DataError::NotDagsverkDatabase);
+        }
+    }
+    Ok(())
 }
 
 fn seed(connection: &Connection, now: &str) -> Result<()> {

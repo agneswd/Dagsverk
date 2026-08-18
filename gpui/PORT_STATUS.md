@@ -8,4 +8,4 @@
 | Swedish holidays | `src/app/core/swedish-holiday.service.ts` | `dagsverk-core` | Yes | N/A | N/A | Behavior complete | Fixtures cover 2024 through 2035, Sundays, named holidays, and major periods. |
 | Tax | `src/app/core/tax-calculator.service.ts` | `dagsverk-core` | Yes | N/A | N/A | Behavior complete | All modes, columns, sampled boundaries, and the canonical tax-data SHA pass. |
 | Balance and month copy | `src/app/core/app-state.service.ts` | `dagsverk-core` | Yes | No | No | Behavior complete | Latest explicit balance edits and weekday-occurrence mapping are tested. |
-| SQLite | `electron/database.service.ts` | `dagsverk-data` | Yes | N/A | N/A | In progress | Final schema, defaults, CRUD, transactions, paths, and workspace isolation pass. Migration and destructive workflows remain. |
+| SQLite | `electron/database.service.ts` | `dagsverk-data` | Yes | N/A | N/A | In progress | Schema, CRUD, isolation, legacy migration, backup retention, restore validation, and safety rollback pass. Tidverk and bidirectional tests remain. |

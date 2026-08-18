@@ -11,4 +11,6 @@ The compatible production paths are:
 
 The Rust schema keeps all current table and column names. It does not add a schema-version table.
 
+Legacy migration creates an online SQLite safety backup before it changes tables. Restore validates a temporary candidate, creates a current-data safety backup, removes WAL sidecars, and rolls back after replacement failures.
+
 Do not run Electron Dagsverk and the GPUI preview against the same database during backup, restore, or import.

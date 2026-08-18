@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{fs, path::Path};
 
 use chrono::{TimeZone, Utc};
 use dagsverk_core::{
@@ -279,4 +279,152 @@ fn settings_and_repositories_round_trip_with_workspace_isolation() {
         database.delete_workspace(&first),
         Err(DataError::LastWorkspace)
     ));
+}
+
+#[test]
+fn backup_restore_and_retention_never_touch_external_data() {
+    let (directory, database) = database();
+    let workspace = WorkspaceId::new("ws-default").expect("workspace");
+    database
+        .save_entry(&workspace, &entry("2026-08-17", None))
+        .expect("save original");
+    let backup = database.create_backup(None, "manual").expect("backup");
+    assert!(backup.starts_with(directory.path().join("backups")));
+
+    database
+        .save_entry(&workspace, &entry("2026-08-18", None))
+        .expect("change data");
+    database.restore_backup(&backup).expect("restore");
+    let restored = database
+        .load_entries(&workspace, YearMonth::new(2026, 8).expect("month"))
+        .expect("entries");
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].date.to_string(), "2026-08-17");
+
+    for _ in 0..7 {
+        database.create_backup(None, "retention").expect("backup");
+    }
+    let backup_count = fs::read_dir(directory.path().join("backups"))
+        .expect("backup directory")
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_str()
+                .is_some_and(|name| name.starts_with("dagsverk-backup-") && name.ends_with(".db"))
+        })
+        .count();
+    assert_eq!(backup_count, 5);
+}
+
+#[test]
+fn invalid_restore_is_rejected_without_changing_current_database() {
+    let (directory, database) = database();
+    let workspace = WorkspaceId::new("ws-default").expect("workspace");
+    database
+        .save_entry(&workspace, &entry("2026-08-17", None))
+        .expect("save original");
+    let invalid = directory.path().join("invalid.db");
+    rusqlite::Connection::open(&invalid)
+        .expect("invalid database")
+        .execute("CREATE TABLE Unrelated (Id INTEGER)", [])
+        .expect("unrelated table");
+
+    assert!(matches!(
+        database.restore_backup(&invalid),
+        Err(DataError::NotDagsverkDatabase)
+    ));
+    assert_eq!(
+        database
+            .load_entries(&workspace, YearMonth::new(2026, 8).expect("month"))
+            .expect("entries")
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn legacy_database_migrates_transactionally_with_a_safety_backup() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("legacy.db");
+    let legacy = rusqlite::Connection::open(&path).expect("legacy database");
+    legacy
+        .execute_batch(
+            r#"
+            CREATE TABLE Settings (
+              Id INTEGER PRIMARY KEY, EmployeeName TEXT, EmployerName TEXT, DefaultProject TEXT,
+              HourlyRate DECIMAL, SalaryType INTEGER, MonthlySalary DECIMAL,
+              EmploymentPercent DECIMAL, ExpectedHoursPerWorkday DECIMAL,
+              ExpectedWorkingWeekdays TEXT, ExcludePublicHolidays INTEGER,
+              DefaultStartTime TEXT, DefaultEndTime TEXT, DefaultLunchMinutes INTEGER,
+              TaxMode INTEGER, TaxYear INTEGER, TaxTableNumber INTEGER, TaxColumn INTEGER,
+              ManualTaxValue DECIMAL, OpeningBalanceMinutes INTEGER, CurrencyPreference INTEGER,
+              ExportLanguagePreference INTEGER, OvertimeCompensationMode INTEGER,
+              OvertimePremiumPercent DECIMAL, OvertimeDailyThresholdHours DECIMAL,
+              OvertimeThresholdMode INTEGER, OvertimeDefaultRateType INTEGER,
+              OvertimeRateBandsJson TEXT, ThemePreference INTEGER, LanguagePreference INTEGER,
+              InterfaceScalePercent INTEGER, MonthViewPreference INTEGER
+            );
+            CREATE TABLE WorkEntries (
+              Date TEXT PRIMARY KEY, Status INTEGER NOT NULL, StartTime TEXT, EndTime TEXT,
+              LunchMinutes INTEGER, ProjectName TEXT, Notes TEXT, ScheduledMinutesOverride INTEGER,
+              CreatedAt TEXT NOT NULL, UpdatedAt TEXT NOT NULL
+            );
+            CREATE TABLE MonthRecords (
+              Year INTEGER, Month INTEGER, OpeningBalanceMinutes INTEGER,
+              ExpectedMinutesOverride INTEGER, OpeningBalanceWasEdited INTEGER,
+              PRIMARY KEY (Year, Month)
+            );
+            CREATE TABLE Projects (
+              Id TEXT PRIMARY KEY, Name TEXT, IsActive INTEGER, IsDefault INTEGER
+            );
+            INSERT INTO Settings VALUES (
+              1,'Legacy Worker','Legacy Employer','Legacy',321.50,0,0,100,7.5,
+              '1,2,3,4,5',1,'07:30','16:00',30,1,2026,31,2,NULL,45,0,2,0,50,8,0,0,
+              '[]',2,2,125,1
+            );
+            INSERT INTO WorkEntries VALUES (
+              '2026-08-17',1,'07:30','16:00',30,'Legacy','note',NULL,
+              '2026-08-17T10:00:00Z','2026-08-17T10:00:00Z'
+            );
+            INSERT INTO MonthRecords VALUES (2026,8,45,6000,1);
+            INSERT INTO Projects VALUES ('legacy-project','Legacy',1,1);
+            "#,
+        )
+        .expect("legacy schema");
+    drop(legacy);
+
+    let clock = FixedClock::new(Utc.with_ymd_and_hms(2026, 8, 18, 10, 0, 0).unwrap());
+    let database = Database::open(&path, clock).expect("migrated database");
+    database.validate().expect("valid migrated database");
+    let workspace = WorkspaceId::new("ws-default").expect("workspace");
+    let settings = database.load_settings(&workspace).expect("settings");
+    assert_eq!(settings.employee_name, "Legacy Worker");
+    assert_eq!(settings.salary.hourly_rate.decimal(), Decimal::new(3215, 1));
+    assert_eq!(
+        database
+            .load_entries(&workspace, YearMonth::new(2026, 8).expect("month"))
+            .expect("entries")
+            .len(),
+        1
+    );
+    assert_eq!(
+        database.list_projects(&workspace).expect("projects").len(),
+        1
+    );
+    assert!(
+        database
+            .load_preferences()
+            .expect("preferences")
+            .has_completed_setup
+    );
+    assert!(
+        fs::read_dir(directory.path().join("backups"))
+            .expect("backups")
+            .filter_map(|entry| entry.ok())
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .contains("before-migration"))
+    );
 }
