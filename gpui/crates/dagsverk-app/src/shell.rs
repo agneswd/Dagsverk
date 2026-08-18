@@ -83,6 +83,17 @@ const EXPORT_LANGUAGE_OPTIONS: [ExportLanguagePreference; 3] = [
     ExportLanguagePreference::English,
     ExportLanguagePreference::Swedish,
 ];
+const SALARY_TYPE_OPTIONS: [SalaryType; 2] = [SalaryType::Hourly, SalaryType::Monthly];
+const HOURLY_PAY_BASIS_OPTIONS: [HourlyPayBasis; 2] = [
+    HourlyPayBasis::DailyRegularHours,
+    HourlyPayBasis::MonthlyExpectedHours,
+];
+const TAX_MODE_OPTIONS: [TaxMode; 4] = [
+    TaxMode::Disabled,
+    TaxMode::PrimaryIncomeTaxTable,
+    TaxMode::SecondaryIncomeThirtyPercent,
+    TaxMode::ManualMonthlyDeduction,
+];
 
 impl ExportFormat {
     const fn extension(self) -> &'static str {
@@ -115,6 +126,52 @@ struct ApplicationSelects {
     language: Entity<M3Select>,
     scale: Entity<M3Select>,
     export_language: Entity<M3Select>,
+}
+
+struct SalaryTaxSelects {
+    salary_type: Entity<M3Select>,
+    hourly_pay_basis: Entity<M3Select>,
+    tax_mode: Entity<M3Select>,
+}
+
+impl SalaryTaxSelects {
+    fn new(settings: &AppSettings, cx: &mut Context<AppShell>) -> Self {
+        Self {
+            salary_type: cx.new(|cx| {
+                M3Select::new(
+                    "Salary model",
+                    ["Hourly", "Monthly"],
+                    option_index(&SALARY_TYPE_OPTIONS, settings.salary.salary_type),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            hourly_pay_basis: cx.new(|cx| {
+                M3Select::new(
+                    "Hourly pay basis",
+                    ["Regular hours per day", "Monthly expected hours"],
+                    option_index(&HOURLY_PAY_BASIS_OPTIONS, settings.salary.hourly_pay_basis),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            tax_mode: cx.new(|cx| {
+                M3Select::new(
+                    "Tax engine mode",
+                    ["Disabled", "Primary table", "Secondary 30%", "Manual"],
+                    option_index(&TAX_MODE_OPTIONS, settings.tax_settings.mode),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+        }
+    }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for select in [&self.salary_type, &self.hourly_pay_basis, &self.tax_mode] {
+            select.update(cx, |select, cx| select.set_scale(scale, cx));
+        }
+    }
 }
 
 impl ApplicationSelects {
@@ -339,6 +396,7 @@ pub struct AppShell {
     settings_project_select: Entity<M3Select>,
     currency_select: Entity<M3Select>,
     application_selects: ApplicationSelects,
+    salary_tax_selects: SalaryTaxSelects,
     scheduled_input: Entity<TextInput>,
     scheduled_override_switch: Entity<M3Switch>,
     exclude_holidays_switch: Entity<M3Switch>,
@@ -535,6 +593,7 @@ impl AppShell {
             )
         });
         let application_selects = ApplicationSelects::new(&model.preferences, &model.settings, cx);
+        let salary_tax_selects = SalaryTaxSelects::new(&model.settings, cx);
         let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
         scheduled_input.update(cx, |input, cx| input.set_suffix("hours", cx));
         let scheduled_override_switch = cx.new(|cx| {
@@ -785,6 +844,36 @@ impl AppShell {
             },
         )
         .detach();
+        cx.subscribe(
+            &salary_tax_selects.salary_type,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = SALARY_TYPE_OPTIONS.get(event.0) {
+                    shell.settings_draft.salary.salary_type = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &salary_tax_selects.hourly_pay_basis,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = HOURLY_PAY_BASIS_OPTIONS.get(event.0) {
+                    shell.settings_draft.salary.hourly_pay_basis = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &salary_tax_selects.tax_mode,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = TAX_MODE_OPTIONS.get(event.0) {
+                    shell.settings_draft.tax_settings.mode = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
         cx.observe_window_appearance(window, |shell, window, cx| {
             shell.model.set_system_dark(matches!(
                 window.appearance(),
@@ -805,6 +894,7 @@ impl AppShell {
             settings_project_select,
             currency_select,
             application_selects,
+            salary_tax_selects,
             scheduled_input,
             scheduled_override_switch,
             exclude_holidays_switch,
@@ -929,6 +1019,7 @@ impl AppShell {
         self.settings_tabs
             .update(cx, |tabs, cx| tabs.set_scale(scale, cx));
         self.application_selects.set_scale(scale, cx);
+        self.salary_tax_selects.set_scale(scale, cx);
         self.settings_inputs.set_scale(scale, cx);
         for inputs in &self.rate_band_inputs {
             inputs.set_scale(scale, cx);
@@ -3602,6 +3693,43 @@ impl AppShell {
         let scale = interface_scale(&self.model);
         let salary = self.settings_draft.salary.clone();
         let tax = self.settings_draft.tax_settings.clone();
+        let show_hourly_basis = salary.salary_type == SalaryType::Hourly
+            && self.settings_draft.overtime_compensation.mode == OvertimeCompensationMode::CompTime;
+        let salary_labels = [self.text("Hourly"), self.text("Monthly")];
+        let basis_labels = [
+            self.text("Regular hours per day"),
+            self.text("Monthly expected hours"),
+        ];
+        let tax_labels = [
+            self.text("Disabled"),
+            self.text("Primary table"),
+            self.text("Secondary 30%"),
+            self.text("Manual"),
+        ];
+        self.salary_tax_selects
+            .salary_type
+            .update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    salary_labels,
+                    option_index(&SALARY_TYPE_OPTIONS, salary.salary_type),
+                    cx,
+                );
+            });
+        self.salary_tax_selects
+            .hourly_pay_basis
+            .update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    basis_labels,
+                    option_index(&HOURLY_PAY_BASIS_OPTIONS, salary.hourly_pay_basis),
+                    cx,
+                );
+            });
+        self.salary_tax_selects.tax_mode.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(tax_labels, option_index(&TAX_MODE_OPTIONS, tax.mode), cx);
+        });
         div()
             .flex()
             .flex_col()
@@ -3611,100 +3739,28 @@ impl AppShell {
                     .text_size(scale.px(18.0))
                     .child(self.text("Salary & Tax")),
             )
-            .child(self.text("Salary Model"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        ("Hourly", SalaryType::Hourly),
-                        ("Monthly", SalaryType::Monthly),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("salary-type", index),
-                            label,
-                            salary.salary_type == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell.settings_draft.salary.salary_type = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
-            .child(self.text("Hourly Rate"))
-            .child(self.settings_inputs.hourly_rate.clone())
-            .child(self.text("Monthly Salary"))
-            .child(self.settings_inputs.monthly_salary.clone())
-            .child(self.text("Employment percent"))
-            .child(self.settings_inputs.employment_percent.clone())
-            .child(self.text("Hourly Pay Basis"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        ("Regular hours per day", HourlyPayBasis::DailyRegularHours),
-                        (
-                            "Monthly expected hours",
-                            HourlyPayBasis::MonthlyExpectedHours,
-                        ),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("hourly-basis", index),
-                            label,
-                            salary.hourly_pay_basis == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell.settings_draft.salary.hourly_pay_basis = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
-            .child(self.text("Tax Engine Mode"))
-            .child(
-                div().flex().flex_wrap().gap(scale.px(8.0)).children(
-                    [
-                        ("Disabled", TaxMode::Disabled),
-                        ("Primary table", TaxMode::PrimaryIncomeTaxTable),
-                        ("Secondary 30%", TaxMode::SecondaryIncomeThirtyPercent),
-                        ("Manual", TaxMode::ManualMonthlyDeduction),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("tax-mode", index),
-                            label,
-                            tax.mode == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell.settings_draft.tax_settings.mode = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
-            .child(self.text("Tax Year"))
-            .child(self.settings_inputs.tax_year.clone())
-            .child(self.text("Tax Table"))
-            .child(self.settings_inputs.tax_table.clone())
-            .child(self.text("Tax column 1-6"))
-            .child(self.settings_inputs.tax_column.clone())
-            .child(self.text("Manual monthly deduction"))
-            .child(self.settings_inputs.manual_tax.clone())
+            .child(self.salary_tax_selects.salary_type.clone())
+            .when(salary.salary_type == SalaryType::Hourly, |settings| {
+                settings.child(self.settings_inputs.hourly_rate.clone())
+            })
+            .when(salary.salary_type == SalaryType::Monthly, |settings| {
+                settings
+                    .child(self.settings_inputs.monthly_salary.clone())
+                    .child(self.settings_inputs.employment_percent.clone())
+            })
+            .when(show_hourly_basis, |settings| {
+                settings.child(self.salary_tax_selects.hourly_pay_basis.clone())
+            })
+            .child(self.salary_tax_selects.tax_mode.clone())
+            .when(tax.mode == TaxMode::PrimaryIncomeTaxTable, |settings| {
+                settings
+                    .child(self.settings_inputs.tax_year.clone())
+                    .child(self.settings_inputs.tax_table.clone())
+                    .child(self.settings_inputs.tax_column.clone())
+            })
+            .when(tax.mode == TaxMode::ManualMonthlyDeduction, |settings| {
+                settings.child(self.settings_inputs.manual_tax.clone())
+            })
     }
 
     fn application_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
@@ -6409,7 +6465,7 @@ mod tests {
         clock::FixedClock,
         models::{
             CompensationRuleType, CurrencyPreference, LanguagePreference, MonthViewPreference,
-            ThemePreference,
+            SalaryType, TaxMode, ThemePreference,
         },
         tax::TaxEngine,
     };
@@ -6492,7 +6548,7 @@ mod tests {
         let currency_select = shell.read_with(cx, |shell, _| shell.currency_select.clone());
         cx.update(|window, app| window.focus(&currency_select.read(app).focus_handle(app)));
         cx.refresh().expect("refresh currency select");
-        cx.simulate_keystrokes("enter down enter");
+        cx.simulate_keystrokes("enter home down enter");
         assert_eq!(
             shell.read_with(cx, |shell, _| shell.pending_currency),
             Some(CurrencyPreference::Eur)
@@ -6510,6 +6566,28 @@ mod tests {
         assert_eq!(
             shell.read_with(cx, |shell, _| shell.preferences_draft.theme_preference),
             ThemePreference::Light
+        );
+        shell.update(cx, |shell, cx| {
+            shell.settings_tab = 3;
+            shell
+                .settings_tabs
+                .update(cx, |tabs, cx| tabs.set_selected(3, cx));
+        });
+        cx.refresh().expect("refresh salary and tax settings");
+        let salary_type =
+            shell.read_with(cx, |shell, _| shell.salary_tax_selects.salary_type.clone());
+        cx.update(|window, app| window.focus(&salary_type.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.settings_draft.salary.salary_type),
+            SalaryType::Monthly
+        );
+        let tax_mode = shell.read_with(cx, |shell, _| shell.salary_tax_selects.tax_mode.clone());
+        cx.update(|window, app| window.focus(&tax_mode.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter home down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.settings_draft.tax_settings.mode),
+            TaxMode::PrimaryIncomeTaxTable
         );
         let shell_focus = shell.read_with(cx, |shell, _| shell.focus.clone());
         cx.update(|window, _| window.focus(&shell_focus));
