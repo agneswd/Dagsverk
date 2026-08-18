@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use dagsverk_ui::preview::Preview;
+use dagsverk_ui::component_gallery::ComponentGallery;
 use gpui::{
     App, AppContext, Application, Bounds, TitlebarOptions, WindowBounds, WindowOptions, px, size,
 };
@@ -13,7 +13,7 @@ fn main() {
             eprintln!("failed to load bundled Roboto font: {error}");
         }
 
-        Preview::register_key_bindings(cx);
+        ComponentGallery::register_key_bindings(cx);
         cx.on_window_closed(|cx| {
             if cx.windows().is_empty() {
                 cx.quit();
@@ -33,7 +33,7 @@ fn main() {
                 window_min_size: Some(size(px(640.), px(480.))),
                 ..Default::default()
             },
-            |window, cx| cx.new(|cx| Preview::new(window, cx)),
+            |window, cx| cx.new(|cx| ComponentGallery::new(window, cx)),
         );
 
         if let Err(error) = result {

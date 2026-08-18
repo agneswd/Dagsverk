@@ -33,3 +33,7 @@ The TypeScript engine generates committed parity fixtures. Rust tests read those
 ## Native services
 
 The application crate owns async file-dialog and update traits plus the shell boundary. Native dialogs use `rfd` behind the private service. Development builds use an explicit unavailable updater.
+
+## Material 3 foundation
+
+`dagsverk-ui::m3` owns the shared color and typography tokens. Values come from `src/styles.scss` and the generated design metrics. Reusable controls own focus and interaction state. The text editor remains based on GPUI 0.2.2's official input example.

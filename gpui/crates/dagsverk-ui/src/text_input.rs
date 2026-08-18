@@ -7,9 +7,11 @@ use gpui::{
     EntityInputHandler, FocusHandle, Focusable, GlobalElementId, InspectorElementId, LayoutId,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point,
     ShapedLine, SharedString, Style, TextRun, UTF16Selection, UnderlineStyle, Window, actions, div,
-    fill, hsla, point, prelude::*, px, relative, rgba, size,
+    fill, point, prelude::*, px, relative, size,
 };
 use unicode_segmentation::UnicodeSegmentation;
+
+use crate::m3::M3ColorScheme;
 
 actions!(
     text_input,
@@ -40,6 +42,7 @@ pub struct TextInput {
     last_layout: Option<ShapedLine>,
     last_bounds: Option<Bounds<Pixels>>,
     is_selecting: bool,
+    colors: M3ColorScheme,
 }
 
 impl TextInput {
@@ -54,6 +57,14 @@ impl TextInput {
             last_layout: None,
             last_bounds: None,
             is_selecting: false,
+            colors: M3ColorScheme::light(),
+        }
+    }
+
+    pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
+        if self.colors != colors {
+            self.colors = colors;
+            cx.notify();
         }
     }
 
@@ -450,7 +461,10 @@ impl Element for TextElement {
         let cursor = input.cursor_offset();
         let style = window.text_style();
         let (display_text, text_color) = if content.is_empty() {
-            (input.placeholder.clone(), hsla(0., 0., 0., 0.38))
+            (
+                input.placeholder.clone(),
+                input.colors.on_surface_variant.opacity(0.6),
+            )
         } else {
             (content, style.color)
         };
@@ -506,7 +520,7 @@ impl Element for TextElement {
                         bounds.bottom(),
                     ),
                 ),
-                rgba(0x5f875f40),
+                input.colors.primary_container,
             )
         });
         let cursor_quad = selected_range.is_empty().then(|| {
@@ -515,7 +529,7 @@ impl Element for TextElement {
                     point(bounds.left() + line.x_for_index(cursor), bounds.top()),
                     size(px(2.), bounds.size.height),
                 ),
-                gpui::rgb(0x5f875f),
+                input.colors.primary,
             )
         });
         PrepaintState {
@@ -591,12 +605,12 @@ impl Render for TextInput {
             .rounded(px(4.))
             .border_2()
             .border_color(if focused {
-                gpui::rgb(0x5f875f)
+                self.colors.primary
             } else {
-                gpui::rgb(0x747775)
+                self.colors.outline
             })
-            .bg(gpui::rgb(0xffffff))
-            .text_color(gpui::rgb(0x1f1f1f))
+            .bg(self.colors.surface_container_lowest)
+            .text_color(self.colors.on_surface)
             .text_size(px(16.))
             .line_height(px(24.))
             .child(TextElement { input: cx.entity() })
