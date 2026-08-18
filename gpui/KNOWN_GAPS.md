@@ -20,12 +20,12 @@
 
 ## Background GPUI capture
 
-- Current behavior: Tests and builds run without desktop focus. GPUI 0.2.2 fails to present through Xvfb and panics on a seatless headless Weston compositor.
+- Current behavior: Tests and builds run without desktop focus. Niri captures the real GPUI Wayland window by ID without focusing it. GPUI 0.2.2 still fails to present through Xvfb and panics on a seatless headless Weston compositor.
 - Expected parity: Automated captures must not use the active desktop.
-- Reason incomplete: The pinned Linux backend needs a real Vulkan presentation surface and assumes a Wayland seat.
+- Reason incomplete: The pinned Linux backend needs a real Vulkan presentation surface and assumes a Wayland seat. The Niri method still uses the active compositor, but an app-specific rule prevents focus changes.
 - Files involved: `gpui/tools/visual-diff/`, `gpui/VISUAL_PARITY.md`.
-- Proposed solution: Use GPUI test-platform structural checks now. Add an isolated GPU-backed virtual compositor when available.
-- Test needed: A background capture must produce the same 1366 x 820 fixture geometry without a visible host window.
+- Proposed solution: Use unfocused Niri captures and GPUI test-platform structural checks now. Add an isolated GPU-backed virtual compositor when available.
+- Test needed: Repeat the capture in an isolated GPU-backed compositor when one is available in CI.
 
 ## Day editor parity
 

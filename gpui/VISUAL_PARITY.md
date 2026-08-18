@@ -22,6 +22,8 @@ The current Niri Wayland captures use a 1366 x 820 window at device scale 1:
 
 Visual review confirmed card clipping, 52 px ledger rows, the six-week calendar grid, the 400 px editor breakpoint, Material colors, and light/dark rendering.
 
+Niri can capture the GPUI window without focusing it. The local compositor rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `open-focused false`. A live check confirmed that the previously focused application kept focus through GPUI launch and `screenshot-window --id` capture.
+
 ## Comparison tolerances
 
 - Color tokens must match their extracted hex values exactly.
