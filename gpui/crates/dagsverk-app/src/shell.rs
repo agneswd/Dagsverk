@@ -4847,13 +4847,19 @@ impl Render for AppShell {
                             .flex()
                             .child(
                                 div()
-                                    .id("route-content")
                                     .flex_1()
                                     .min_w_0()
-                                    .overflow_y_scroll()
                                     .rounded_tl(px(24.0))
+                                    .overflow_hidden()
                                     .bg(colors.background)
-                                    .child(self.route_content(colors, cx)),
+                                    .child(
+                                        div()
+                                            .id("route-content")
+                                            .size_full()
+                                            .overflow_y_scroll()
+                                            .bg(colors.background)
+                                            .child(self.route_content(colors, cx)),
+                                    ),
                             )
                             .when(self.model.editor.is_open && !editor_overlay, |content| {
                                 content.child(self.editor_panel(colors, cx))
