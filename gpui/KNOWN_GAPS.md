@@ -27,15 +27,6 @@
 - Proposed solution: Finish responsive layout and multiline input behavior on the same draft and save path.
 - Test needed: GPUI editor focus, validation, save, reset, and catch-up tests.
 
-## Rate-band editor parity
-
-- Current behavior: Settings can add overtime or OB rules, cycle day categories, and remove rules.
-- Expected parity: Each rule must edit name, type, day category, start, end, rate type, and rate value.
-- Reason incomplete: Dynamic text-field entities for each rate band are not connected yet.
-- Files involved: `gpui/crates/dagsverk-app/src/shell.rs`.
-- Proposed solution: Add one focused rate-band editor dialog for the selected typed draft.
-- Test needed: Add, edit, validate, persist, and remove rule tests.
-
 ## Phase 0 platform proof
 
 - Current behavior: The pinned preview builds, launches, sets its native title, resizes under Niri, and exits cleanly on Linux.
