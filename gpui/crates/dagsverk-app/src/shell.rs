@@ -2765,12 +2765,15 @@ impl AppShell {
             .pb(scale.px(48.0))
             .flex()
             .flex_col()
-            .gap(scale.px(20.0))
+            .gap_0()
             .child(
                 div()
                     .h(scale.px(44.0))
                     .flex()
                     .gap(scale.px(4.0))
+                    .rounded_t(scale.px(16.0))
+                    .overflow_hidden()
+                    .bg(colors.surface_container_low)
                     .border_b_1()
                     .border_color(colors.outline_variant)
                     .children(
@@ -2796,6 +2799,16 @@ impl AppShell {
                                     colors.primary
                                 } else {
                                     gpui::transparent_black()
+                                })
+                                .text_color(if self.settings_tab == index {
+                                    colors.primary
+                                } else {
+                                    colors.on_surface_variant
+                                })
+                                .font_weight(if self.settings_tab == index {
+                                    gpui::FontWeight::MEDIUM
+                                } else {
+                                    gpui::FontWeight::NORMAL
                                 })
                                 .hover(move |style| {
                                     style.bg(m3_state_layer(
@@ -2825,12 +2838,13 @@ impl AppShell {
                     .flex()
                     .flex_col()
                     .gap(scale.px(18.0))
-                    .rounded(scale.px(16.0))
+                    .rounded_b(scale.px(16.0))
                     .bg(colors.surface_container_low)
                     .child(content),
             )
             .child(
                 div()
+                    .mt(scale.px(20.0))
                     .flex()
                     .justify_end()
                     .gap(scale.px(16.0))
