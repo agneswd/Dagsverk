@@ -2453,16 +2453,17 @@ impl AppShell {
             .bg(gpui::black().opacity(0.55))
             .child(
                 div()
-                    .w(px(760.0))
-                    .p(px(28.0))
+                    .w(scale.px(720.0))
+                    .max_w(scale.px(720.0))
+                    .p(scale.px(24.0))
                     .flex()
                     .flex_col()
-                    .gap(px(18.0))
-                    .rounded(px(28.0))
+                    .gap(scale.px(24.0))
+                    .rounded(scale.px(28.0))
                     .bg(colors.surface_container_high)
                     .child(
                         div()
-                            .text_size(px(24.0))
+                            .text_size(scale.px(24.0))
                             .child(self.text("Set up Dagsverk")),
                     )
                     .child(self.text(
@@ -2472,12 +2473,12 @@ impl AppShell {
                         div()
                             .grid()
                             .grid_cols(2)
-                            .gap(px(16.0))
+                            .gap(scale.px(16.0))
                             .child(
                                 div()
                                     .flex()
                                     .flex_col()
-                                    .gap(px(10.0))
+                                    .gap(scale.px(10.0))
                                     .child(self.text("Workspace name"))
                                     .child(self.workspace_name_input.clone())
                                     .child(self.text("Worker name"))
@@ -2496,10 +2497,10 @@ impl AppShell {
                                 div()
                                     .flex()
                                     .flex_col()
-                                    .gap(px(10.0))
+                                    .gap(scale.px(10.0))
                                     .child(self.text("Workspace type"))
                                     .child(
-                                        div().flex().gap(px(6.0)).children(
+                                        div().flex().gap(scale.px(6.0)).children(
                                             [
                                                 ("Employment", WorkspaceType::Employment),
                                                 ("Contract", WorkspaceType::Contract),
@@ -2529,7 +2530,7 @@ impl AppShell {
                                     )
                                     .child(self.text("Interface language"))
                                     .child(
-                                        div().flex().gap(px(6.0)).children(
+                                        div().flex().gap(scale.px(6.0)).children(
                                             [
                                                 ("System", LanguagePreference::System),
                                                 ("English", LanguagePreference::English),
@@ -2561,7 +2562,7 @@ impl AppShell {
                                     )
                                     .child(self.text("Salary Model"))
                                     .child(
-                                        div().flex().gap(px(6.0)).children(
+                                        div().flex().gap(scale.px(6.0)).children(
                                             [
                                                 ("Hourly rate", SalaryType::Hourly),
                                                 ("Monthly salary", SalaryType::Monthly),
@@ -5260,14 +5261,18 @@ impl Render for AppShell {
                         .bg(gpui::black().opacity(0.45))
                         .child(
                             div()
-                                .w(px(420.0))
-                                .p(px(24.0))
+                                .w(px(420.0 * scale))
+                                .p(px(24.0 * scale))
                                 .flex()
                                 .flex_col()
-                                .gap(px(18.0))
-                                .rounded(px(28.0))
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
                                 .bg(colors.surface_container_high)
-                                .child(div().text_size(px(20.0)).child(self.text("Reset month")))
+                                .child(
+                                    div()
+                                        .text_size(px(20.0 * scale))
+                                        .child(self.text("Reset month")),
+                                )
                                 .child(
                                     div()
                                         .text_color(colors.on_surface_variant)
@@ -5279,13 +5284,14 @@ impl Render for AppShell {
                                     div()
                                         .flex()
                                         .justify_end()
-                                        .gap(px(16.0))
+                                        .gap(px(16.0 * scale))
                                         .child(
                                             dialog_action(
                                                 "cancel-reset",
                                                 self.text("Cancel"),
                                                 colors.on_surface,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_reset = false;
@@ -5298,6 +5304,7 @@ impl Render for AppShell {
                                                 self.text("Reset"),
                                                 colors.error,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.reset_month(cx)
@@ -5318,16 +5325,16 @@ impl Render for AppShell {
                         .bg(gpui::black().opacity(0.45))
                         .child(
                             div()
-                                .w(px(420.0))
-                                .p(px(24.0))
+                                .w(px(420.0 * scale))
+                                .p(px(24.0 * scale))
                                 .flex()
                                 .flex_col()
-                                .gap(px(18.0))
-                                .rounded(px(28.0))
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
-                                        .text_size(px(20.0))
+                                        .text_size(px(20.0 * scale))
                                         .child(self.text("Delete project?")),
                                 )
                                 .child(self.text("Existing entries keep the stored project name."))
@@ -5335,13 +5342,14 @@ impl Render for AppShell {
                                     div()
                                         .flex()
                                         .justify_end()
-                                        .gap(px(16.0))
+                                        .gap(px(16.0 * scale))
                                         .child(
                                             dialog_action(
                                                 "cancel-project-delete",
                                                 self.text("Cancel"),
                                                 colors.on_surface,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_project_delete = None;
@@ -5354,6 +5362,7 @@ impl Render for AppShell {
                                                 self.text("Delete"),
                                                 colors.error,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.delete_project(&project_id, cx)
@@ -5377,16 +5386,16 @@ impl Render for AppShell {
                         .bg(gpui::black().opacity(0.55))
                         .child(
                             div()
-                                .w(px(460.0))
-                                .p(px(24.0))
+                                .w(px(460.0 * scale))
+                                .p(px(24.0 * scale))
                                 .flex()
                                 .flex_col()
-                                .gap(px(18.0))
-                                .rounded(px(28.0))
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
-                                        .text_size(px(20.0))
+                                        .text_size(px(20.0 * scale))
                                         .child(self.text("Delete workspace?")),
                                 )
                                 .child(self.text(
@@ -5396,13 +5405,14 @@ impl Render for AppShell {
                                     div()
                                         .flex()
                                         .justify_end()
-                                        .gap(px(16.0))
+                                        .gap(px(16.0 * scale))
                                         .child(
                                             dialog_action(
                                                 "cancel-workspace-delete",
                                                 self.text("Cancel"),
                                                 colors.on_surface,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_workspace_delete = None;
@@ -5415,6 +5425,7 @@ impl Render for AppShell {
                                                 self.text("Delete"),
                                                 colors.error,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.delete_workspace(&workspace_id, cx)
@@ -5435,16 +5446,16 @@ impl Render for AppShell {
                         .bg(gpui::black().opacity(0.55))
                         .child(
                             div()
-                                .w(px(440.0))
-                                .p(px(24.0))
+                                .w(px(440.0 * scale))
+                                .p(px(24.0 * scale))
                                 .flex()
                                 .flex_col()
-                                .gap(px(18.0))
-                                .rounded(px(28.0))
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
-                                        .text_size(px(20.0))
+                                        .text_size(px(20.0 * scale))
                                         .child(self.text("Change currency?")),
                                 )
                                 .child(self.text(
@@ -5454,13 +5465,14 @@ impl Render for AppShell {
                                     div()
                                         .flex()
                                         .justify_end()
-                                        .gap(px(16.0))
+                                        .gap(px(16.0 * scale))
                                         .child(
                                             dialog_action(
                                                 "cancel-currency",
                                                 self.text("Cancel"),
                                                 colors.on_surface,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.pending_currency = None;
@@ -5473,6 +5485,7 @@ impl Render for AppShell {
                                                 self.text("Change"),
                                                 colors.primary,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.settings_draft.currency_preference = currency;
@@ -5496,16 +5509,16 @@ impl Render for AppShell {
                         .bg(gpui::black().opacity(0.55))
                         .child(
                             div()
-                                .w(px(480.0))
-                                .p(px(24.0))
+                                .w(px(480.0 * scale))
+                                .p(px(24.0 * scale))
                                 .flex()
                                 .flex_col()
-                                .gap(px(18.0))
-                                .rounded(px(28.0))
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
-                                        .text_size(px(20.0))
+                                        .text_size(px(20.0 * scale))
                                         .child(self.text("Restore database?")),
                                 )
                                 .child(self.text(
@@ -5520,13 +5533,14 @@ impl Render for AppShell {
                                     div()
                                         .flex()
                                         .justify_end()
-                                        .gap(px(16.0))
+                                        .gap(px(16.0 * scale))
                                         .child(
                                             dialog_action(
                                                 "cancel-restore",
                                                 self.text("Cancel"),
                                                 colors.on_surface,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_restore = None;
@@ -5539,6 +5553,7 @@ impl Render for AppShell {
                                                 self.text("Restore database"),
                                                 colors.error,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.run_restore(selected.clone(), cx)
@@ -5560,16 +5575,16 @@ impl Render for AppShell {
                         .bg(gpui::black().opacity(0.55))
                         .child(
                             div()
-                                .w(px(480.0))
-                                .p(px(24.0))
+                                .w(px(480.0 * scale))
+                                .p(px(24.0 * scale))
                                 .flex()
                                 .flex_col()
-                                .gap(px(18.0))
-                                .rounded(px(28.0))
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
                                 .bg(colors.surface_container_high)
                                 .child(
                                     div()
-                                        .text_size(px(20.0))
+                                        .text_size(px(20.0 * scale))
                                         .child(self.text("Import Tidverk data?")),
                                 )
                                 .child(self.text(
@@ -5584,13 +5599,14 @@ impl Render for AppShell {
                                     div()
                                         .flex()
                                         .justify_end()
-                                        .gap(px(16.0))
+                                        .gap(px(16.0 * scale))
                                         .child(
                                             dialog_action(
                                                 "cancel-tidverk-import",
                                                 self.text("Cancel"),
                                                 colors.on_surface,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_import = None;
@@ -5603,6 +5619,7 @@ impl Render for AppShell {
                                                 self.text("Import from Tidverk"),
                                                 colors.error,
                                                 colors,
+                                                scale,
                                             )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.run_tidverk_import(selected.clone(), cx)
@@ -5815,15 +5832,16 @@ fn dialog_action(
     label: impl Into<SharedString>,
     foreground: gpui::Hsla,
     colors: M3ColorScheme,
+    scale: f32,
 ) -> Stateful<gpui::Div> {
     let label: SharedString = label.into();
     div()
         .id(id)
-        .h(px(40.0))
-        .px(px(12.0))
+        .h(px(40.0 * scale))
+        .px(px(12.0 * scale))
         .flex()
         .items_center()
-        .rounded(px(20.0))
+        .rounded(px(20.0 * scale))
         .cursor_pointer()
         .text_color(foreground)
         .hover(move |style| {
