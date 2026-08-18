@@ -15,4 +15,6 @@ Legacy migration creates an online SQLite safety backup before it changes tables
 
 Tidverk import validates and snapshots the source first. It creates a Dagsverk safety backup before one import transaction. A pristine target uses `ws-default`. A populated target gets a new workspace. The source file remains unchanged.
 
+Run `npm run gpui:db-compat` for the bidirectional compatibility suite. It creates all databases in a temporary directory. The suite performs Electron-to-Rust, Rust-to-Electron, and Electron-to-Rust round-trip writes.
+
 Do not run Electron Dagsverk and the GPUI preview against the same database during backup, restore, or import.

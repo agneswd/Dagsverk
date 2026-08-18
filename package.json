@@ -19,7 +19,8 @@
     "package:linux": "bash scripts/package-linux-x64.sh",
     "package:windows": "bash scripts/package-win-x64.sh",
     "visual:capture": "npx tsx scripts/capture-screens.ts",
-    "gpui:fixtures": "npx tsx scripts/generate-gpui-parity-fixtures.ts"
+    "gpui:fixtures": "npx tsx scripts/generate-gpui-parity-fixtures.ts",
+    "gpui:db-compat": "npm run build:electron && npx tsx scripts/test-gpui-database-compatibility.ts"
   },
   "private": true,
   "build": {

@@ -41,10 +41,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: gpui
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libxkbcommon-x11-dev libfontconfig-dev libwayland-dev libx11-xcb-dev libxcb1-dev
         working-directory: .
       - run: cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      - run: npm ci
+        working-directory: .
+      - run: npm run gpui:db-compat
+        working-directory: .
       - run: cargo build --workspace --release

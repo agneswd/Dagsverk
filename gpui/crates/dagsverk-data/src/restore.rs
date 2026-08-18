@@ -33,16 +33,16 @@ impl<C: Clock> Database<C> {
         schema::validate_path(candidate)?;
         let safety = self.create_backup(None, "before-restore")?;
 
-        self.remove_sidecars()?;
-        if let Err(error) =
-            copy(candidate, &self.path).and_then(|()| schema::validate_path(&self.path))
-        {
-            self.remove_sidecars()?;
-            copy(&safety, &self.path)?;
-            schema::validate_path(&self.path)?;
-            return Err(error);
-        }
-        Ok(())
+        replace_with_rollback(
+            candidate,
+            &self.path,
+            &safety,
+            |source, destination| {
+                self.remove_sidecars()?;
+                copy(source, destination)
+            },
+            schema::validate_path,
+        )
     }
 
     fn remove_sidecars(&self) -> Result<()> {
@@ -68,4 +68,63 @@ fn copy(source: &Path, destination: &Path) -> Result<()> {
             path: destination.to_owned(),
             source: source_error,
         })
+}
+
+fn replace_with_rollback(
+    candidate: &Path,
+    current: &Path,
+    safety: &Path,
+    mut replace: impl FnMut(&Path, &Path) -> Result<()>,
+    validate: impl Fn(&Path) -> Result<()>,
+) -> Result<()> {
+    if let Err(error) = replace(candidate, current).and_then(|()| validate(current)) {
+        replace(safety, current)?;
+        validate(current)?;
+        return Err(error);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::replace_with_rollback;
+    use crate::{DataError, Result};
+
+    #[test]
+    fn failed_replacement_restores_the_safety_copy() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let current = directory.path().join("current");
+        let candidate = directory.path().join("candidate");
+        let safety = directory.path().join("safety");
+        fs::write(&current, b"original").expect("current");
+        fs::write(&candidate, b"invalid").expect("candidate");
+        fs::write(&safety, b"original").expect("safety");
+
+        let result = replace_with_rollback(
+            &candidate,
+            &current,
+            &safety,
+            |source, destination| {
+                fs::copy(source, destination)
+                    .map(|_| ())
+                    .map_err(|error| DataError::Io {
+                        operation: "test replace",
+                        path: destination.to_owned(),
+                        source: error,
+                    })
+            },
+            |path| -> Result<()> {
+                if fs::read(path).expect("read") == b"original" {
+                    Ok(())
+                } else {
+                    Err(DataError::Integrity("test failure".to_owned()))
+                }
+            },
+        );
+
+        assert!(matches!(result, Err(DataError::Integrity(_))));
+        assert_eq!(fs::read(current).expect("restored file"), b"original");
+    }
 }
