@@ -16,7 +16,10 @@ use dagsverk_core::{
 use dagsverk_data::DataMaintenance;
 use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
-    m3::{M3ColorScheme, ResolvedTheme as UiTheme, m3_icon, m3_state_layer},
+    m3::{
+        M3ColorScheme, ResolvedTheme as UiTheme, m3_icon, m3_icon_colored, m3_icon_filled,
+        m3_state_layer, workspace_menu_elevation,
+    },
     text_input::TextInput,
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
 };
@@ -228,6 +231,7 @@ pub struct AppShell {
     month_actions_open: bool,
     export_menu_open: bool,
     month_menu_open: bool,
+    workspace_menu_open: bool,
 }
 
 pub struct AppShellServices {
@@ -347,6 +351,7 @@ impl AppShell {
             month_actions_open: false,
             export_menu_open: false,
             month_menu_open: false,
+            workspace_menu_open: false,
         }
     }
 
@@ -377,6 +382,10 @@ impl AppShell {
         }
         self.model.route = route;
         self.model.close_catch_up();
+        self.month_actions_open = false;
+        self.export_menu_open = false;
+        self.month_menu_open = false;
+        self.workspace_menu_open = false;
         cx.notify();
     }
 
@@ -577,10 +586,15 @@ impl AppShell {
     }
 
     fn close_surface(&mut self, _: &CloseSurface, _: &mut Window, cx: &mut Context<Self>) {
-        if self.month_actions_open || self.export_menu_open || self.month_menu_open {
+        if self.month_actions_open
+            || self.export_menu_open
+            || self.month_menu_open
+            || self.workspace_menu_open
+        {
             self.month_actions_open = false;
             self.export_menu_open = false;
             self.month_menu_open = false;
+            self.workspace_menu_open = false;
             cx.notify();
             return;
         }
@@ -851,6 +865,7 @@ impl AppShell {
             Ok(()) => {
                 self.notice = Some("Workspace changed.".to_owned());
                 self.manage_workspaces = false;
+                self.workspace_menu_open = false;
             }
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
@@ -1025,25 +1040,64 @@ impl AppShell {
     ) -> impl IntoElement {
         let colors = self.colors();
         let selected = self.model.route == route;
+        let foreground = if selected {
+            colors.on_secondary_container
+        } else {
+            colors.on_surface_variant
+        };
+        let icon = if selected {
+            m3_icon_filled(icon, 22.0, foreground)
+        } else {
+            m3_icon_colored(icon, 22.0, foreground)
+        };
         div()
             .id(id)
-            .h(px(56.0))
-            .mx(px(12.0))
-            .px(px(16.0))
+            .h(px(if collapsed { 64.0 } else { 52.0 }))
+            .when_else(
+                collapsed,
+                |item| item.w(px(80.0)).flex_col().justify_center().gap(px(2.0)),
+                |item| item.mx(px(12.0)).px(px(16.0)).gap(px(12.0)),
+            )
             .flex()
             .items_center()
-            .gap(px(16.0))
-            .rounded(px(28.0))
+            .rounded(px(26.0))
             .cursor_pointer()
-            .bg(if selected {
+            .bg(if selected && !collapsed {
                 colors.secondary_container
             } else {
                 colors.surface_container_low
             })
+            .text_color(foreground)
             .hover(|style| style.bg(colors.surface_container_high))
             .active(|style| style.bg(colors.surface_container_highest))
-            .child(m3_icon(icon, 24.0, colors))
-            .when(!collapsed, |item| item.child(self.text(label)))
+            .child(
+                div()
+                    .when(collapsed, |indicator| {
+                        indicator
+                            .w(px(56.0))
+                            .h(px(32.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(16.0))
+                            .bg(if selected {
+                                colors.secondary_container
+                            } else {
+                                colors.surface_container_low
+                            })
+                    })
+                    .child(icon),
+            )
+            .child(
+                div()
+                    .text_size(px(if collapsed { 12.0 } else { 14.0 }))
+                    .font_weight(if selected {
+                        gpui::FontWeight::MEDIUM
+                    } else {
+                        gpui::FontWeight::NORMAL
+                    })
+                    .child(self.text(label)),
+            )
             .on_click(cx.listener(move |shell, _, _, cx| shell.set_route(route, cx)))
     }
 
@@ -1060,13 +1114,14 @@ impl AppShell {
         let database_path = self.services.data.database_path();
         let busy = self.maintenance_busy;
         div()
-            .max_w(px(880.0))
+            .max_w(px(1088.0))
             .mx_auto()
-            .p(px(32.0))
+            .pt(px(24.0))
+            .px(px(32.0))
+            .pb(px(48.0))
             .flex()
             .flex_col()
-            .gap(px(20.0))
-            .child(div().text_size(px(28.0)).child(self.text("Data & backups")))
+            .gap(px(24.0))
             .child(self.text("Current database"))
             .child(
                 div()
@@ -1357,12 +1412,14 @@ impl AppShell {
         div()
             .max_w(px(1088.0))
             .mx_auto()
-            .p(px(32.0))
+            .pt(px(24.0))
+            .px(px(32.0))
+            .pb(px(48.0))
             .flex()
             .gap(px(24.0))
             .child(
                 div()
-                    .w(px(340.0))
+                    .w(px(320.0))
                     .p(px(24.0))
                     .flex()
                     .flex_col()
@@ -1872,11 +1929,12 @@ impl AppShell {
         div()
             .max_w(px(1088.0))
             .mx_auto()
-            .p(px(32.0))
+            .pt(px(24.0))
+            .px(px(32.0))
+            .pb(px(48.0))
             .flex()
             .flex_col()
             .gap(px(20.0))
-            .child(div().text_size(px(24.0)).child(self.text("Settings")))
             .child(
                 div()
                     .h(px(44.0))
@@ -3123,10 +3181,25 @@ impl Render for AppShell {
         let (sidebar_collapsed, editor_overlay) =
             responsive_layout(window_width, self.sidebar_collapsed);
         let sidebar_width = if sidebar_collapsed { 80.0 } else { 256.0 } * scale;
-        let workspace_name = self
-            .model
-            .active_workspace()
+        let active_workspace = self.model.active_workspace().cloned();
+        let workspace_name = active_workspace
+            .as_ref()
             .map_or_else(|| "Dagsverk".to_owned(), |workspace| workspace.name.clone());
+        let workspace_subtitle = active_workspace.as_ref().and_then(|workspace| {
+            workspace
+                .organization_name
+                .clone()
+                .or_else(|| workspace.worker_name.clone())
+        });
+        let workspace_accent = active_workspace
+            .as_ref()
+            .and_then(|workspace| color_from_hex(&workspace.color))
+            .unwrap_or(colors.primary);
+        let workspace_avatar = colors
+            .surface_container_high
+            .blend(workspace_accent.opacity(0.42));
+        let workspace_menu_items = self.model.workspaces.clone();
+        let active_workspace_id = self.model.active_workspace_id.clone();
         let month = format!(
             "{} {:04}",
             [
@@ -3156,6 +3229,19 @@ impl Render for AppShell {
         let restore = self.confirm_restore.clone();
         let tidverk_import = self.confirm_import.clone();
         let setup_required = !self.model.preferences.has_completed_setup;
+        let route_title = match self.model.route {
+            Route::Timesheet => "",
+            Route::Projects => "Projects",
+            Route::Settings => "Settings",
+            Route::DataBackups => "Data & backups",
+        };
+        let theme_icon = match self.model.resolved_theme {
+            ResolvedTheme::Light => "dark_mode",
+            ResolvedTheme::Dark => "light_mode",
+        };
+        let catch_up_hover = m3_state_layer(colors.primary, colors.on_primary, 0.08);
+        let catch_up_pressed = m3_state_layer(colors.primary, colors.on_primary, 0.12);
+        let can_export = !self.maintenance_busy && !self.model.entries.is_empty();
 
         div()
             .track_focus(&self.focus)
@@ -3192,14 +3278,31 @@ impl Render for AppShell {
                     .child(
                         div()
                             .id("toggle-sidebar")
-                            .h(px(72.0 * scale))
-                            .px(px(24.0))
+                            .h(px(68.0 * scale))
+                            .pl(px(20.0 * scale))
+                            .pr(px(12.0 * scale))
                             .flex()
                             .items_center()
-                            .gap(px(18.0))
+                            .gap(px(12.0 * scale))
                             .cursor_pointer()
-                            .child(m3_icon("menu", 24.0, colors))
-                            .when(!sidebar_collapsed, |item| item.child("Dagsverk"))
+                            .child(
+                                div()
+                                    .size(px(40.0 * scale))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .child(m3_icon("menu", 24.0 * scale, colors)),
+                            )
+                            .when(!sidebar_collapsed, |item| {
+                                item.child(
+                                    div()
+                                        .text_size(px(16.0 * scale))
+                                        .font_weight(gpui::FontWeight::MEDIUM)
+                                        .child("Dagsverk"),
+                                )
+                            })
                             .on_click(cx.listener(|shell, _, _, cx| {
                                 shell.sidebar_collapsed = !shell.sidebar_collapsed;
                                 cx.notify();
@@ -3207,20 +3310,73 @@ impl Render for AppShell {
                     )
                     .child(
                         div()
-                            .id("manage-workspaces")
-                            .h(px(64.0))
-                            .mx(px(12.0))
-                            .px(px(16.0))
-                            .flex()
-                            .items_center()
-                            .rounded(px(16.0))
-                            .cursor_pointer()
-                            .bg(colors.surface_container)
-                            .when(!sidebar_collapsed, |item| item.child(workspace_name))
-                            .on_click(cx.listener(|shell, _, _, cx| {
-                                shell.manage_workspaces = true;
-                                cx.notify();
-                            })),
+                            .px(px(12.0 * scale))
+                            .pb(px(6.0 * scale))
+                            .child(
+                                div()
+                                    .id("workspace-switcher")
+                                    .h(px(56.0 * scale))
+                                    .w_full()
+                                    .px(px(12.0 * scale))
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(12.0 * scale))
+                                    .rounded(px(12.0 * scale))
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container))
+                                    .child(
+                                        div()
+                                            .size(px(32.0 * scale))
+                                            .flex_none()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded(px(10.0 * scale))
+                                            .bg(workspace_avatar)
+                                            .child(m3_icon_colored(
+                                                "business_center",
+                                                18.0 * scale,
+                                                colors.on_surface_variant,
+                                            )),
+                                    )
+                                    .when(!sidebar_collapsed, |item| {
+                                        item.child(
+                                            div()
+                                                .min_w_0()
+                                                .flex_1()
+                                                .flex()
+                                                .flex_col()
+                                                .child(
+                                                    div()
+                                                        .truncate()
+                                                        .font_weight(gpui::FontWeight::MEDIUM)
+                                                        .child(workspace_name),
+                                                )
+                                                .when_some(
+                                                    workspace_subtitle,
+                                                    |details, subtitle| {
+                                                        details.child(
+                                                            div()
+                                                                .truncate()
+                                                                .text_size(px(12.0 * scale))
+                                                                .text_color(
+                                                                    colors.on_surface_variant,
+                                                                )
+                                                                .child(subtitle),
+                                                        )
+                                                    },
+                                                ),
+                                        )
+                                        .child(m3_icon("expand_more", 20.0 * scale, colors))
+                                    })
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.workspace_menu_open = !shell.workspace_menu_open;
+                                        shell.month_actions_open = false;
+                                        shell.export_menu_open = false;
+                                        shell.month_menu_open = false;
+                                        cx.notify();
+                                    })),
+                            ),
                     )
                     .child(self.navigation_item(
                         "nav-timesheet",
@@ -3265,7 +3421,8 @@ impl Render for AppShell {
                             .items_center()
                             .justify_between()
                             .bg(colors.surface)
-                            .child(
+                            .when(self.model.route == Route::Timesheet, |header| {
+                                header.child(
                                 div()
                                     .flex()
                                     .items_center()
@@ -3370,25 +3527,26 @@ impl Render for AppShell {
                                                 cx.notify();
                                             })),
                                     ),
-                            )
-                            .child(
-                                div()
-                                    .h(px(40.0))
-                                    .p(px(2.0))
-                                    .flex()
-                                    .items_center()
-                                    .rounded(px(20.0))
-                                    .border_1()
-                                    .border_color(colors.outline_variant)
-                                    .child(
+                                )
+                            })
+                            .when(self.model.route == Route::Timesheet, |header| header.child(
                                         div()
+                                            .h(px(40.0))
+                                            .flex()
+                                            .items_center()
+                                            .rounded(px(20.0))
+                                            .border_1()
+                                            .border_color(colors.outline_variant)
+                                            .overflow_hidden()
+                                            .child(
+                                                div()
                                             .id("view-ledger")
                                             .h_full()
                                             .px(px(16.0))
-                                            .flex()
-                                            .items_center()
-                                            .rounded(px(18.0))
-                                            .cursor_pointer()
+                                                    .flex()
+                                                    .items_center()
+                                                    .gap(px(8.0))
+                                                    .cursor_pointer()
                                             .hover(|style| style.bg(colors.surface_container_high))
                                             .active(|style| {
                                                 style.bg(colors.surface_container_highest)
@@ -3402,7 +3560,18 @@ impl Render for AppShell {
                                                     colors.surface
                                                 },
                                             )
-                                            .child(self.text("Ledger"))
+                                                    .child(m3_icon_colored(
+                                                        "table_rows",
+                                                        18.0,
+                                                        if self.model.active_view
+                                                            == MonthViewPreference::Ledger
+                                                        {
+                                                            colors.on_secondary_container
+                                                        } else {
+                                                            colors.on_surface_variant
+                                                        },
+                                                    ))
+                                                    .child(self.text("Ledger"))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.set_view(MonthViewPreference::Ledger, cx)
                                             })),
@@ -3412,10 +3581,12 @@ impl Render for AppShell {
                                             .id("view-calendar")
                                             .h_full()
                                             .px(px(16.0))
-                                            .flex()
-                                            .items_center()
-                                            .rounded(px(18.0))
-                                            .cursor_pointer()
+                                                    .flex()
+                                                    .items_center()
+                                                    .gap(px(8.0))
+                                                    .border_l_1()
+                                                    .border_color(colors.outline_variant)
+                                                    .cursor_pointer()
                                             .hover(|style| style.bg(colors.surface_container_high))
                                             .active(|style| {
                                                 style.bg(colors.surface_container_highest)
@@ -3429,13 +3600,24 @@ impl Render for AppShell {
                                                     colors.surface
                                                 },
                                             )
-                                            .child(self.text("Calendar"))
+                                                    .child(m3_icon_colored(
+                                                        "calendar_month",
+                                                        18.0,
+                                                        if self.model.active_view
+                                                            == MonthViewPreference::Calendar
+                                                        {
+                                                            colors.on_secondary_container
+                                                        } else {
+                                                            colors.on_surface_variant
+                                                        },
+                                                    ))
+                                                    .child(self.text("Calendar"))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.set_view(MonthViewPreference::Calendar, cx)
                                             })),
                                     ),
-                            )
-                            .child(
+                            ))
+                            .when(self.model.route == Route::Timesheet, |header| header.child(
                                 div()
                                     .flex()
                                     .items_center()
@@ -3453,11 +3635,13 @@ impl Render for AppShell {
                                                 .cursor_pointer()
                                                 .bg(colors.primary)
                                                 .text_color(colors.on_primary)
-                                                .hover(|style| {
-                                                    style.bg(colors.primary_container)
-                                                        .text_color(colors.on_primary_container)
-                                                })
-                                                .child(m3_icon("auto_fix_high", 18.0, colors))
+                                                .hover(move |style| style.bg(catch_up_hover))
+                                                .active(move |style| style.bg(catch_up_pressed))
+                                                .child(m3_icon_colored(
+                                                    "auto_fix_high",
+                                                    18.0,
+                                                    colors.on_primary,
+                                                ))
                                                 .child(format!(
                                                     "Catch Up ({})",
                                                     self.model.missing_days_count()
@@ -3475,9 +3659,9 @@ impl Render for AppShell {
                                             .id("export-report")
                                             .p(px(8.0))
                                             .rounded_full()
-                                            .opacity(if self.maintenance_busy { 0.38 } else { 1.0 })
+                                            .opacity(if can_export { 1.0 } else { 0.38 })
                                             .child(m3_icon("download", 24.0, colors))
-                                            .when(!self.maintenance_busy, |button| {
+                                            .when(can_export, |button| {
                                                 button
                                                     .cursor_pointer()
                                                     .hover(|style| {
@@ -3507,7 +3691,7 @@ impl Render for AppShell {
                                             .active(|style| {
                                                 style.bg(colors.surface_container_highest)
                                             })
-                                            .child(m3_icon("dark_mode", 24.0, colors))
+                                            .child(m3_icon(theme_icon, 24.0, colors))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 if let Err(error) = shell.model.toggle_theme() {
                                                     shell.model.transient_error =
@@ -3517,7 +3701,68 @@ impl Render for AppShell {
                                                 cx.notify();
                                             })),
                                     ),
-                            ),
+                            ))
+                            .when(self.model.route != Route::Timesheet, |header| {
+                                header
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap(px(8.0))
+                                            .when(self.model.route == Route::DataBackups, |title| {
+                                                title.child(
+                                                    div()
+                                                        .id("back-to-settings")
+                                                        .size(px(40.0))
+                                                        .flex()
+                                                        .items_center()
+                                                        .justify_center()
+                                                        .rounded_full()
+                                                        .cursor_pointer()
+                                                        .hover(|style| {
+                                                            style.bg(colors.surface_container_high)
+                                                        })
+                                                        .child(m3_icon("arrow_back", 24.0, colors))
+                                                        .on_click(cx.listener(
+                                                            |shell, _, _, cx| {
+                                                                shell.set_route(
+                                                                    Route::Settings,
+                                                                    cx,
+                                                                )
+                                                            },
+                                                        )),
+                                                )
+                                            })
+                                            .child(
+                                                div()
+                                                    .text_size(px(22.0))
+                                                    .line_height(px(28.0))
+                                                    .child(self.text(route_title)),
+                                            ),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("toggle-theme-route")
+                                            .size(px(40.0))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded_full()
+                                            .cursor_pointer()
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
+                                            })
+                                            .child(m3_icon(theme_icon, 24.0, colors))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                if let Err(error) = shell.model.toggle_theme() {
+                                                    shell.model.transient_error =
+                                                        Some(error.to_string());
+                                                }
+                                                shell.refresh_month_view(cx);
+                                                cx.notify();
+                                            })),
+                                    )
+                            }),
                     )
                     .child(
                         div()
@@ -3562,6 +3807,105 @@ impl Render for AppShell {
                             }),
                     ),
             )
+            .when(self.workspace_menu_open, |root| {
+                root.child(
+                    div()
+                        .id("workspace-menu-backdrop")
+                        .absolute()
+                        .inset_0()
+                        .on_click(cx.listener(|shell, _, _, cx| {
+                            shell.workspace_menu_open = false;
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .top(px(132.0 * scale))
+                        .left(px(if sidebar_collapsed {
+                            sidebar_width + 8.0 * scale
+                        } else {
+                            12.0 * scale
+                        }))
+                        .min_w(px(248.0 * scale))
+                        .p(px(8.0 * scale))
+                        .flex()
+                        .flex_col()
+                        .rounded(px(16.0 * scale))
+                        .bg(colors.surface_container_high)
+                        .shadow(workspace_menu_elevation())
+                        .children(workspace_menu_items.into_iter().enumerate().map(
+                            |(index, workspace)| {
+                                let id = workspace.id.clone();
+                                let active = workspace.id == active_workspace_id;
+                                div()
+                                    .id(("workspace-menu-item", index))
+                                    .h(px(52.0 * scale))
+                                    .px(px(12.0 * scale))
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(12.0 * scale))
+                                    .rounded(px(12.0 * scale))
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container))
+                                    .child(
+                                        div()
+                                            .size(px(12.0 * scale))
+                                            .rounded_full()
+                                            .bg(color_from_hex(&workspace.color)
+                                                .unwrap_or(colors.primary)),
+                                    )
+                                    .child(div().flex_1().truncate().child(workspace.name))
+                                    .when(active, |row| {
+                                        row.child(m3_icon_colored(
+                                            "check",
+                                            20.0 * scale,
+                                            colors.on_surface,
+                                        ))
+                                    })
+                                    .when_else(
+                                        active,
+                                        |row| {
+                                            row.on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.workspace_menu_open = false;
+                                                cx.notify();
+                                            }))
+                                        },
+                                        |row| {
+                                            row.on_click(cx.listener(move |shell, _, _, cx| {
+                                                shell.switch_workspace(&id, cx)
+                                            }))
+                                        },
+                                    )
+                            },
+                        ))
+                        .child(div().h(px(1.0)).my(px(4.0)).bg(colors.outline_variant))
+                        .child(
+                            div()
+                                .id("manage-workspaces")
+                                .h(px(52.0 * scale))
+                                .px(px(12.0 * scale))
+                                .flex()
+                                .items_center()
+                                .gap(px(12.0 * scale))
+                                .rounded(px(12.0 * scale))
+                                .cursor_pointer()
+                                .bg(colors.surface_container)
+                                .hover(|style| style.bg(colors.surface_container_highest))
+                                .child(m3_icon_colored(
+                                    "settings",
+                                    20.0 * scale,
+                                    colors.on_surface_variant,
+                                ))
+                                .child(self.text("Manage workspaces"))
+                                .on_click(cx.listener(|shell, _, _, cx| {
+                                    shell.workspace_menu_open = false;
+                                    shell.manage_workspaces = true;
+                                    cx.notify();
+                                })),
+                        ),
+                )
+            })
             .when(self.month_actions_open, |root| {
                 root.child(
                     div()
