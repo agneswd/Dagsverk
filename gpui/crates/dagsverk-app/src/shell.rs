@@ -67,6 +67,22 @@ const CURRENCY_OPTIONS: [(&str, CurrencyPreference); 6] = [
     ("NOK", CurrencyPreference::Nok),
     ("DKK", CurrencyPreference::Dkk),
 ];
+const THEME_OPTIONS: [ThemePreference; 3] = [
+    ThemePreference::System,
+    ThemePreference::Light,
+    ThemePreference::Dark,
+];
+const LANGUAGE_OPTIONS: [LanguagePreference; 3] = [
+    LanguagePreference::System,
+    LanguagePreference::English,
+    LanguagePreference::Swedish,
+];
+const INTERFACE_SCALE_OPTIONS: [i32; 6] = [80, 90, 100, 110, 125, 150];
+const EXPORT_LANGUAGE_OPTIONS: [ExportLanguagePreference; 3] = [
+    ExportLanguagePreference::System,
+    ExportLanguagePreference::English,
+    ExportLanguagePreference::Swedish,
+];
 
 impl ExportFormat {
     const fn extension(self) -> &'static str {
@@ -92,6 +108,81 @@ struct SettingsInputs {
     tax_table: Entity<TextInput>,
     tax_column: Entity<TextInput>,
     manual_tax: Entity<TextInput>,
+}
+
+struct ApplicationSelects {
+    theme: Entity<M3Select>,
+    language: Entity<M3Select>,
+    scale: Entity<M3Select>,
+    export_language: Entity<M3Select>,
+}
+
+impl ApplicationSelects {
+    fn new(
+        preferences: &AppPreferences,
+        settings: &AppSettings,
+        cx: &mut Context<AppShell>,
+    ) -> Self {
+        let theme = cx.new(|cx| {
+            M3Select::new(
+                "Theme",
+                ["System", "Light", "Dark"],
+                option_index(&THEME_OPTIONS, preferences.theme_preference),
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let language = cx.new(|cx| {
+            M3Select::new(
+                "Language",
+                ["System", "English", "Swedish"],
+                option_index(&LANGUAGE_OPTIONS, preferences.language_preference),
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let scale = cx.new(|cx| {
+            M3Select::new(
+                "Interface scale",
+                INTERFACE_SCALE_OPTIONS.map(|value| format!("{value}%")),
+                option_index(
+                    &INTERFACE_SCALE_OPTIONS,
+                    preferences.interface_scale_percent,
+                ),
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let export_language = cx.new(|cx| {
+            M3Select::new(
+                "Export language",
+                ["System", "English", "Swedish"],
+                option_index(
+                    &EXPORT_LANGUAGE_OPTIONS,
+                    settings.export_language_preference,
+                ),
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        Self {
+            theme,
+            language,
+            scale,
+            export_language,
+        }
+    }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for select in [
+            &self.theme,
+            &self.language,
+            &self.scale,
+            &self.export_language,
+        ] {
+            select.update(cx, |select, cx| select.set_scale(scale, cx));
+        }
+    }
 }
 
 struct RateBandInputs {
@@ -247,6 +338,7 @@ pub struct AppShell {
     reason_select: Entity<M3Select>,
     settings_project_select: Entity<M3Select>,
     currency_select: Entity<M3Select>,
+    application_selects: ApplicationSelects,
     scheduled_input: Entity<TextInput>,
     scheduled_override_switch: Entity<M3Switch>,
     exclude_holidays_switch: Entity<M3Switch>,
@@ -442,6 +534,7 @@ impl AppShell {
                 cx,
             )
         });
+        let application_selects = ApplicationSelects::new(&model.preferences, &model.settings, cx);
         let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
         scheduled_input.update(cx, |input, cx| input.set_suffix("hours", cx));
         let scheduled_override_switch = cx.new(|cx| {
@@ -652,6 +745,46 @@ impl AppShell {
             cx.notify();
         })
         .detach();
+        cx.subscribe(
+            &application_selects.theme,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = THEME_OPTIONS.get(event.0) {
+                    shell.preferences_draft.theme_preference = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &application_selects.language,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = LANGUAGE_OPTIONS.get(event.0) {
+                    shell.preferences_draft.language_preference = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &application_selects.scale,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = INTERFACE_SCALE_OPTIONS.get(event.0) {
+                    shell.preferences_draft.interface_scale_percent = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &application_selects.export_language,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = EXPORT_LANGUAGE_OPTIONS.get(event.0) {
+                    shell.settings_draft.export_language_preference = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
         cx.observe_window_appearance(window, |shell, window, cx| {
             shell.model.set_system_dark(matches!(
                 window.appearance(),
@@ -671,6 +804,7 @@ impl AppShell {
             reason_select,
             settings_project_select,
             currency_select,
+            application_selects,
             scheduled_input,
             scheduled_override_switch,
             exclude_holidays_switch,
@@ -794,6 +928,7 @@ impl AppShell {
         }
         self.settings_tabs
             .update(cx, |tabs, cx| tabs.set_scale(scale, cx));
+        self.application_selects.set_scale(scale, cx);
         self.settings_inputs.set_scale(scale, cx);
         for inputs in &self.rate_band_inputs {
             inputs.set_scale(scale, cx);
@@ -3576,6 +3711,48 @@ impl AppShell {
         let scale = interface_scale(&self.model);
         let preferences = self.preferences_draft.clone();
         let export_language = self.settings_draft.export_language_preference;
+        let localized_languages = [
+            self.text("System"),
+            self.text("English"),
+            self.text("Swedish"),
+        ];
+        self.application_selects.theme.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                [self.text("System"), self.text("Light"), self.text("Dark")],
+                option_index(&THEME_OPTIONS, preferences.theme_preference),
+                cx,
+            );
+        });
+        self.application_selects.language.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                localized_languages.clone(),
+                option_index(&LANGUAGE_OPTIONS, preferences.language_preference),
+                cx,
+            );
+        });
+        self.application_selects.scale.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                INTERFACE_SCALE_OPTIONS.map(|value| format!("{value}%")),
+                option_index(
+                    &INTERFACE_SCALE_OPTIONS,
+                    preferences.interface_scale_percent,
+                ),
+                cx,
+            );
+        });
+        self.application_selects
+            .export_language
+            .update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    localized_languages,
+                    option_index(&EXPORT_LANGUAGE_OPTIONS, export_language),
+                    cx,
+                );
+            });
         div()
             .flex()
             .flex_col()
@@ -3585,108 +3762,10 @@ impl AppShell {
                     .text_size(scale.px(18.0))
                     .child(self.text("Application")),
             )
-            .child(self.text("Theme"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        ("System", ThemePreference::System),
-                        ("Light", ThemePreference::Light),
-                        ("Dark", ThemePreference::Dark),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("theme-setting", index),
-                            label,
-                            preferences.theme_preference == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell.preferences_draft.theme_preference = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
-            .child(self.text("Language"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        ("System", LanguagePreference::System),
-                        ("English", LanguagePreference::English),
-                        ("Swedish", LanguagePreference::Swedish),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("language-setting", index),
-                            label,
-                            preferences.language_preference == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell.preferences_draft.language_preference = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
-            .child(self.text("Interface scale"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [80, 90, 100, 110, 125, 150]
-                        .into_iter()
-                        .enumerate()
-                        .map(|(index, value)| {
-                            setting_chip(
-                                self.ui_language(),
-                                ("scale-setting", index),
-                                format!("{value}%"),
-                                preferences.interface_scale_percent == value,
-                                colors,
-                                scale,
-                            )
-                            .on_click(cx.listener(
-                                move |shell, _, _, cx| {
-                                    shell.preferences_draft.interface_scale_percent = value;
-                                    cx.notify();
-                                },
-                            ))
-                        }),
-                ),
-            )
-            .child(self.text("Export language"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        ("System", ExportLanguagePreference::System),
-                        ("English", ExportLanguagePreference::English),
-                        ("Swedish", ExportLanguagePreference::Swedish),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("export-language", index),
-                            label,
-                            export_language == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell.settings_draft.export_language_preference = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
+            .child(self.application_selects.theme.clone())
+            .child(self.application_selects.language.clone())
+            .child(self.application_selects.scale.clone())
+            .child(self.application_selects.export_language.clone())
             .child(self.text("Updates are unavailable in development builds."))
             .child(
                 div()
@@ -6161,6 +6240,13 @@ fn nonempty(value: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_owned())
 }
 
+fn option_index<T: Copy + PartialEq>(options: &[T], value: T) -> usize {
+    options
+        .iter()
+        .position(|option| *option == value)
+        .unwrap_or(0)
+}
+
 fn setting_chip(
     language: LanguagePreference,
     id: impl Into<ElementId>,
@@ -6323,6 +6409,7 @@ mod tests {
         clock::FixedClock,
         models::{
             CompensationRuleType, CurrencyPreference, LanguagePreference, MonthViewPreference,
+            ThemePreference,
         },
         tax::TaxEngine,
     };
@@ -6409,6 +6496,20 @@ mod tests {
         assert_eq!(
             shell.read_with(cx, |shell, _| shell.pending_currency),
             Some(CurrencyPreference::Eur)
+        );
+        shell.update(cx, |shell, cx| {
+            shell.settings_tab = 4;
+            shell
+                .settings_tabs
+                .update(cx, |tabs, cx| tabs.set_selected(4, cx));
+        });
+        cx.refresh().expect("refresh application settings");
+        let theme_select = shell.read_with(cx, |shell, _| shell.application_selects.theme.clone());
+        cx.update(|window, app| window.focus(&theme_select.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.preferences_draft.theme_preference),
+            ThemePreference::Light
         );
         let shell_focus = shell.read_with(cx, |shell, _| shell.focus.clone());
         cx.update(|window, _| window.focus(&shell_focus));
