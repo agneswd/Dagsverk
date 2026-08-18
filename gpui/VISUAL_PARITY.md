@@ -35,6 +35,8 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - Header menus use trigger-relative GPUI anchors with an 8 px viewport margin.
 - Projects and workspaces use the 12 Electron color presets.
 - Text edits update the editor draft and pay estimate while typing.
+- Notes preserve typed and pasted line breaks.
+- Project and day-off fields use outlined, trigger-anchored selects with keyboard navigation.
 
 ## Comparison tolerances
 

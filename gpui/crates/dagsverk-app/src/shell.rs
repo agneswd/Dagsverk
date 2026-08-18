@@ -17,9 +17,9 @@ use dagsverk_data::DataMaintenance;
 use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
     m3::{
-        M3ColorScheme, M3Switch, M3SwitchEvent, ResolvedTheme as UiTheme, m3_icon, m3_icon_colored,
-        m3_icon_filled, m3_state_layer, menu_elevation, side_sheet_elevation,
-        workspace_menu_elevation,
+        M3ColorScheme, M3Select, M3SelectEvent, M3Switch, M3SwitchEvent, ResolvedTheme as UiTheme,
+        m3_icon, m3_icon_colored, m3_icon_filled, m3_state_layer, menu_elevation,
+        side_sheet_elevation, workspace_menu_elevation,
     },
     text_input::{TextInput, TextInputEvent},
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
@@ -205,6 +205,8 @@ pub struct AppShell {
     start_input: Entity<TextInput>,
     end_input: Entity<TextInput>,
     notes_input: Entity<TextInput>,
+    project_select: Entity<M3Select>,
+    reason_select: Entity<M3Select>,
     scheduled_input: Entity<TextInput>,
     scheduled_override_switch: Entity<M3Switch>,
     exclude_holidays_switch: Entity<M3Switch>,
@@ -255,6 +257,7 @@ pub struct AppShellServices {
 
 impl AppShell {
     pub fn register_key_bindings(cx: &mut App) {
+        M3Select::register_key_bindings(cx);
         cx.bind_keys([
             KeyBinding::new("ctrl-1", ShowLedger, None),
             KeyBinding::new("ctrl-2", ShowCalendar, None),
@@ -282,7 +285,33 @@ impl AppShell {
         let month_view = cx.new(|_| MonthView::new(month_view_data(&model)));
         let start_input = cx.new(|cx| TextInput::new(cx, "Start time"));
         let end_input = cx.new(|cx| TextInput::new(cx, "End time"));
-        let notes_input = cx.new(|cx| TextInput::new(cx, "Notes"));
+        let notes_input = cx.new(|cx| TextInput::new_multiline(cx, "Notes (Optional)"));
+        let project_options = editor_project_options(&model);
+        let selected_project = model
+            .editor
+            .draft
+            .as_ref()
+            .and_then(|draft| draft.project_name.as_ref())
+            .and_then(|selected| project_options.iter().position(|name| name == selected))
+            .map_or(0, |index| index + 1);
+        let project_select = cx.new(|cx| {
+            M3Select::new(
+                "Project",
+                std::iter::once("No project".to_owned()).chain(project_options),
+                selected_project,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let reason_select = cx.new(|cx| {
+            M3Select::new(
+                "Day Off Type",
+                DAY_OFF_REASONS,
+                0,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
         let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
         let scheduled_override_switch = cx.new(|cx| {
             M3Switch::new(
@@ -399,6 +428,29 @@ impl AppShell {
             cx.notify();
         })
         .detach();
+        cx.subscribe(&project_select, |shell, _, event: &M3SelectEvent, cx| {
+            let options = editor_project_options(&shell.model);
+            if let Some(draft) = shell.model.editor.draft.as_mut() {
+                draft.project_name = event
+                    .0
+                    .checked_sub(1)
+                    .and_then(|index| options.get(index).cloned());
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&reason_select, |shell, _, event: &M3SelectEvent, cx| {
+            if let Some(reason) = DAY_OFF_REASONS.get(event.0) {
+                shell
+                    .notes_input
+                    .update(cx, |input, cx| input.set_text(*reason, cx));
+                if let Some(draft) = shell.model.editor.draft.as_mut() {
+                    draft.notes = Some((*reason).to_owned());
+                }
+            }
+            cx.notify();
+        })
+        .detach();
         cx.observe_window_appearance(window, |shell, window, cx| {
             shell.model.set_system_dark(matches!(
                 window.appearance(),
@@ -414,6 +466,8 @@ impl AppShell {
             start_input,
             end_input,
             notes_input,
+            project_select,
+            reason_select,
             scheduled_input,
             scheduled_override_switch,
             exclude_holidays_switch,
@@ -526,6 +580,33 @@ impl AppShell {
         self.notes_input.update(cx, |input, cx| {
             input.set_text(notes, cx);
             input.set_colors(colors, cx);
+        });
+        let project_options = editor_project_options(&self.model);
+        let selected_project = draft
+            .project_name
+            .as_ref()
+            .and_then(|selected| project_options.iter().position(|name| name == selected))
+            .map_or(0, |index| index + 1);
+        self.project_select.update(cx, |select, cx| {
+            select.set_options(
+                std::iter::once("No project".to_owned()).chain(project_options),
+                selected_project,
+                cx,
+            );
+            select.set_colors(colors, cx);
+        });
+        let selected_reason = draft
+            .notes
+            .as_deref()
+            .and_then(|reason| {
+                DAY_OFF_REASONS
+                    .iter()
+                    .position(|candidate| *candidate == reason)
+            })
+            .unwrap_or(0);
+        self.reason_select.update(cx, |select, cx| {
+            select.set_options(DAY_OFF_REASONS, selected_reason, cx);
+            select.set_colors(colors, cx);
         });
         let scheduled = draft.scheduled_minutes_override.map_or_else(
             || {
@@ -2326,8 +2407,8 @@ impl AppShell {
     }
 
     fn general_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
-        let current_currency = self.settings_draft.currency_preference;
         let projects = self.model.projects.clone();
+        let current_currency = self.settings_draft.currency_preference;
         div()
             .flex()
             .flex_col()
@@ -3055,7 +3136,6 @@ impl AppShell {
         let status = draft.status;
         let lunch = draft.lunch_minutes.value();
         let scheduled_override = draft.scheduled_minutes_override.is_some();
-        let projects = self.model.projects.clone();
         let currency = match self.model.settings.currency_preference {
             CurrencyPreference::Sek => "SEK",
             CurrencyPreference::Eur => "EUR",
@@ -3378,77 +3458,10 @@ impl AppShell {
                             .when(scheduled_override, |panel| {
                                 panel.child(self.scheduled_input.clone())
                             })
-                            .child(self.text("Project"))
-                            .child(
-                                div().flex().flex_wrap().gap(px(8.0)).children(
-                                    projects
-                                        .into_iter()
-                                        .filter(|project| project.is_active)
-                                        .enumerate()
-                                        .map(|(index, project)| {
-                                            let project_name = project.name.clone();
-                                            let selected =
-                                                draft.project_name.as_ref() == Some(&project.name);
-                                            div()
-                                                .id(("project", index))
-                                                .h(px(34.0))
-                                                .px(px(12.0))
-                                                .flex()
-                                                .items_center()
-                                                .rounded(px(17.0))
-                                                .cursor_pointer()
-                                                .bg(if selected {
-                                                    colors.secondary_container
-                                                } else {
-                                                    colors.surface_container
-                                                })
-                                                .child(project.name)
-                                                .on_click(cx.listener(move |shell, _, _, cx| {
-                                                    if let Some(draft) =
-                                                        shell.model.editor.draft.as_mut()
-                                                    {
-                                                        draft.project_name =
-                                                            Some(project_name.clone());
-                                                    }
-                                                    cx.notify();
-                                                }))
-                                        }),
-                                ),
-                            )
+                            .child(self.project_select.clone())
                     })
                     .when(status == WorkEntryStatus::Off, |panel| {
-                        panel.child(self.text("Reason")).child(
-                            div().flex().flex_wrap().gap(px(8.0)).children(
-                                [
-                                    "Vacation",
-                                    "Sick leave",
-                                    "Care of child",
-                                    "Leave of absence",
-                                    "Parental leave",
-                                    "Public holiday",
-                                ]
-                                .into_iter()
-                                .enumerate()
-                                .map(|(index, reason)| {
-                                    div()
-                                        .id(("off-reason", index))
-                                        .h(px(34.0))
-                                        .px(px(12.0))
-                                        .flex()
-                                        .items_center()
-                                        .rounded(px(17.0))
-                                        .cursor_pointer()
-                                        .bg(colors.surface_container)
-                                        .child(reason)
-                                        .on_click(cx.listener(move |shell, _, _, cx| {
-                                            shell
-                                                .notes_input
-                                                .update(cx, |input, cx| input.set_text(reason, cx));
-                                            cx.notify();
-                                        }))
-                                }),
-                            ),
-                        )
+                        panel.child(self.reason_select.clone())
                     })
                     .child(
                         div()
@@ -3489,7 +3502,6 @@ impl AppShell {
                                     )),
                             ),
                     )
-                    .child(self.text("Notes (Optional)"))
                     .child(self.notes_input.clone())
                     .when_some(error, |panel, error| {
                         panel.child(div().text_color(colors.error).child(error))
@@ -5044,6 +5056,29 @@ fn month_view_data(model: &AppModel) -> MonthViewData {
             ResolvedTheme::Dark => UiTheme::Dark,
         }),
     }
+}
+
+const DAY_OFF_REASONS: [&str; 6] = [
+    "Vacation",
+    "Sick leave",
+    "Care of child",
+    "Leave of absence",
+    "Parental leave",
+    "Public holiday",
+];
+
+fn editor_project_options(model: &AppModel) -> Vec<String> {
+    let selected = model
+        .editor
+        .draft
+        .as_ref()
+        .and_then(|draft| draft.project_name.as_deref());
+    model
+        .projects
+        .iter()
+        .filter(|project| project.is_active || selected == Some(project.name.as_str()))
+        .map(|project| project.name.clone())
+        .collect()
 }
 
 fn format_hours_input(minutes: i64) -> String {

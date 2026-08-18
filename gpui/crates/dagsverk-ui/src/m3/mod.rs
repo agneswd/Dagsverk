@@ -6,6 +6,7 @@ mod icon;
 mod metrics;
 mod overlays;
 mod primitives;
+mod select;
 mod selection;
 mod shape;
 mod spacing;
@@ -28,6 +29,7 @@ pub use primitives::{
     M3ChoiceEvent, M3ChoiceGroup, M3ChoiceKind, M3ExpansionPanel, M3ExpansionPanelEvent,
     m3_divider, m3_progress_bar,
 };
+pub use select::{M3Select, M3SelectEvent};
 pub use selection::{M3Chip, M3ChipEvent, M3Status, M3Switch, M3SwitchEvent, m3_status_chip};
 pub use shape::M3Shape;
 pub use spacing::M3Spacing;

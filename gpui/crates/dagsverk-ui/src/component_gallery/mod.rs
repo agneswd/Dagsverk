@@ -6,8 +6,8 @@ use gpui::{
 use crate::{
     m3::{
         M3Button, M3ButtonVariant, M3Chip, M3ChoiceGroup, M3ChoiceKind, M3ColorScheme, M3Dialog,
-        M3ExpansionPanel, M3IconButton, M3Menu, M3SnackbarHost, M3Status, M3Switch, ResolvedTheme,
-        m3_card, m3_divider, m3_icon, m3_progress_bar, m3_status_chip,
+        M3ExpansionPanel, M3IconButton, M3Menu, M3Select, M3SnackbarHost, M3Status, M3Switch,
+        ResolvedTheme, m3_card, m3_divider, m3_icon, m3_progress_bar, m3_status_chip,
     },
     text_input::{TextInput, TextInputEvent},
 };
@@ -18,6 +18,8 @@ pub struct ComponentGallery {
     buttons: Vec<Entity<M3Button>>,
     icon_button: Entity<M3IconButton>,
     input: Entity<TextInput>,
+    textarea: Entity<TextInput>,
+    select: Entity<M3Select>,
     switch: Entity<M3Switch>,
     chips: Vec<Entity<M3Chip>>,
     tabs: Entity<M3ChoiceGroup>,
@@ -40,6 +42,7 @@ impl ComponentGallery {
         TextInput::register_key_bindings(cx);
         M3Dialog::register_key_bindings(cx);
         M3Menu::register_key_bindings(cx);
+        M3Select::register_key_bindings(cx);
     }
 
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -108,6 +111,16 @@ impl ComponentGallery {
         }
 
         let input = cx.new(|cx| TextInput::new(cx, "Text input"));
+        let textarea = cx.new(|cx| TextInput::new_multiline(cx, "Notes (Optional)"));
+        let select = cx.new(|cx| {
+            M3Select::new(
+                "Project",
+                ["General", "Customer work", "Internal"],
+                0,
+                colors,
+                cx,
+            )
+        });
         cx.subscribe(&input, |gallery, _, event: &TextInputEvent, cx| {
             let TextInputEvent::Changed(_) = event;
             gallery.input_changes += 1;
@@ -153,6 +166,8 @@ impl ComponentGallery {
             buttons,
             icon_button,
             input,
+            textarea,
+            select,
             switch,
             chips,
             tabs,
@@ -180,6 +195,10 @@ impl ComponentGallery {
             .update(cx, |button, cx| button.set_colors(colors, cx));
         self.input
             .update(cx, |input, cx| input.set_colors(colors, cx));
+        self.textarea
+            .update(cx, |input, cx| input.set_colors(colors, cx));
+        self.select
+            .update(cx, |select, cx| select.set_colors(colors, cx));
         self.switch
             .update(cx, |switch, cx| switch.set_colors(colors, cx));
         for chip in &self.chips {
@@ -258,7 +277,9 @@ impl Render for ComponentGallery {
                             .flex_col()
                             .gap(px(12.0))
                             .child("Text input")
-                            .child(self.input.clone()),
+                            .child(self.input.clone())
+                            .child(self.textarea.clone())
+                            .child(self.select.clone()),
                     )
                     .child(
                         m3_card(colors)
@@ -341,11 +362,26 @@ mod tests {
         let menu = gallery.read_with(cx, |gallery, _| gallery.menu.clone());
         let snackbar = gallery.read_with(cx, |gallery, _| gallery.snackbar.clone());
         let input = gallery.read_with(cx, |gallery, _| gallery.input.clone());
+        let textarea = gallery.read_with(cx, |gallery, _| gallery.textarea.clone());
+        let select = gallery.read_with(cx, |gallery, _| gallery.select.clone());
 
         cx.update(|window, app| window.focus(&input.read(app).focus_handle(app)));
         cx.refresh().expect("refresh focused text input");
         cx.simulate_keystrokes("a");
         assert_eq!(gallery.read_with(cx, |gallery, _| gallery.input_changes), 1);
+
+        cx.update(|window, app| window.focus(&textarea.read(app).focus_handle(app)));
+        cx.refresh().expect("refresh focused text area");
+        cx.simulate_keystrokes("a enter b");
+        assert_eq!(
+            textarea.read_with(cx, |input, _| input.text().to_owned()),
+            "a\nb"
+        );
+
+        cx.update(|window, app| window.focus(&select.read(app).focus_handle(app)));
+        cx.refresh().expect("refresh focused select");
+        cx.simulate_keystrokes("enter down enter");
+        assert_eq!(select.read_with(cx, |select, _| select.selected()), 1);
 
         cx.update(|window, app| window.focus(&buttons[1].read(app).focus_handle()));
         cx.refresh().expect("refresh focused button");

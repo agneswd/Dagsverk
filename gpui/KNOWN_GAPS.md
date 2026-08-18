@@ -29,12 +29,12 @@
 
 ## Day editor parity
 
-- Current behavior: The editor uses a 416px tonal side sheet, localized date and holiday header, connected status control, shared switch, two-column time fields, live draft/pay updates, pay hierarchy, and a 64px footer.
-- Expected parity: Notes must be multiline. Project and day-off reason must use outlined selects. All fields need complete floating-label and error behavior.
-- Reason incomplete: The editing engine remains single-line and the select component is not complete.
-- Files involved: `gpui/crates/dagsverk-app/src/shell.rs`, `gpui/crates/dagsverk-ui/src/text_input.rs`.
-- Proposed solution: Add a multiline editing engine and one shared outlined select, then replace the remaining chip lists.
-- Test needed: GPUI editor focus, validation, save, reset, and catch-up tests.
+- Current behavior: The editor uses a 416px tonal side sheet, multiline notes, floating field labels, anchored project and day-off selects, a connected status control, a shared switch, live draft/pay updates, and a 64px footer.
+- Expected parity: Selects must close on all outside clicks and show leading icons. Fields must show supporting error text within the Material field anatomy.
+- Reason incomplete: The first shared select pass covers trigger anchoring and keyboard navigation. The common overlay host does not yet own outside-click dismissal.
+- Files involved: `gpui/crates/dagsverk-app/src/shell.rs`, `gpui/crates/dagsverk-ui/src/text_input.rs`, `gpui/crates/dagsverk-ui/src/m3/select.rs`.
+- Proposed solution: Route select panels through the shared overlay host and add field-level error content.
+- Test needed: GPUI editor focus, outside dismissal, validation, save, reset, and catch-up tests.
 
 ## Phase 0 platform proof
 
