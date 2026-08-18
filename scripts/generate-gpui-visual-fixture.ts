@@ -1,5 +1,6 @@
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import Database from 'better-sqlite3';
 import { DatabaseService } from '../electron/database.service';
 import {
   CompensationRateType,
@@ -16,12 +17,12 @@ import {
 } from '../src/app/core/models';
 
 const output = resolve(process.argv[2] || 'gpui/fixtures/databases/visual-parity.db');
+const now = '2026-06-25T10:00:00.000Z';
 mkdirSync(dirname(output), { recursive: true });
 for (const path of [output, `${output}-wal`, `${output}-shm`]) rmSync(path, { force: true });
 
 const database = new DatabaseService(output);
 try {
-  const now = '2026-06-25T10:00:00.000Z';
   database.saveWorkspace({
     id: 'ws-default',
     name: 'Main Workspace',
@@ -144,5 +145,11 @@ try {
 } finally {
   database.close();
 }
+
+const normalized = new Database(output);
+normalized.prepare('UPDATE Workspaces SET CreatedAt = ?, UpdatedAt = ?').run(now, now);
+normalized.prepare('UPDATE WorkEntries SET CreatedAt = ?, UpdatedAt = ?').run(now, now);
+normalized.exec('VACUUM');
+normalized.close();
 
 console.log(output);
