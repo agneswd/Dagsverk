@@ -1934,7 +1934,13 @@ impl AppShell {
                             .gap(scale.px(12.0))
                             .rounded(scale.px(12.0))
                             .bg(colors.surface_container)
-                            .child(div().size(scale.px(12.0)).rounded_full().bg(color))
+                            .child(
+                                div()
+                                    .w(scale.px(4.0))
+                                    .h(scale.px(32.0))
+                                    .rounded(scale.px(2.0))
+                                    .bg(color),
+                            )
                             .child(
                                 div().flex_1().flex().flex_col().child(project.name).child(
                                     div()
@@ -2327,6 +2333,18 @@ impl AppShell {
                                     let color_value = workspace.color.clone();
                                     let swatch =
                                         color_from_hex(&color_value).unwrap_or(colors.primary);
+                                    let subtitle = workspace
+                                        .organization_name
+                                        .clone()
+                                        .or_else(|| workspace.worker_name.clone())
+                                        .unwrap_or_else(|| self.text("Personal").to_string());
+                                    let row_background = if is_active {
+                                        colors
+                                            .surface_container
+                                            .blend(colors.primary_container.opacity(0.56))
+                                    } else {
+                                        colors.surface_container
+                                    };
                                     div()
                                         .h(scale.px(72.0))
                                         .px(scale.px(20.0))
@@ -2334,10 +2352,51 @@ impl AppShell {
                                         .items_center()
                                         .gap(scale.px(12.0))
                                         .rounded(scale.px(12.0))
-                                        .bg(colors.surface_container)
-                                        .child(div().size(scale.px(12.0)).rounded_full().bg(swatch))
-                                        .child(div().flex_1().child(workspace.name))
-                                        .when(is_active, |row| row.child(self.text("Active")))
+                                        .bg(row_background)
+                                        .child(
+                                            div()
+                                                .size(scale.px(40.0))
+                                                .flex_none()
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded(scale.px(10.0))
+                                                .bg(colors
+                                                    .surface_container_high
+                                                    .blend(swatch.opacity(0.42)))
+                                                .child(m3_icon_colored(
+                                                    "business_center",
+                                                    22.0 * scale.factor(),
+                                                    colors.on_surface_variant,
+                                                )),
+                                        )
+                                        .child(
+                                            div()
+                                                .min_w_0()
+                                                .flex_1()
+                                                .flex()
+                                                .flex_col()
+                                                .child(div().truncate().child(workspace.name))
+                                                .child(
+                                                    div()
+                                                        .truncate()
+                                                        .text_size(scale.px(12.0))
+                                                        .text_color(colors.on_surface_variant)
+                                                        .child(subtitle),
+                                                ),
+                                        )
+                                        .when(is_active, |row| {
+                                            row.child(
+                                                div()
+                                                    .px(scale.px(8.0))
+                                                    .py(scale.px(4.0))
+                                                    .rounded(scale.px(10.0))
+                                                    .bg(colors.primary_container)
+                                                    .text_color(colors.on_primary_container)
+                                                    .text_size(scale.px(12.0))
+                                                    .child(self.text("Active")),
+                                            )
+                                        })
                                         .when(!is_active, |row| {
                                             row.child(
                                                 div()
