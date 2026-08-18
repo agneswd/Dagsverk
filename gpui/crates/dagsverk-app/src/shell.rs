@@ -339,15 +339,14 @@ impl AppShell {
     }
 
     fn text(&self, key: &str) -> SharedString {
-        translate(
-            match self.model.language {
-                crate::state::Language::English => LanguagePreference::English,
-                crate::state::Language::Swedish => LanguagePreference::Swedish,
-            },
-            key,
-        )
-        .into_owned()
-        .into()
+        translate(self.ui_language(), key).into_owned().into()
+    }
+
+    fn ui_language(&self) -> LanguagePreference {
+        match self.model.language {
+            crate::state::Language::English => LanguagePreference::English,
+            crate::state::Language::Swedish => LanguagePreference::Swedish,
+        }
     }
 
     fn set_route(&mut self, route: Route, cx: &mut Context<Self>) {
@@ -1041,7 +1040,7 @@ impl AppShell {
             .flex_col()
             .gap(px(20.0))
             .child(div().text_size(px(28.0)).child(self.text("Data & backups")))
-            .child("Current database")
+            .child(self.text("Current database"))
             .child(
                 div()
                     .p(px(16.0))
@@ -1081,12 +1080,12 @@ impl AppShell {
                 div()
                     .mt(px(12.0))
                     .text_size(px(20.0))
-                    .child("Restore or import"),
+                    .child(self.text("Restore or import")),
             )
             .child(
                 div()
                     .text_color(colors.on_surface_variant)
-                    .child("Close Electron Dagsverk before restore or import."),
+                    .child(self.text("Close Electron Dagsverk before restore or import.")),
             )
             .child(
                 div()
@@ -1115,7 +1114,7 @@ impl AppShell {
                 page.child(
                     div()
                         .text_color(colors.primary)
-                        .child("Database operation in progress..."),
+                        .child(self.text("Database operation in progress...")),
                 )
             })
     }
@@ -1344,9 +1343,9 @@ impl AppShell {
                     .rounded(px(16.0))
                     .bg(colors.surface_container_low)
                     .child(div().text_size(px(20.0)).child(self.text("Add project")))
-                    .child("Name")
+                    .child(self.text("Name"))
                     .child(self.project_name_input.clone())
-                    .child("Color")
+                    .child(self.text("Color"))
                     .child(self.project_color_input.clone())
                     .child(
                         div()
@@ -1433,7 +1432,7 @@ impl AppShell {
                                 div()
                                     .id(("color-project", index))
                                     .cursor_pointer()
-                                    .child("Apply color")
+                                    .child(self.text("Apply color"))
                                     .on_click(cx.listener(move |shell, _, _, cx| {
                                         shell.update_project_color(&color_id, cx)
                                     })),
@@ -1457,7 +1456,7 @@ impl AppShell {
                                         .id(("delete-project", index))
                                         .cursor_pointer()
                                         .text_color(colors.error)
-                                        .child("Delete")
+                                        .child(self.text("Delete"))
                                         .on_click(cx.listener(move |shell, _, _, cx| {
                                             shell.confirm_project_delete = Some(delete_id.clone());
                                             cx.notify();
@@ -1524,7 +1523,7 @@ impl AppShell {
                                     .child(self.workspace_name_input.clone())
                                     .child(self.text("Worker name"))
                                     .child(self.workspace_worker_input.clone())
-                                    .child("Organization or client")
+                                    .child(self.text("Organization or client"))
                                     .child(self.workspace_organization_input.clone()),
                             )
                             .child(
@@ -1532,7 +1531,7 @@ impl AppShell {
                                     .flex()
                                     .flex_col()
                                     .gap(px(10.0))
-                                    .child("Type")
+                                    .child(self.text("Type"))
                                     .child(
                                         div().flex().gap(px(6.0)).children(
                                             [
@@ -1568,7 +1567,7 @@ impl AppShell {
                                             ),
                                         ),
                                     )
-                                    .child("Accent color")
+                                    .child(self.text("Accent color"))
                                     .child(self.workspace_color_input.clone())
                                     .child(
                                         div()
@@ -1624,7 +1623,7 @@ impl AppShell {
                                                 div()
                                                     .id(("switch-workspace", index))
                                                     .cursor_pointer()
-                                                    .child("Switch")
+                                                    .child(self.text("Switch workspace"))
                                                     .on_click(cx.listener(
                                                         move |shell, _, _, cx| {
                                                             shell.switch_workspace(&switch_id, cx)
@@ -1636,7 +1635,7 @@ impl AppShell {
                                             div()
                                                 .id(("workspace-color", index))
                                                 .cursor_pointer()
-                                                .child("Apply color")
+                                                .child(self.text("Apply color"))
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.update_workspace_color(&color_id, cx)
                                                 })),
@@ -1646,7 +1645,7 @@ impl AppShell {
                                                 .id(("delete-workspace", index))
                                                 .opacity(if can_delete { 1.0 } else { 0.38 })
                                                 .text_color(colors.error)
-                                                .child("Delete")
+                                                .child(self.text("Delete"))
                                                 .when(can_delete, |button| {
                                                     button.cursor_pointer().on_click(cx.listener(
                                                         move |shell, _, _, cx| {
@@ -1682,8 +1681,14 @@ impl AppShell {
                     .gap(px(18.0))
                     .rounded(px(28.0))
                     .bg(colors.surface_container_high)
-                    .child(div().text_size(px(24.0)).child("Set up Dagsverk"))
-                    .child("Set the identity, schedule, and pay defaults for your first workspace.")
+                    .child(
+                        div()
+                            .text_size(px(24.0))
+                            .child(self.text("Set up Dagsverk")),
+                    )
+                    .child(self.text(
+                        "Set the identity, schedule, and pay defaults for your first workspace.",
+                    ))
                     .child(
                         div()
                             .grid()
@@ -1694,18 +1699,18 @@ impl AppShell {
                                     .flex()
                                     .flex_col()
                                     .gap(px(10.0))
-                                    .child("Workspace name")
+                                    .child(self.text("Workspace name"))
                                     .child(self.workspace_name_input.clone())
-                                    .child("Worker name")
+                                    .child(self.text("Worker name"))
                                     .child(self.workspace_worker_input.clone())
                                     .when(
                                         self.new_workspace_type != WorkspaceType::Personal,
                                         |form| {
-                                            form.child("Organization or client")
+                                            form.child(self.text("Organization or client"))
                                                 .child(self.workspace_organization_input.clone())
                                         },
                                     )
-                                    .child("Hours per workday")
+                                    .child(self.text("Hours per workday"))
                                     .child(self.settings_inputs.expected_hours.clone()),
                             )
                             .child(
@@ -1713,7 +1718,7 @@ impl AppShell {
                                     .flex()
                                     .flex_col()
                                     .gap(px(10.0))
-                                    .child("Workspace type")
+                                    .child(self.text("Workspace type"))
                                     .child(
                                         div().flex().gap(px(6.0)).children(
                                             [
@@ -1726,6 +1731,7 @@ impl AppShell {
                                             .map(
                                                 |(index, (label, value))| {
                                                     setting_chip(
+                                                        self.ui_language(),
                                                         ("setup-workspace-type", index),
                                                         label,
                                                         self.new_workspace_type == value,
@@ -1741,7 +1747,7 @@ impl AppShell {
                                             ),
                                         ),
                                     )
-                                    .child("Interface language")
+                                    .child(self.text("Interface language"))
                                     .child(
                                         div().flex().gap(px(6.0)).children(
                                             [
@@ -1754,6 +1760,7 @@ impl AppShell {
                                             .map(
                                                 |(index, (label, value))| {
                                                     setting_chip(
+                                                        self.ui_language(),
                                                         ("setup-language", index),
                                                         label,
                                                         language == value,
@@ -1771,7 +1778,7 @@ impl AppShell {
                                             ),
                                         ),
                                     )
-                                    .child("Salary model")
+                                    .child(self.text("Salary Model"))
                                     .child(
                                         div().flex().gap(px(6.0)).children(
                                             [
@@ -1783,6 +1790,7 @@ impl AppShell {
                                             .map(
                                                 |(index, (label, value))| {
                                                     setting_chip(
+                                                        self.ui_language(),
                                                         ("setup-salary-type", index),
                                                         label,
                                                         salary_type == value,
@@ -1952,6 +1960,7 @@ impl AppShell {
                             let name = project.name.clone();
                             let selected = self.settings_draft.default_project == project.name;
                             setting_chip(
+                                self.ui_language(),
                                 ("default-setting-project", index),
                                 project.name,
                                 selected,
@@ -1981,6 +1990,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("currency", index),
                             label,
                             current_currency == value,
@@ -1995,7 +2005,7 @@ impl AppShell {
                     }),
                 ),
             )
-            .child("Starting time balance in hours")
+            .child(self.text("Starting time balance"))
             .child(self.settings_inputs.opening_balance.clone())
     }
 
@@ -2024,26 +2034,31 @@ impl AppShell {
                     .into_iter()
                     .enumerate()
                     .map(|(index, (label, day))| {
-                        setting_chip(("weekday", index), label, weekdays.contains(&day), colors)
-                            .on_click(cx.listener(move |shell, _, _, cx| {
-                                let days =
-                                    &mut shell.settings_draft.expected_hours.working_weekdays;
-                                if let Some(position) = days.iter().position(|value| *value == day)
-                                {
-                                    if days.len() > 1 {
-                                        days.remove(position);
-                                    }
-                                } else {
-                                    days.push(day);
-                                    days.sort_unstable();
+                        setting_chip(
+                            self.ui_language(),
+                            ("weekday", index),
+                            label,
+                            weekdays.contains(&day),
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            let days = &mut shell.settings_draft.expected_hours.working_weekdays;
+                            if let Some(position) = days.iter().position(|value| *value == day) {
+                                if days.len() > 1 {
+                                    days.remove(position);
                                 }
-                                cx.notify();
-                            }))
+                            } else {
+                                days.push(day);
+                                days.sort_unstable();
+                            }
+                            cx.notify();
+                        }))
                     }),
                 ),
             )
             .child(
                 setting_chip(
+                    self.ui_language(),
                     "exclude-holidays",
                     "Exclude Swedish public holidays",
                     excluded,
@@ -2081,6 +2096,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("overtime-mode", index),
                             label,
                             overtime.mode == value,
@@ -2104,6 +2120,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("threshold-mode", index),
                             label,
                             overtime.threshold_mode == value,
@@ -2116,7 +2133,7 @@ impl AppShell {
                     }),
                 ),
             )
-            .child("Fixed daily threshold")
+            .child(self.text("Fixed daily hours"))
             .child(self.settings_inputs.overtime_threshold.clone())
             .child(self.text("OB During Overtime"))
             .child(
@@ -2129,6 +2146,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("ob-combination", index),
                             label,
                             overtime.ob_overtime_combination == value,
@@ -2144,7 +2162,7 @@ impl AppShell {
                     }),
                 ),
             )
-            .child("Default paid-overtime rate")
+            .child(self.text("Default paid-overtime rate"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2162,6 +2180,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("default-rate", index),
                             label,
                             overtime.default_rate_type == value,
@@ -2185,7 +2204,7 @@ impl AppShell {
                     .rounded(px(19.0))
                     .cursor_pointer()
                     .bg(colors.secondary_container)
-                    .child("Add overtime rule")
+                    .child(self.text("Add overtime rule"))
                     .on_click(cx.listener(|shell, _, _, cx| {
                         shell.add_rate_band(CompensationRuleType::Overtime, cx);
                         cx.notify();
@@ -2201,7 +2220,7 @@ impl AppShell {
                     .rounded(px(19.0))
                     .cursor_pointer()
                     .bg(colors.secondary_container)
-                    .child("Add OB rule")
+                    .child(self.text("Add OB rule"))
                     .on_click(cx.listener(|shell, _, _, cx| {
                         shell.add_rate_band(CompensationRuleType::Ob, cx);
                         cx.notify();
@@ -2228,6 +2247,7 @@ impl AppShell {
                                     .child(div().flex_1().child(inputs.name.clone()))
                                     .child(
                                         setting_chip(
+                                            self.ui_language(),
                                             ("band-type", index),
                                             if band.compensation_type
                                                 == CompensationRuleType::Overtime
@@ -2274,6 +2294,7 @@ impl AppShell {
                                     .gap(px(10.0))
                                     .child(
                                         setting_chip(
+                                            self.ui_language(),
                                             ("cycle-band-day", index),
                                             format!("{:?}", band.day_category),
                                             false,
@@ -2286,6 +2307,7 @@ impl AppShell {
                                     )
                                     .child(
                                         setting_chip(
+                                            self.ui_language(),
                                             ("cycle-band-rate", index),
                                             match band.rate_type {
                                                 CompensationRateType::HourlyPremiumPercent => {
@@ -2329,7 +2351,7 @@ impl AppShell {
                                             .id(("remove-band", index))
                                             .cursor_pointer()
                                             .text_color(colors.error)
-                                            .child("Remove")
+                                            .child(self.text("Remove"))
                                             .on_click(cx.listener(move |shell, _, _, cx| {
                                                 if index
                                                     < shell
@@ -2372,6 +2394,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("salary-type", index),
                             label,
                             salary.salary_type == value,
@@ -2404,6 +2427,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("hourly-basis", index),
                             label,
                             salary.hourly_pay_basis == value,
@@ -2428,21 +2452,27 @@ impl AppShell {
                     .into_iter()
                     .enumerate()
                     .map(|(index, (label, value))| {
-                        setting_chip(("tax-mode", index), label, tax.mode == value, colors)
-                            .on_click(cx.listener(move |shell, _, _, cx| {
-                                shell.settings_draft.tax_settings.mode = value;
-                                cx.notify();
-                            }))
+                        setting_chip(
+                            self.ui_language(),
+                            ("tax-mode", index),
+                            label,
+                            tax.mode == value,
+                            colors,
+                        )
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.settings_draft.tax_settings.mode = value;
+                            cx.notify();
+                        }))
                     }),
                 ),
             )
-            .child("Tax year")
+            .child(self.text("Tax Year"))
             .child(self.settings_inputs.tax_year.clone())
-            .child("Tax table")
+            .child(self.text("Tax Table"))
             .child(self.settings_inputs.tax_table.clone())
-            .child("Tax column 1-6")
+            .child(self.text("Tax column 1-6"))
             .child(self.settings_inputs.tax_column.clone())
-            .child("Manual monthly deduction")
+            .child(self.text("Manual monthly deduction"))
             .child(self.settings_inputs.manual_tax.clone())
     }
 
@@ -2466,6 +2496,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("theme-setting", index),
                             label,
                             preferences.theme_preference == value,
@@ -2490,6 +2521,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("language-setting", index),
                             label,
                             preferences.language_preference == value,
@@ -2510,6 +2542,7 @@ impl AppShell {
                         .enumerate()
                         .map(|(index, value)| {
                             setting_chip(
+                                self.ui_language(),
                                 ("scale-setting", index),
                                 format!("{value}%"),
                                 preferences.interface_scale_percent == value,
@@ -2536,6 +2569,7 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, (label, value))| {
                         setting_chip(
+                            self.ui_language(),
                             ("export-language", index),
                             label,
                             export_language == value,
@@ -2548,7 +2582,7 @@ impl AppShell {
                     }),
                 ),
             )
-            .child("Updates are unavailable in development builds.")
+            .child(self.text("Updates are unavailable in development builds."))
             .child(
                 div()
                     .id("open-data-backups")
@@ -2557,7 +2591,7 @@ impl AppShell {
                     .items_center()
                     .cursor_pointer()
                     .text_color(colors.primary)
-                    .child("Data & Backups")
+                    .child(self.text("Data & backups"))
                     .on_click(
                         cx.listener(|shell, _, _, cx| shell.set_route(Route::DataBackups, cx)),
                     ),
@@ -2916,7 +2950,7 @@ impl AppShell {
                             )
                     })
                     .when(status == WorkEntryStatus::Off, |panel| {
-                        panel.child("Reason").child(
+                        panel.child(self.text("Reason")).child(
                             div().flex().flex_wrap().gap(px(8.0)).children(
                                 [
                                     "Vacation",
@@ -3526,11 +3560,13 @@ impl Render for AppShell {
                                 .gap(px(18.0))
                                 .rounded(px(24.0))
                                 .bg(colors.surface_container_high)
-                                .child(div().text_size(px(20.0)).child("Reset month?"))
+                                .child(div().text_size(px(20.0)).child(self.text("Reset month")))
                                 .child(
                                     div()
                                         .text_color(colors.on_surface_variant)
-                                        .child("All entries and the month record will be deleted."),
+                                        .child(self.text(
+                                            "All entries and the month record will be deleted.",
+                                        )),
                                 )
                                 .child(
                                     div()
@@ -3541,7 +3577,7 @@ impl Render for AppShell {
                                             div()
                                                 .id("cancel-reset")
                                                 .cursor_pointer()
-                                                .child("Cancel")
+                                                .child(self.text("Cancel"))
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_reset = false;
                                                     cx.notify();
@@ -3552,7 +3588,7 @@ impl Render for AppShell {
                                                 .id("confirm-reset")
                                                 .cursor_pointer()
                                                 .text_color(colors.error)
-                                                .child("Reset")
+                                                .child(self.text("Reset"))
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.reset_month(cx)
                                                 })),
@@ -3579,8 +3615,12 @@ impl Render for AppShell {
                                 .gap(px(18.0))
                                 .rounded(px(24.0))
                                 .bg(colors.surface_container_high)
-                                .child(div().text_size(px(20.0)).child("Delete project?"))
-                                .child("Existing entries keep the stored project name.")
+                                .child(
+                                    div()
+                                        .text_size(px(20.0))
+                                        .child(self.text("Delete project?")),
+                                )
+                                .child(self.text("Existing entries keep the stored project name."))
                                 .child(
                                     div()
                                         .flex()
@@ -3590,7 +3630,7 @@ impl Render for AppShell {
                                             div()
                                                 .id("cancel-project-delete")
                                                 .cursor_pointer()
-                                                .child("Cancel")
+                                                .child(self.text("Cancel"))
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_project_delete = None;
                                                     cx.notify();
@@ -3601,7 +3641,7 @@ impl Render for AppShell {
                                                 .id("confirm-project-delete")
                                                 .cursor_pointer()
                                                 .text_color(colors.error)
-                                                .child("Delete")
+                                                .child(self.text("Delete"))
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.delete_project(&project_id, cx)
                                                 })),
@@ -3631,8 +3671,14 @@ impl Render for AppShell {
                                 .gap(px(18.0))
                                 .rounded(px(24.0))
                                 .bg(colors.surface_container_high)
-                                .child(div().text_size(px(20.0)).child("Delete workspace?"))
-                                .child("Entries, projects, settings, and month records will be removed.")
+                                .child(
+                                    div()
+                                        .text_size(px(20.0))
+                                        .child(self.text("Delete workspace?")),
+                                )
+                                .child(self.text(
+                                    "Entries, projects, settings, and month records will be removed.",
+                                ))
                                 .child(
                                     div()
                                         .flex()
@@ -3642,7 +3688,7 @@ impl Render for AppShell {
                                             div()
                                                 .id("cancel-workspace-delete")
                                                 .cursor_pointer()
-                                                .child("Cancel")
+                                                .child(self.text("Cancel"))
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_workspace_delete = None;
                                                     cx.notify();
@@ -3653,7 +3699,7 @@ impl Render for AppShell {
                                                 .id("confirm-workspace-delete")
                                                 .cursor_pointer()
                                                 .text_color(colors.error)
-                                                .child("Delete")
+                                                .child(self.text("Delete"))
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.delete_workspace(&workspace_id, cx)
                                                 })),
@@ -3680,8 +3726,14 @@ impl Render for AppShell {
                                 .gap(px(18.0))
                                 .rounded(px(24.0))
                                 .bg(colors.surface_container_high)
-                                .child(div().text_size(px(20.0)).child("Change currency?"))
-                                .child("Dagsverk will not convert existing rates or report values.")
+                                .child(
+                                    div()
+                                        .text_size(px(20.0))
+                                        .child(self.text("Change currency?")),
+                                )
+                                .child(self.text(
+                                    "Dagsverk will not convert existing rates or report values.",
+                                ))
                                 .child(
                                     div()
                                         .flex()
@@ -3691,7 +3743,7 @@ impl Render for AppShell {
                                             div()
                                                 .id("cancel-currency")
                                                 .cursor_pointer()
-                                                .child("Cancel")
+                                                .child(self.text("Cancel"))
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.pending_currency = None;
                                                     cx.notify();
@@ -3702,7 +3754,7 @@ impl Render for AppShell {
                                                 .id("confirm-currency")
                                                 .cursor_pointer()
                                                 .text_color(colors.primary)
-                                                .child("Change")
+                                                .child(self.text("Change"))
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.settings_draft.currency_preference = currency;
                                                     shell.pending_currency = None;
@@ -3732,8 +3784,14 @@ impl Render for AppShell {
                                 .gap(px(18.0))
                                 .rounded(px(24.0))
                                 .bg(colors.surface_container_high)
-                                .child(div().text_size(px(20.0)).child("Restore database?"))
-                                .child("Current data will be backed up before replacement.")
+                                .child(
+                                    div()
+                                        .text_size(px(20.0))
+                                        .child(self.text("Restore database?")),
+                                )
+                                .child(self.text(
+                                    "Current data will be backed up before replacement.",
+                                ))
                                 .child(
                                     div()
                                         .text_color(colors.on_surface_variant)
@@ -3748,7 +3806,7 @@ impl Render for AppShell {
                                             div()
                                                 .id("cancel-restore")
                                                 .cursor_pointer()
-                                                .child("Cancel")
+                                                .child(self.text("Cancel"))
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_restore = None;
                                                     cx.notify();
@@ -3759,7 +3817,7 @@ impl Render for AppShell {
                                                 .id("confirm-restore")
                                                 .cursor_pointer()
                                                 .text_color(colors.error)
-                                                .child("Restore")
+                                                .child(self.text("Restore database"))
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.run_restore(selected.clone(), cx)
                                                 })),
@@ -3787,8 +3845,14 @@ impl Render for AppShell {
                                 .gap(px(18.0))
                                 .rounded(px(24.0))
                                 .bg(colors.surface_container_high)
-                                .child(div().text_size(px(20.0)).child("Import Tidverk data?"))
-                                .child("Dagsverk will create safety backups before import.")
+                                .child(
+                                    div()
+                                        .text_size(px(20.0))
+                                        .child(self.text("Import Tidverk data?")),
+                                )
+                                .child(self.text(
+                                    "Dagsverk will create safety backups before import.",
+                                ))
                                 .child(
                                     div()
                                         .text_color(colors.on_surface_variant)
@@ -3803,7 +3867,7 @@ impl Render for AppShell {
                                             div()
                                                 .id("cancel-tidverk-import")
                                                 .cursor_pointer()
-                                                .child("Cancel")
+                                                .child(self.text("Cancel"))
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_import = None;
                                                     cx.notify();
@@ -3814,7 +3878,7 @@ impl Render for AppShell {
                                                 .id("confirm-tidverk-import")
                                                 .cursor_pointer()
                                                 .text_color(colors.error)
-                                                .child("Import")
+                                                .child(self.text("Import from Tidverk"))
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.run_tidverk_import(selected.clone(), cx)
                                                 })),
@@ -3890,6 +3954,7 @@ fn nonempty(value: &str) -> Option<String> {
 }
 
 fn setting_chip(
+    language: LanguagePreference,
     id: impl Into<ElementId>,
     label: impl Into<SharedString>,
     selected: bool,
@@ -3910,7 +3975,7 @@ fn setting_chip(
         })
         .hover(|style| style.bg(colors.surface_container_high))
         .active(|style| style.bg(colors.surface_container_highest))
-        .child(label.into())
+        .child(translate(language, label.into().as_ref()).into_owned())
 }
 
 fn maintenance_button(

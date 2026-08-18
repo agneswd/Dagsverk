@@ -320,4 +320,45 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   Thursday: 'Thursday',
   Friday: 'Friday',
   'Major Holidays': 'Major holidays',
+  'Accent color': 'Accent color',
+  'All entries and the month record will be deleted.':
+    'All entries and the month record will be deleted.',
+  'Apply color': 'Apply color',
+  Change: 'Change',
+  'Change currency?': 'Change currency?',
+  'Close Electron Dagsverk before restore or import.':
+    'Close Electron Dagsverk before restore or import.',
+  Color: 'Color',
+  'Current data will be backed up before replacement.':
+    'Current data will be backed up before replacement.',
+  'Current database': 'Current database',
+  'Dagsverk will create safety backups before import.':
+    'Dagsverk will create safety backups before import.',
+  'Dagsverk will not convert existing rates or report values.':
+    'Dagsverk will not convert existing rates or report values.',
+  'Database operation in progress...': 'Database operation in progress...',
+  'Default paid-overtime rate': 'Default paid-overtime rate',
+  Delete: 'Delete',
+  'Delete project?': 'Delete project?',
+  'Delete workspace?': 'Delete workspace?',
+  'Entries, projects, settings, and month records will be removed.':
+    'Entries, projects, settings, and month records will be removed.',
+  'Existing entries keep the stored project name.':
+    'Existing entries keep the stored project name.',
+  'Hourly Pay Basis': 'Hourly pay basis',
+  'Import Tidverk data?': 'Import Tidverk data?',
+  Language: 'Language',
+  Name: 'Name',
+  'OB During Overtime': 'OB during overtime',
+  'Organization or client': 'Organization or client',
+  Reason: 'Reason',
+  Remove: 'Remove',
+  'Restore or import': 'Restore or import',
+  Reuse: 'Reuse',
+  Save: 'Save',
+  'Tax Table': 'Tax table',
+  'Tax column 1-6': 'Tax column 1-6',
+  Type: 'Type',
+  'Updates are unavailable in development builds.':
+    'Updates are unavailable in development builds.',
 };

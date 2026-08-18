@@ -320,4 +320,45 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   Thursday: 'Torsdag',
   Friday: 'Fredag',
   'Major Holidays': 'Storhelger',
+  'Accent color': 'Accentfärg',
+  'All entries and the month record will be deleted.':
+    'Alla poster och månadsposten tas bort.',
+  'Apply color': 'Använd färg',
+  Change: 'Ändra',
+  'Change currency?': 'Ändra valuta?',
+  'Close Electron Dagsverk before restore or import.':
+    'Stäng Electron Dagsverk före återställning eller import.',
+  Color: 'Färg',
+  'Current data will be backed up before replacement.':
+    'Aktuella data säkerhetskopieras före ersättningen.',
+  'Current database': 'Aktuell databas',
+  'Dagsverk will create safety backups before import.':
+    'Dagsverk skapar säkerhetskopior före importen.',
+  'Dagsverk will not convert existing rates or report values.':
+    'Dagsverk konverterar inte befintliga priser eller rapportvärden.',
+  'Database operation in progress...': 'Databasåtgärd pågår...',
+  'Default paid-overtime rate': 'Standardersättning för betald övertid',
+  Delete: 'Ta bort',
+  'Delete project?': 'Ta bort projekt?',
+  'Delete workspace?': 'Ta bort arbetsyta?',
+  'Entries, projects, settings, and month records will be removed.':
+    'Poster, projekt, inställningar och månadsposter tas bort.',
+  'Existing entries keep the stored project name.':
+    'Befintliga poster behåller det sparade projektnamnet.',
+  'Hourly Pay Basis': 'Grund för timlön',
+  'Import Tidverk data?': 'Importera Tidverk-data?',
+  Language: 'Språk',
+  Name: 'Namn',
+  'OB During Overtime': 'OB under övertid',
+  'Organization or client': 'Organisation eller kund',
+  Reason: 'Orsak',
+  Remove: 'Ta bort',
+  'Restore or import': 'Återställ eller importera',
+  Reuse: 'Återanvänd',
+  Save: 'Spara',
+  'Tax Table': 'Skattetabell',
+  'Tax column 1-6': 'Skattekolumn 1-6',
+  Type: 'Typ',
+  'Updates are unavailable in development builds.':
+    'Uppdateringar är inte tillgängliga i utvecklingsversioner.',
 };
