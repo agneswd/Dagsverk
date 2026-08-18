@@ -9,8 +9,8 @@ use dagsverk_core::{
         CurrencyPreference, ExportLanguagePreference, HourlyPayBasis, LanguagePreference, Minutes,
         Money, MonthViewPreference, ObOvertimeCombinationMode, OvertimeCompensationMode,
         OvertimeDayCategory, OvertimeRateBand, OvertimeThresholdMode, Project, ProjectId,
-        SalaryType, TaxMode, ThemePreference, WorkEntryStatus, WorkspaceId, WorkspaceType,
-        YearMonth,
+        SalaryType, TaxMode, ThemePreference, WorkEntryStatus, Workspace, WorkspaceId,
+        WorkspaceType, YearMonth,
     },
 };
 use dagsverk_data::DataMaintenance;
@@ -4543,6 +4543,94 @@ impl AppShell {
                     }),
             )
     }
+
+    fn workspace_menu(
+        &mut self,
+        workspaces: Vec<Workspace>,
+        active_workspace_id: WorkspaceId,
+        colors: M3ColorScheme,
+        scale: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        div()
+            .min_w(px(248.0 * scale))
+            .p(px(8.0 * scale))
+            .flex()
+            .flex_col()
+            .rounded(px(16.0 * scale))
+            .bg(colors.surface_container_high)
+            .shadow(workspace_menu_elevation())
+            .children(
+                workspaces
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, workspace)| {
+                        let id = workspace.id.clone();
+                        let active = workspace.id == active_workspace_id;
+                        div()
+                            .id(("workspace-menu-item", index))
+                            .h(px(52.0 * scale))
+                            .px(px(12.0 * scale))
+                            .flex()
+                            .items_center()
+                            .gap(px(12.0 * scale))
+                            .rounded(px(12.0 * scale))
+                            .cursor_pointer()
+                            .hover(|style| style.bg(colors.surface_container))
+                            .active(|style| style.bg(colors.surface_container_highest))
+                            .child(
+                                div()
+                                    .size(px(12.0 * scale))
+                                    .rounded_full()
+                                    .bg(color_from_hex(&workspace.color).unwrap_or(colors.primary)),
+                            )
+                            .child(div().flex_1().truncate().child(workspace.name))
+                            .when(active, |row| {
+                                row.child(m3_icon_colored("check", 20.0 * scale, colors.on_surface))
+                            })
+                            .when_else(
+                                active,
+                                |row| {
+                                    row.on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.workspace_menu_open = false;
+                                        cx.notify();
+                                    }))
+                                },
+                                |row| {
+                                    row.on_click(cx.listener(move |shell, _, _, cx| {
+                                        shell.switch_workspace(&id, cx)
+                                    }))
+                                },
+                            )
+                    }),
+            )
+            .child(div().h(px(1.0)).my(px(4.0)).bg(colors.outline_variant))
+            .child(
+                div()
+                    .id("manage-workspaces")
+                    .h(px(52.0 * scale))
+                    .px(px(12.0 * scale))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.0 * scale))
+                    .rounded(px(12.0 * scale))
+                    .cursor_pointer()
+                    .bg(colors.surface_container)
+                    .hover(|style| style.bg(colors.surface_container_highest))
+                    .active(|style| style.bg(colors.surface_container))
+                    .child(m3_icon_colored(
+                        "settings",
+                        20.0 * scale,
+                        colors.on_surface_variant,
+                    ))
+                    .child(self.text("Manage workspaces"))
+                    .on_click(cx.listener(|shell, _, _, cx| {
+                        shell.workspace_menu_open = false;
+                        shell.manage_workspaces = true;
+                        cx.notify();
+                    })),
+            )
+    }
 }
 
 impl Focusable for AppShell {
@@ -4758,7 +4846,28 @@ impl Render for AppShell {
                                         shell.export_menu_open = false;
                                         shell.month_menu_open = false;
                                         cx.notify();
-                                    })),
+                                    }))
+                                    .when(self.workspace_menu_open, |trigger| {
+                                        trigger.child(
+                                            deferred(
+                                                anchored()
+                                                    .anchor(Corner::TopLeft)
+                                                    .offset(point(
+                                                        px(0.0),
+                                                        px(64.0 * scale),
+                                                    ))
+                                                    .snap_to_window_with_margin(px(8.0 * scale))
+                                                    .child(self.workspace_menu(
+                                                        workspace_menu_items,
+                                                        active_workspace_id,
+                                                        colors,
+                                                        scale,
+                                                        cx,
+                                                    )),
+                                            )
+                                            .priority(3),
+                                        )
+                                    }),
                             ),
                     )
                     .child(self.navigation_item(
@@ -5242,93 +5351,6 @@ impl Render for AppShell {
                             shell.workspace_menu_open = false;
                             cx.notify();
                         })),
-                )
-                .child(
-                    div()
-                        .absolute()
-                        .top(px(132.0 * scale))
-                        .left(px(if sidebar_collapsed {
-                            sidebar_width + 8.0 * scale
-                        } else {
-                            12.0 * scale
-                        }))
-                        .min_w(px(248.0 * scale))
-                        .p(px(8.0 * scale))
-                        .flex()
-                        .flex_col()
-                        .rounded(px(16.0 * scale))
-                        .bg(colors.surface_container_high)
-                        .shadow(workspace_menu_elevation())
-                        .children(workspace_menu_items.into_iter().enumerate().map(
-                            |(index, workspace)| {
-                                let id = workspace.id.clone();
-                                let active = workspace.id == active_workspace_id;
-                                div()
-                                    .id(("workspace-menu-item", index))
-                                    .h(px(52.0 * scale))
-                                    .px(px(12.0 * scale))
-                                    .flex()
-                                    .items_center()
-                                    .gap(px(12.0 * scale))
-                                    .rounded(px(12.0 * scale))
-                                    .cursor_pointer()
-                                    .hover(|style| style.bg(colors.surface_container))
-                                    .child(
-                                        div()
-                                            .size(px(12.0 * scale))
-                                            .rounded_full()
-                                            .bg(color_from_hex(&workspace.color)
-                                                .unwrap_or(colors.primary)),
-                                    )
-                                    .child(div().flex_1().truncate().child(workspace.name))
-                                    .when(active, |row| {
-                                        row.child(m3_icon_colored(
-                                            "check",
-                                            20.0 * scale,
-                                            colors.on_surface,
-                                        ))
-                                    })
-                                    .when_else(
-                                        active,
-                                        |row| {
-                                            row.on_click(cx.listener(|shell, _, _, cx| {
-                                                shell.workspace_menu_open = false;
-                                                cx.notify();
-                                            }))
-                                        },
-                                        |row| {
-                                            row.on_click(cx.listener(move |shell, _, _, cx| {
-                                                shell.switch_workspace(&id, cx)
-                                            }))
-                                        },
-                                    )
-                            },
-                        ))
-                        .child(div().h(px(1.0)).my(px(4.0)).bg(colors.outline_variant))
-                        .child(
-                            div()
-                                .id("manage-workspaces")
-                                .h(px(52.0 * scale))
-                                .px(px(12.0 * scale))
-                                .flex()
-                                .items_center()
-                                .gap(px(12.0 * scale))
-                                .rounded(px(12.0 * scale))
-                                .cursor_pointer()
-                                .bg(colors.surface_container)
-                                .hover(|style| style.bg(colors.surface_container_highest))
-                                .child(m3_icon_colored(
-                                    "settings",
-                                    20.0 * scale,
-                                    colors.on_surface_variant,
-                                ))
-                                .child(self.text("Manage workspaces"))
-                                .on_click(cx.listener(|shell, _, _, cx| {
-                                    shell.workspace_menu_open = false;
-                                    shell.manage_workspaces = true;
-                                    cx.notify();
-                                })),
-                        ),
                 )
             })
             .when_some(message, |root, message| {
