@@ -1,5 +1,6 @@
+use chrono::Duration;
 use dagsverk_core::{
-    calculations::normalize_time,
+    calculations::{calculate_daily_pay, normalize_time},
     models::{CurrencyPreference, Minutes, MonthViewPreference, WorkEntryStatus},
 };
 use dagsverk_ui::{
@@ -34,8 +35,11 @@ pub struct AppShell {
     start_input: Entity<TextInput>,
     end_input: Entity<TextInput>,
     notes_input: Entity<TextInput>,
+    scheduled_input: Entity<TextInput>,
     focus: FocusHandle,
     sidebar_collapsed: bool,
+    confirm_reset: bool,
+    notice: Option<String>,
 }
 
 impl AppShell {
@@ -58,6 +62,7 @@ impl AppShell {
         let start_input = cx.new(|cx| TextInput::new(cx, "Start time"));
         let end_input = cx.new(|cx| TextInput::new(cx, "End time"));
         let notes_input = cx.new(|cx| TextInput::new(cx, "Notes"));
+        let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
         let focus = cx.focus_handle();
         window.focus(&focus);
         cx.subscribe(&month_view, |shell, _, event: &MonthViewEvent, cx| {
@@ -72,8 +77,11 @@ impl AppShell {
             start_input,
             end_input,
             notes_input,
+            scheduled_input,
             focus,
             sidebar_collapsed: false,
+            confirm_reset: false,
+            notice: None,
         }
     }
 
@@ -132,6 +140,18 @@ impl AppShell {
             input.set_text(notes, cx);
             input.set_colors(colors, cx);
         });
+        let scheduled = draft.scheduled_minutes_override.map_or_else(
+            || {
+                self.model
+                    .settings
+                    .expected_hours
+                    .hours_per_workday
+                    .to_string()
+            },
+            |minutes| format_hours_input(minutes.value()),
+        );
+        self.scheduled_input
+            .update(cx, |input, cx| input.set_text(scheduled, cx));
     }
 
     fn save_editor(&mut self, cx: &mut Context<Self>) {
@@ -157,6 +177,16 @@ impl AppShell {
         }
         let notes = self.notes_input.read(cx).text().trim().to_owned();
         draft.notes = (!notes.is_empty()).then_some(notes);
+        if draft.scheduled_minutes_override.is_some() {
+            match parse_scheduled_minutes(self.scheduled_input.read(cx).text()) {
+                Ok(minutes) => draft.scheduled_minutes_override = Some(minutes),
+                Err(message) => {
+                    self.model.editor.validation_error = Some(message.to_owned());
+                    cx.notify();
+                    return;
+                }
+            }
+        }
         match self.model.save_entry(draft) {
             Ok(()) => {
                 if self.model.catch_up.is_some() {
@@ -170,6 +200,59 @@ impl AppShell {
             Err(error) => self.model.editor.validation_error = Some(error.to_string()),
         }
         cx.notify();
+    }
+
+    fn copy_editor_entry(
+        &mut self,
+        source: Option<dagsverk_core::models::WorkEntry>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(source) = source.filter(|entry| entry.status == WorkEntryStatus::Worked) else {
+            self.model.editor.validation_error =
+                Some("No completed day is available to copy.".to_owned());
+            cx.notify();
+            return;
+        };
+        if let Some(draft) = self.model.editor.draft.as_mut() {
+            draft.status = WorkEntryStatus::Worked;
+            draft.start_time = source.start_time;
+            draft.end_time = source.end_time;
+            draft.lunch_minutes = source.lunch_minutes;
+            draft.project_name = source.project_name;
+            draft.scheduled_minutes_override = source.scheduled_minutes_override;
+        }
+        self.model.editor.validation_error = None;
+        self.sync_editor_inputs(cx);
+        cx.notify();
+    }
+
+    fn copy_previous(&mut self, cx: &mut Context<Self>) {
+        let Some(date) = self.model.selected_date else {
+            return;
+        };
+        let source = self
+            .model
+            .entries
+            .iter()
+            .filter(|entry| entry.date < date && entry.status == WorkEntryStatus::Worked)
+            .max_by_key(|entry| entry.date)
+            .cloned();
+        self.copy_editor_entry(source, cx);
+    }
+
+    fn copy_last_week(&mut self, cx: &mut Context<Self>) {
+        let Some(date) = self.model.selected_date else {
+            return;
+        };
+        let previous =
+            dagsverk_core::models::IsoDate::new(date.as_naive_date() - Duration::days(7));
+        let source = self
+            .model
+            .entries
+            .iter()
+            .find(|entry| entry.date == previous)
+            .cloned();
+        self.copy_editor_entry(source, cx);
     }
 
     fn load_month(&mut self, key: crate::state::LoadKey, cx: &mut Context<Self>) {
@@ -204,7 +287,46 @@ impl AppShell {
     }
 
     fn close_surface(&mut self, _: &CloseSurface, _: &mut Window, cx: &mut Context<Self>) {
+        if self.confirm_reset {
+            self.confirm_reset = false;
+            cx.notify();
+            return;
+        }
         self.model.close_catch_up();
+        cx.notify();
+    }
+
+    fn fill_month(&mut self, cx: &mut Context<Self>) {
+        match self.model.fill_normal_workdays() {
+            Ok(count) => self.notice = Some(format!("Added {count} workdays.")),
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn copy_month(&mut self, cx: &mut Context<Self>) {
+        let count = self.model.copy_month();
+        self.notice = Some(format!("Copied {count} entries."));
+        cx.notify();
+    }
+
+    fn paste_month(&mut self, cx: &mut Context<Self>) {
+        match self.model.paste_month() {
+            Ok(count) => self.notice = Some(format!("Pasted {count} entries.")),
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn reset_month(&mut self, cx: &mut Context<Self>) {
+        match self.model.reset_month() {
+            Ok(()) => self.notice = Some("Month reset.".to_owned()),
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        self.confirm_reset = false;
+        self.refresh_month_view(cx);
         cx.notify();
     }
 
@@ -311,6 +433,15 @@ impl AppShell {
         let date = draft.date;
         let status = draft.status;
         let lunch = draft.lunch_minutes.value();
+        let scheduled_override = draft.scheduled_minutes_override.is_some();
+        let projects = self.model.projects.clone();
+        let daily_pay = calculate_daily_pay(
+            draft,
+            &self.model.settings.expected_hours,
+            &self.model.settings.salary,
+            &self.model.settings.overtime_compensation,
+            dagsverk_core::holidays::SwedishHolidayCalendar,
+        );
         let error = self.model.editor.validation_error.clone();
         div()
             .w(px(400.0))
@@ -393,6 +524,56 @@ impl AppShell {
                                 }),
                             ),
                     )
+                    .child("Reuse")
+                    .child(
+                        div().flex().gap(px(8.0)).children(
+                            ["Normal day", "Copy previous", "Copy last week"]
+                                .into_iter()
+                                .enumerate()
+                                .map(|(index, label)| {
+                                    div()
+                                        .id(("reuse", index))
+                                        .h(px(36.0))
+                                        .px(px(10.0))
+                                        .flex()
+                                        .items_center()
+                                        .rounded(px(18.0))
+                                        .border_1()
+                                        .border_color(colors.outline_variant)
+                                        .cursor_pointer()
+                                        .text_size(px(12.0))
+                                        .child(label)
+                                        .on_click(cx.listener(move |shell, _, _, cx| match index {
+                                            0 => {
+                                                if let Some(draft) =
+                                                    shell.model.editor.draft.as_mut()
+                                                {
+                                                    draft.status = WorkEntryStatus::Worked;
+                                                    draft.start_time = Some(
+                                                        shell.model.settings.default_start_time,
+                                                    );
+                                                    draft.end_time =
+                                                        Some(shell.model.settings.default_end_time);
+                                                    draft.lunch_minutes =
+                                                        shell.model.settings.default_lunch_minutes;
+                                                    draft.project_name = Some(
+                                                        shell
+                                                            .model
+                                                            .settings
+                                                            .default_project
+                                                            .clone(),
+                                                    );
+                                                    draft.scheduled_minutes_override = None;
+                                                }
+                                                shell.sync_editor_inputs(cx);
+                                                cx.notify();
+                                            }
+                                            1 => shell.copy_previous(cx),
+                                            _ => shell.copy_last_week(cx),
+                                        }))
+                                }),
+                        ),
+                    )
                     .when(status == WorkEntryStatus::Worked, |panel| {
                         panel
                             .child("Presets")
@@ -467,7 +648,113 @@ impl AppShell {
                                         }))
                                 }),
                             ))
+                            .child(
+                                div()
+                                    .id("scheduled-override")
+                                    .h(px(40.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .cursor_pointer()
+                                    .child("Scheduled-hours override")
+                                    .child(if scheduled_override { "On" } else { "Off" })
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        if let Some(draft) = shell.model.editor.draft.as_mut() {
+                                            draft.scheduled_minutes_override =
+                                                if draft.scheduled_minutes_override.is_some() {
+                                                    None
+                                                } else {
+                                                    Some(Minutes::ZERO)
+                                                };
+                                        }
+                                        cx.notify();
+                                    })),
+                            )
+                            .when(scheduled_override, |panel| {
+                                panel.child(self.scheduled_input.clone())
+                            })
+                            .child("Project")
+                            .child(
+                                div().flex().flex_wrap().gap(px(8.0)).children(
+                                    projects
+                                        .into_iter()
+                                        .filter(|project| project.is_active)
+                                        .enumerate()
+                                        .map(|(index, project)| {
+                                            let project_name = project.name.clone();
+                                            let selected =
+                                                draft.project_name.as_ref() == Some(&project.name);
+                                            div()
+                                                .id(("project", index))
+                                                .h(px(34.0))
+                                                .px(px(12.0))
+                                                .flex()
+                                                .items_center()
+                                                .rounded(px(17.0))
+                                                .cursor_pointer()
+                                                .bg(if selected {
+                                                    colors.secondary_container
+                                                } else {
+                                                    colors.surface_container
+                                                })
+                                                .child(project.name)
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    if let Some(draft) =
+                                                        shell.model.editor.draft.as_mut()
+                                                    {
+                                                        draft.project_name =
+                                                            Some(project_name.clone());
+                                                    }
+                                                    cx.notify();
+                                                }))
+                                        }),
+                                ),
+                            )
                     })
+                    .when(status == WorkEntryStatus::Off, |panel| {
+                        panel.child("Reason").child(
+                            div().flex().flex_wrap().gap(px(8.0)).children(
+                                [
+                                    "Vacation",
+                                    "Sick leave",
+                                    "Care of child",
+                                    "Leave of absence",
+                                    "Parental leave",
+                                    "Public holiday",
+                                ]
+                                .into_iter()
+                                .enumerate()
+                                .map(|(index, reason)| {
+                                    div()
+                                        .id(("off-reason", index))
+                                        .h(px(34.0))
+                                        .px(px(12.0))
+                                        .flex()
+                                        .items_center()
+                                        .rounded(px(17.0))
+                                        .cursor_pointer()
+                                        .bg(colors.surface_container)
+                                        .child(reason)
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            shell
+                                                .notes_input
+                                                .update(cx, |input, cx| input.set_text(reason, cx));
+                                            cx.notify();
+                                        }))
+                                }),
+                            ),
+                        )
+                    })
+                    .child(
+                        div()
+                            .p(px(14.0))
+                            .rounded(px(12.0))
+                            .bg(colors.surface_container)
+                            .child(format!(
+                                "Estimated day pay: {}",
+                                daily_pay.total.decimal().round_dp(2)
+                            )),
+                    )
                     .child("Notes")
                     .child(self.notes_input.clone())
                     .when_some(error, |panel, error| {
@@ -493,6 +780,44 @@ impl AppShell {
                                 if let Err(error) = shell.model.delete_entry(date) {
                                     shell.model.editor.validation_error = Some(error.to_string());
                                 }
+                                shell.refresh_month_view(cx);
+                                cx.notify();
+                            })),
+                    )
+                    .when(self.model.catch_up.is_some(), |footer| {
+                        footer
+                            .child(
+                                div()
+                                    .id("catch-up-back")
+                                    .cursor_pointer()
+                                    .child("Back")
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.model.move_catch_up(-1);
+                                        shell.sync_editor_inputs(cx);
+                                        shell.refresh_month_view(cx);
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                div()
+                                    .id("catch-up-skip")
+                                    .cursor_pointer()
+                                    .child("Skip")
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.model.move_catch_up(1);
+                                        shell.sync_editor_inputs(cx);
+                                        shell.refresh_month_view(cx);
+                                        cx.notify();
+                                    })),
+                            )
+                    })
+                    .child(
+                        div()
+                            .id("cancel-editor")
+                            .cursor_pointer()
+                            .child("Cancel")
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.model.close_catch_up();
                                 shell.refresh_month_view(cx);
                                 cx.notify();
                             })),
@@ -552,6 +877,11 @@ impl Render for AppShell {
             ][self.model.current_month.month as usize - 1],
             self.model.current_month.year
         );
+        let message = self
+            .model
+            .transient_error
+            .clone()
+            .or_else(|| self.notice.clone());
 
         div()
             .track_focus(&self.focus)
@@ -570,6 +900,7 @@ impl Render for AppShell {
             .on_action(cx.listener(Self::start_catch_up))
             .on_action(cx.listener(Self::save_active))
             .on_action(cx.listener(Self::close_surface))
+            .relative()
             .size_full()
             .flex()
             .font_family("Roboto")
@@ -680,6 +1011,94 @@ impl Render for AppShell {
                             )
                             .child(
                                 div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(10.0))
+                                    .child(
+                                        div()
+                                            .id("fill-month")
+                                            .cursor_pointer()
+                                            .child(m3_icon("playlist_add", 22.0, colors))
+                                            .on_click(
+                                                cx.listener(|shell, _, _, cx| shell.fill_month(cx)),
+                                            ),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("copy-month")
+                                            .cursor_pointer()
+                                            .opacity(if self.model.is_month_unstarted() {
+                                                0.38
+                                            } else {
+                                                1.0
+                                            })
+                                            .child(m3_icon("content_copy", 22.0, colors))
+                                            .when(!self.model.is_month_unstarted(), |button| {
+                                                button.on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.copy_month(cx)
+                                                }))
+                                            }),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("paste-month")
+                                            .cursor_pointer()
+                                            .opacity(if self.model.can_paste_month() {
+                                                1.0
+                                            } else {
+                                                0.38
+                                            })
+                                            .child(m3_icon("content_paste", 22.0, colors))
+                                            .when(self.model.can_paste_month(), |button| {
+                                                button.on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.paste_month(cx)
+                                                }))
+                                            }),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("reset-month")
+                                            .cursor_pointer()
+                                            .opacity(if self.model.can_reset_month() {
+                                                1.0
+                                            } else {
+                                                0.38
+                                            })
+                                            .child(m3_icon("delete_sweep", 22.0, colors))
+                                            .when(self.model.can_reset_month(), |button| {
+                                                button.on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_reset = true;
+                                                    cx.notify();
+                                                }))
+                                            }),
+                                    )
+                                    .when(self.model.missing_days_count() > 0, |actions| {
+                                        actions.child(
+                                            div()
+                                                .id("catch-up")
+                                                .h(px(40.0))
+                                                .px(px(14.0))
+                                                .flex()
+                                                .items_center()
+                                                .rounded(px(20.0))
+                                                .cursor_pointer()
+                                                .bg(colors.primary)
+                                                .text_color(colors.on_primary)
+                                                .child(format!(
+                                                    "Catch Up ({})",
+                                                    self.model.missing_days_count()
+                                                ))
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.model.start_catch_up();
+                                                    shell.sync_editor_inputs(cx);
+                                                    shell.refresh_month_view(cx);
+                                                    cx.notify();
+                                                })),
+                                        )
+                                    }),
+                            )
+                            .child(
+                                div()
                                     .h(px(40.0))
                                     .p(px(2.0))
                                     .flex()
@@ -768,6 +1187,75 @@ impl Render for AppShell {
                             }),
                     ),
             )
+            .when_some(message, |root, message| {
+                root.child(
+                    div()
+                        .absolute()
+                        .bottom(px(24.0))
+                        .left(px(280.0))
+                        .px(px(18.0))
+                        .h(px(48.0))
+                        .flex()
+                        .items_center()
+                        .rounded(px(12.0))
+                        .bg(colors.on_surface)
+                        .text_color(colors.surface_container_lowest)
+                        .child(message),
+                )
+            })
+            .when(self.confirm_reset, |root| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.45))
+                        .child(
+                            div()
+                                .w(px(420.0))
+                                .p(px(24.0))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0))
+                                .rounded(px(24.0))
+                                .bg(colors.surface_container_high)
+                                .child(div().text_size(px(20.0)).child("Reset month?"))
+                                .child(
+                                    div()
+                                        .text_color(colors.on_surface_variant)
+                                        .child("All entries and the month record will be deleted."),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0))
+                                        .child(
+                                            div()
+                                                .id("cancel-reset")
+                                                .cursor_pointer()
+                                                .child("Cancel")
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_reset = false;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            div()
+                                                .id("confirm-reset")
+                                                .cursor_pointer()
+                                                .text_color(colors.error)
+                                                .child("Reset")
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.reset_month(cx)
+                                                })),
+                                        ),
+                                ),
+                        ),
+                )
+            })
     }
 }
 
@@ -788,6 +1276,27 @@ fn month_view_data(model: &AppModel) -> MonthViewData {
     }
 }
 
+fn format_hours_input(minutes: i64) -> String {
+    let whole = minutes / 60;
+    let remainder = minutes % 60;
+    if remainder == 0 {
+        whole.to_string()
+    } else {
+        format!("{whole}.{:02}", remainder * 100 / 60)
+    }
+}
+
+fn parse_scheduled_minutes(value: &str) -> Result<Minutes, &'static str> {
+    let hours = value
+        .trim()
+        .parse::<f64>()
+        .map_err(|_| "Scheduled hours must be a non-negative number.")?;
+    if !hours.is_finite() || hours < 0.0 {
+        return Err("Scheduled hours must be a non-negative number.");
+    }
+    Ok(Minutes::new((hours * 60.0).round() as i64))
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -798,7 +1307,7 @@ mod tests {
     use gpui::TestAppContext;
     use tempfile::tempdir;
 
-    use super::AppShell;
+    use super::{AppShell, parse_scheduled_minutes};
     use crate::state::AppModel;
 
     #[gpui::test]
@@ -822,5 +1331,18 @@ mod tests {
             shell.read_with(cx, |shell, _| shell.model.active_view),
             MonthViewPreference::Calendar
         );
+    }
+
+    #[test]
+    fn scheduled_override_accepts_zero_and_rejects_invalid_values() {
+        assert_eq!(parse_scheduled_minutes("0").expect("zero hours").value(), 0);
+        assert_eq!(
+            parse_scheduled_minutes("7.5")
+                .expect("fractional hours")
+                .value(),
+            450
+        );
+        assert!(parse_scheduled_minutes("-1").is_err());
+        assert!(parse_scheduled_minutes("NaN").is_err());
     }
 }
