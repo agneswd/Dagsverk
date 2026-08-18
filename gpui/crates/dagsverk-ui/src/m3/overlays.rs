@@ -3,7 +3,7 @@ use gpui::{
     actions, div, prelude::*, px,
 };
 
-use super::{M3ColorScheme, ROBOTO_FAMILY};
+use super::{M3ColorScheme, ROBOTO_FAMILY, UiScale, m3_focus_shadow};
 
 actions!(m3_menu, [DismissMenu, MenuNext, MenuPrevious]);
 
@@ -136,12 +136,7 @@ impl Render for M3Menu {
                     .flex()
                     .items_center()
                     .rounded(px(8.0))
-                    .border_2()
-                    .border_color(if focused {
-                        colors.primary
-                    } else {
-                        colors.surface_container_high
-                    })
+                    .shadow(m3_focus_shadow(focused, colors.primary, UiScale::default()))
                     .hover(|style| style.bg(colors.surface_container_highest))
                     .cursor_pointer()
                     .on_click(cx.listener(move |this, _, _, cx| this.select(index, cx)))
@@ -258,12 +253,11 @@ impl Render for M3SnackbarHost {
                                 .track_focus(&self.dismiss_focus)
                                 .tab_index(0)
                                 .px(px(8.0))
-                                .border_2()
-                                .border_color(if dismiss_focused {
-                                    self.colors.primary
-                                } else {
-                                    self.colors.surface_container_highest
-                                })
+                                .shadow(m3_focus_shadow(
+                                    dismiss_focused,
+                                    self.colors.primary,
+                                    UiScale::default(),
+                                ))
                                 .rounded(px(8.0))
                                 .text_color(self.colors.primary)
                                 .cursor_pointer()

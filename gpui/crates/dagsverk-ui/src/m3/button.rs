@@ -188,7 +188,7 @@ impl Render for M3Button {
             } else {
                 disabled_background
             })
-            .shadow(focus_shadow(focused, self.colors.primary, self.scale))
+            .shadow(m3_focus_shadow(focused, self.colors.primary, self.scale))
             .bg(if self.enabled {
                 background
             } else {
@@ -323,7 +323,7 @@ impl Render for M3IconButton {
             .justify_center()
             .rounded_full()
             .bg(background)
-            .shadow(focus_shadow(
+            .shadow(m3_focus_shadow(
                 self.focus.is_focused(window),
                 self.colors.primary,
                 self.scale,
@@ -349,7 +349,7 @@ impl Render for M3IconButton {
     }
 }
 
-fn focus_shadow(focused: bool, color: gpui::Hsla, scale: UiScale) -> Vec<BoxShadow> {
+pub fn m3_focus_shadow(focused: bool, color: gpui::Hsla, scale: UiScale) -> Vec<BoxShadow> {
     focused
         .then(|| BoxShadow {
             color: color.opacity(FOCUS_OPACITY),
@@ -367,7 +367,7 @@ pub fn m3_state_layer(background: gpui::Hsla, foreground: gpui::Hsla, opacity: f
 
 #[cfg(test)]
 mod tests {
-    use super::m3_state_layer;
+    use super::{UiScale, m3_focus_shadow, m3_state_layer};
 
     #[test]
     fn state_layer_changes_the_button_color() {
@@ -378,5 +378,12 @@ mod tests {
             m3_state_layer(background, foreground, 0.08),
             m3_state_layer(background, foreground, 0.12)
         );
+    }
+
+    #[test]
+    fn focus_uses_a_non_layout_shadow() {
+        let color: gpui::Hsla = gpui::rgb(0x5f875f).into();
+        assert!(m3_focus_shadow(false, color, UiScale::default()).is_empty());
+        assert_eq!(m3_focus_shadow(true, color, UiScale::default()).len(), 1);
     }
 }

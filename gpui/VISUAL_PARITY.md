@@ -56,6 +56,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - Text edits update the editor draft and pay estimate while typing.
 - Notes preserve typed and pasted line breaks.
 - Project and day-off fields use outlined, trigger-anchored selects with keyboard navigation.
+- Focused shared controls use a 3 px shadow outline that does not change layout. No production Rust control uses a permanent 2 px border.
 
 ## Comparison tolerances
 

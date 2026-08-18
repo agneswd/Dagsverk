@@ -15,7 +15,8 @@ mod theme;
 mod typography;
 
 pub use button::{
-    M3Button, M3ButtonEvent, M3ButtonVariant, M3IconButton, M3IconButtonEvent, m3_state_layer,
+    M3Button, M3ButtonEvent, M3ButtonVariant, M3IconButton, M3IconButtonEvent, m3_focus_shadow,
+    m3_state_layer,
 };
 pub use card::{M3CardVariant, m3_card, m3_card_variant};
 pub use dialog::{M3Dialog, M3DialogEvent};

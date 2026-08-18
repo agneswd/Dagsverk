@@ -293,12 +293,7 @@ impl Render for M3ExpansionPanel {
                     .flex()
                     .items_center()
                     .justify_between()
-                    .border_2()
-                    .border_color(if focused {
-                        self.colors.primary
-                    } else {
-                        self.colors.surface_container_lowest
-                    })
+                    .shadow(choice_focus_shadow(focused, self.colors.primary))
                     .rounded(px(12.0))
                     .cursor_pointer()
                     .on_click(cx.listener(|this, _, _, cx| this.toggle(cx)))

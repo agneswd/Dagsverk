@@ -3,7 +3,10 @@ use gpui::{
     div, prelude::*, px,
 };
 
-use crate::text_input::TextInput;
+use crate::{
+    m3::{UiScale, m3_focus_shadow},
+    text_input::TextInput,
+};
 
 actions!(preview, [Tab, TabPrevious, Activate]);
 
@@ -101,12 +104,11 @@ impl Render for Preview {
                             .rounded(px(24.))
                             .bg(gpui::rgb(0x5f875f))
                             .text_color(gpui::rgb(0xffffff))
-                            .border_2()
-                            .border_color(if button_focused {
-                                gpui::rgb(0x19351c)
-                            } else {
-                                gpui::rgb(0x5f875f)
-                            })
+                            .shadow(m3_focus_shadow(
+                                button_focused,
+                                gpui::rgb(0x19351c).into(),
+                                UiScale::default(),
+                            ))
                             .hover(|style| style.bg(gpui::rgb(0x4f774f)).cursor_pointer())
                             .child(format!("Test button ({})", self.activations)),
                     )
