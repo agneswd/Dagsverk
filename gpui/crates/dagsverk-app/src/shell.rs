@@ -4792,24 +4792,7 @@ impl Render for AppShell {
             .blend(workspace_accent.opacity(0.42));
         let workspace_menu_items = self.model.workspaces.clone();
         let active_workspace_id = self.model.active_workspace_id.clone();
-        let month = format!(
-            "{} {:04}",
-            [
-                "January",
-                "February",
-                "March",
-                "April",
-                "May",
-                "June",
-                "July",
-                "August",
-                "September",
-                "October",
-                "November",
-                "December"
-            ][self.model.current_month.month as usize - 1],
-            self.model.current_month.year
-        );
+        let month = format_month_title(self.model.current_month, self.ui_language());
         let message = self
             .model
             .transient_error
@@ -6017,6 +6000,40 @@ fn format_editor_date(
     )
 }
 
+fn format_month_title(month: YearMonth, language: LanguagePreference) -> String {
+    let names = match language {
+        LanguagePreference::English | LanguagePreference::System => [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ],
+        LanguagePreference::Swedish => [
+            "januari",
+            "februari",
+            "mars",
+            "april",
+            "maj",
+            "juni",
+            "juli",
+            "augusti",
+            "september",
+            "oktober",
+            "november",
+            "december",
+        ],
+    };
+    format!("{} {}", names[month.month as usize - 1], month.year)
+}
+
 fn overtime_day_category_label(category: OvertimeDayCategory) -> &'static str {
     match category {
         OvertimeDayCategory::AllDays => "All days",
@@ -6274,8 +6291,9 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        AppShell, AppShellServices, format_editor_date, header_layout, overtime_day_category_label,
-        parse_non_negative_decimal, parse_scheduled_minutes, responsive_layout, route_page_layout,
+        AppShell, AppShellServices, format_editor_date, format_month_title, header_layout,
+        overtime_day_category_label, parse_non_negative_decimal, parse_scheduled_minutes,
+        responsive_layout, route_page_layout,
     };
     use crate::{
         platform::{
@@ -6472,6 +6490,15 @@ mod tests {
         assert_eq!(
             format_editor_date(date, crate::state::Language::Swedish),
             "Tisdag, aug 18 2026"
+        );
+        let month = dagsverk_core::models::YearMonth::new(2026, 8).expect("month");
+        assert_eq!(
+            format_month_title(month, LanguagePreference::English),
+            "August 2026"
+        );
+        assert_eq!(
+            format_month_title(month, LanguagePreference::Swedish),
+            "augusti 2026"
         );
         assert_eq!(
             overtime_day_category_label(dagsverk_core::models::OvertimeDayCategory::MajorHolidays),

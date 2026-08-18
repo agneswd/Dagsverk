@@ -23,6 +23,15 @@ use crate::m3::{
 const LEDGER_COLUMN_RATIOS: [f32; 8] = [
     0.110_615, 0.143_567, 0.152_247, 0.088_208, 0.090_673, 0.113_213, 0.131_126, 0.170_351,
 ];
+const WEEKDAY_KEYS: [&str; 7] = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+];
 
 #[derive(Clone)]
 pub struct MonthViewData {
@@ -305,24 +314,13 @@ impl MonthView {
                     .bg(colors.surface_container)
                     .m3_typography(TypographyRole::LabelMedium, scale)
                     .text_color(colors.on_surface_variant)
-                    .children(
-                        [
-                            "Monday",
-                            "Tuesday",
-                            "Wednesday",
-                            "Thursday",
-                            "Friday",
-                            "Saturday",
-                            "Sunday",
-                        ]
-                        .map(|key| {
-                            localized(self.data.language, key)
-                                .chars()
-                                .take(3)
-                                .collect::<String>()
-                                .to_uppercase()
-                        }),
-                    ),
+                    .children(WEEKDAY_KEYS.map(|key| {
+                        localized(self.data.language, key)
+                            .chars()
+                            .take(3)
+                            .collect::<String>()
+                            .to_uppercase()
+                    })),
             )
             .child(
                 div()
@@ -504,7 +502,13 @@ impl MonthView {
                 LedgerRow {
                     date,
                     day: naive.day(),
-                    weekday: naive.format("%a").to_string(),
+                    weekday: localized(
+                        self.data.language,
+                        WEEKDAY_KEYS[naive.weekday().num_days_from_monday() as usize],
+                    )
+                    .chars()
+                    .take(3)
+                    .collect(),
                     is_today: date == self.data.today,
                     is_missing: self.data.month_started
                         && date < self.data.today
@@ -967,6 +971,11 @@ mod tests {
         let cells = view.calendar_cells();
         assert_eq!(cells.len() % 7, 0);
         assert_eq!(cells.iter().filter(|cell| cell.current_month).count(), 31);
+
+        let mut swedish = view.data.clone();
+        swedish.language = dagsverk_core::models::LanguagePreference::Swedish;
+        let swedish = MonthView::new(swedish);
+        assert_eq!(swedish.rows()[17].weekday, "Tis");
     }
 
     #[test]
