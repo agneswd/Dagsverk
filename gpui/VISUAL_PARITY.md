@@ -63,6 +63,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - The timesheet header hides labels and secondary actions from the measured available pane width, including the docked editor width.
 - Settings tabs share one tonal surface with the first settings card and use the selected text and indicator colors.
 - Add Project uses a filled icon button state and stays disabled until the trimmed project name is non-empty.
+- Create Workspace uses the same filled icon and disabled-state behavior for invalid form values.
 
 ## Comparison tolerances
 

@@ -541,6 +541,10 @@ impl AppShell {
             cx.notify();
         })
         .detach();
+        cx.subscribe(&workspace_name_input, |_, _, _: &TextInputEvent, cx| {
+            cx.notify();
+        })
+        .detach();
         cx.subscribe(&project_select, |shell, _, event: &M3SelectEvent, cx| {
             let options = editor_project_options(&shell.model);
             if let Some(draft) = shell.model.editor.draft.as_mut() {
@@ -2171,6 +2175,8 @@ impl AppShell {
         let can_delete = workspaces.len() > 1;
         let new_color = self.workspace_color_input.read(cx).text().to_owned();
         let new_color_swatch = color_from_hex(&new_color).unwrap_or(colors.primary);
+        let can_create_workspace = !self.workspace_name_input.read(cx).text().trim().is_empty()
+            && is_hex_color(&new_color);
         div()
             .absolute()
             .inset_0()
@@ -2345,28 +2351,38 @@ impl AppShell {
                                             .flex()
                                             .items_center()
                                             .justify_center()
+                                            .gap(scale.px(8.0))
                                             .rounded(scale.px(20.0))
-                                            .cursor_pointer()
                                             .bg(colors.primary)
                                             .text_color(colors.on_primary)
-                                            .hover(move |style| {
-                                                style.bg(m3_state_layer(
-                                                    colors.primary,
-                                                    colors.on_primary,
-                                                    0.08,
-                                                ))
+                                            .opacity(if can_create_workspace { 1.0 } else { 0.38 })
+                                            .when(can_create_workspace, |button| {
+                                                button
+                                                    .cursor_pointer()
+                                                    .hover(move |style| {
+                                                        style.bg(m3_state_layer(
+                                                            colors.primary,
+                                                            colors.on_primary,
+                                                            0.08,
+                                                        ))
+                                                    })
+                                                    .active(move |style| {
+                                                        style.bg(m3_state_layer(
+                                                            colors.primary,
+                                                            colors.on_primary,
+                                                            0.12,
+                                                        ))
+                                                    })
+                                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                                        shell.create_workspace(cx)
+                                                    }))
                                             })
-                                            .active(move |style| {
-                                                style.bg(m3_state_layer(
-                                                    colors.primary,
-                                                    colors.on_primary,
-                                                    0.12,
-                                                ))
-                                            })
-                                            .child(self.text("Create workspace"))
-                                            .on_click(cx.listener(|shell, _, _, cx| {
-                                                shell.create_workspace(cx)
-                                            })),
+                                            .child(m3_icon_colored(
+                                                "add",
+                                                18.0 * scale.factor(),
+                                                colors.on_primary,
+                                            ))
+                                            .child(self.text("Create workspace")),
                                     ),
                             ),
                     )
