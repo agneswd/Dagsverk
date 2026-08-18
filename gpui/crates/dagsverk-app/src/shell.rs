@@ -207,6 +207,7 @@ pub struct AppShell {
     notes_input: Entity<TextInput>,
     scheduled_input: Entity<TextInput>,
     scheduled_override_switch: Entity<M3Switch>,
+    exclude_holidays_switch: Entity<M3Switch>,
     project_name_input: Entity<TextInput>,
     project_color_input: Entity<TextInput>,
     workspace_name_input: Entity<TextInput>,
@@ -287,6 +288,14 @@ impl AppShell {
             M3Switch::new(
                 "scheduled-override-switch",
                 false,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let exclude_holidays_switch = cx.new(|cx| {
+            M3Switch::new(
+                "exclude-holidays-switch",
+                model.settings.expected_hours.exclude_public_holidays,
                 M3ColorScheme::light(),
                 cx,
             )
@@ -373,6 +382,14 @@ impl AppShell {
             },
         )
         .detach();
+        cx.subscribe(
+            &exclude_holidays_switch,
+            |shell, _, event: &M3SwitchEvent, cx| {
+                shell.settings_draft.expected_hours.exclude_public_holidays = event.0;
+                cx.notify();
+            },
+        )
+        .detach();
         cx.subscribe(&notes_input, |shell, _, event: &TextInputEvent, cx| {
             let TextInputEvent::Changed(value) = event;
             if let Some(draft) = shell.model.editor.draft.as_mut() {
@@ -399,6 +416,7 @@ impl AppShell {
             notes_input,
             scheduled_input,
             scheduled_override_switch,
+            exclude_holidays_switch,
             project_name_input,
             project_color_input,
             workspace_name_input,
@@ -455,6 +473,7 @@ impl AppShell {
             self.preferences_draft = self.model.preferences.clone();
             self.settings_inputs.sync(&self.settings_draft, cx);
             self.sync_rate_band_inputs(cx);
+            self.sync_setting_switches(cx);
         }
         self.model.route = route;
         self.model.close_catch_up();
@@ -1123,6 +1142,7 @@ impl AppShell {
         self.preferences_draft = self.model.preferences.clone();
         self.settings_inputs.sync(&self.settings_draft, cx);
         self.sync_rate_band_inputs(cx);
+        self.sync_setting_switches(cx);
         self.model.transient_error = None;
         cx.notify();
     }
@@ -1135,6 +1155,15 @@ impl AppShell {
             .iter()
             .map(|band| RateBandInputs::new(band, cx))
             .collect();
+    }
+
+    fn sync_setting_switches(&mut self, cx: &mut Context<Self>) {
+        let checked = self.settings_draft.expected_hours.exclude_public_holidays;
+        let colors = self.colors();
+        self.exclude_holidays_switch.update(cx, |switch, cx| {
+            switch.set_checked(checked, cx);
+            switch.set_colors(colors, cx);
+        });
     }
 
     fn navigation_item(
@@ -2366,7 +2395,6 @@ impl AppShell {
 
     fn schedule_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
         let weekdays = self.settings_draft.expected_hours.working_weekdays.clone();
-        let excluded = self.settings_draft.expected_hours.exclude_public_holidays;
         div()
             .flex()
             .flex_col()
@@ -2412,18 +2440,13 @@ impl AppShell {
                 ),
             )
             .child(
-                setting_chip(
-                    self.ui_language(),
-                    "exclude-holidays",
-                    "Exclude Swedish public holidays",
-                    excluded,
-                    colors,
-                )
-                .on_click(cx.listener(|shell, _, _, cx| {
-                    shell.settings_draft.expected_hours.exclude_public_holidays =
-                        !shell.settings_draft.expected_hours.exclude_public_holidays;
-                    cx.notify();
-                })),
+                div()
+                    .min_h(px(48.0))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .child(self.text("Exclude Swedish public holidays"))
+                    .child(self.exclude_holidays_switch.clone()),
             )
             .child(self.text("Default Start"))
             .child(self.settings_inputs.default_start.clone())
