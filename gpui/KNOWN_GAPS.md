@@ -13,18 +13,18 @@
 
 - Current behavior: The complete deterministic Electron set is current. The committed GPUI images predate the latest shell, ledger, editor, and palette changes.
 - Expected parity: Every required Electron image has a current GPUI image at the same viewport, theme, fixture, and scale.
-- Reason incomplete: Niri did not write an image for the unfocused GPUI window on another workspace during the latest capture attempt.
+- Reason incomplete: Niri did not write an image while the DMS fade-to-lock overlay held exclusive input and the compositor reported no focused window.
 - Files involved: `reference/screenshots/gpui/`, `gpui/VISUAL_PARITY.md`.
-- Proposed solution: Capture through an isolated GPU-backed compositor or a Niri session where the preview workspace is visible without changing keyboard focus.
+- Proposed solution: Run the committed non-focusing Niri capture tool when the session is active, or use an isolated GPU-backed compositor.
 - Test needed: Run `npm run visual:compare` for every required pair and inspect geometry and interaction states.
 
 ## Background GPUI capture
 
-- Current behavior: Tests, builds, and GPUI launches run without taking desktop focus. GPUI 0.2.2 fails to present through Xvfb and panics on a seatless headless Weston compositor. The latest Niri window-ID capture created no file while the window was on another workspace.
+- Current behavior: Tests, builds, and GPUI launches run without taking desktop focus. GPUI 0.2.2 fails to present through Xvfb and panics on a seatless headless Weston compositor. The capture tool launches typed visual states, uses an exact window size and scale, and verifies that focus does not change.
 - Expected parity: Automated captures must not use the active desktop.
 - Reason incomplete: The pinned Linux backend needs a real Vulkan presentation surface and assumes a Wayland seat. The Niri method still uses the active compositor, but an app-specific rule prevents focus changes.
 - Files involved: `gpui/tools/visual-diff/`, `gpui/VISUAL_PARITY.md`.
-- Proposed solution: Use unfocused Niri captures and GPUI test-platform structural checks now. Add an isolated GPU-backed virtual compositor when available.
+- Proposed solution: Use the committed unfocused Niri capture tool and GPUI structural checks now. Add an isolated GPU-backed virtual compositor when available.
 - Test needed: Repeat the capture in an isolated GPU-backed compositor when one is available in CI.
 
 ## Day editor parity

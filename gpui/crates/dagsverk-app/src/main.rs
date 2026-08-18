@@ -44,6 +44,9 @@ fn main() {
             }
         }
     };
+    let visual_state = options.visual_state;
+    let interface_scale_percent = options.interface_scale_percent;
+    let window_size = options.window_size.unwrap_or((1366, 850));
     logging::info("Dagsverk GPUI Preview starting.");
     let mut runtime = if let Some(database_path) = database_path {
         match create_runtime(database_path, options.today) {
@@ -76,7 +79,11 @@ fn main() {
         })
         .detach();
 
-        let bounds = Bounds::centered(None, size(px(1366.), px(850.)), cx);
+        let bounds = Bounds::centered(
+            None,
+            size(px(window_size.0 as f32), px(window_size.1 as f32)),
+            cx,
+        );
         let window_options = || WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(TitlebarOptions {
@@ -89,7 +96,14 @@ fn main() {
         };
         let result = if let Some((model, services)) = runtime.take() {
             cx.open_window(window_options(), |window, cx| {
-                cx.new(|cx| AppShell::new(model, services, window, cx))
+                let shell = cx.new(|cx| AppShell::new(model, services, window, cx));
+                if let Some(state) = visual_state {
+                    shell.update(cx, |shell, cx| shell.apply_visual_state(state, cx));
+                }
+                if let Some(scale) = interface_scale_percent {
+                    shell.update(cx, |shell, cx| shell.apply_visual_scale(scale, cx));
+                }
+                shell
             })
             .map(|_| ())
         } else {

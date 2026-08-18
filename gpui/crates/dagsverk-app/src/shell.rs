@@ -33,6 +33,7 @@ use rust_decimal::{Decimal, prelude::ToPrimitive};
 
 use crate::{
     platform::{FileDialogService, OpenFileRequest, SaveFileRequest, ShellService},
+    startup::VisualState,
     state::{AppModel, ResolvedTheme, Route},
 };
 
@@ -269,6 +270,62 @@ impl AppShell {
             KeyBinding::new("ctrl-s", SaveActive, None),
             KeyBinding::new("escape", CloseSurface, None),
         ]);
+    }
+
+    pub fn apply_visual_state(&mut self, state: VisualState, cx: &mut Context<Self>) {
+        let dark = matches!(
+            state,
+            VisualState::LedgerDark
+                | VisualState::CalendarDark
+                | VisualState::EditorDark
+                | VisualState::SettingsDark
+                | VisualState::WorkspacesDark
+        );
+        self.model.preferences.theme_preference = if dark {
+            ThemePreference::Dark
+        } else {
+            ThemePreference::Light
+        };
+        self.model.resolved_theme = if dark {
+            ResolvedTheme::Dark
+        } else {
+            ResolvedTheme::Light
+        };
+        self.model.route = match state {
+            VisualState::Projects | VisualState::ColorPicker => Route::Projects,
+            VisualState::SettingsGeneral
+            | VisualState::SettingsOvertime
+            | VisualState::SettingsDark => Route::Settings,
+            VisualState::Backups => Route::DataBackups,
+            _ => Route::Timesheet,
+        };
+        self.model.active_view =
+            if matches!(state, VisualState::Calendar | VisualState::CalendarDark) {
+                MonthViewPreference::Calendar
+            } else {
+                MonthViewPreference::Ledger
+            };
+        self.settings_tab = usize::from(matches!(state, VisualState::SettingsOvertime)) * 2;
+        self.manage_workspaces =
+            matches!(state, VisualState::Workspaces | VisualState::WorkspacesDark);
+        self.month_menu_open = matches!(state, VisualState::MonthMenu);
+        self.color_picker_target =
+            matches!(state, VisualState::ColorPicker).then_some(ColorPickerTarget::NewProject);
+        if matches!(state, VisualState::Editor | VisualState::EditorDark)
+            && let Ok(date) = "2026-08-04".parse()
+        {
+            self.model.open_editor(date);
+            self.sync_editor_inputs(cx);
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    pub fn apply_visual_scale(&mut self, percent: u16, cx: &mut Context<Self>) {
+        self.model.preferences.interface_scale_percent = i32::from(percent);
+        self.model.interface_scale = f32::from(percent) / 100.0;
+        self.refresh_month_view(cx);
+        cx.notify();
     }
 
     pub fn new(
@@ -5698,7 +5755,8 @@ mod tests {
         platform::{
             FileDialogService, NativeShellService, OpenFileRequest, PlatformFuture, SaveFileRequest,
         },
-        state::AppModel,
+        startup::VisualState,
+        state::{AppModel, ResolvedTheme, Route},
     };
 
     struct SaveDialog(PathBuf);
@@ -5747,6 +5805,24 @@ mod tests {
             shell.read_with(cx, |shell, _| shell.model.active_view),
             MonthViewPreference::Calendar
         );
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::SettingsOvertime, cx)
+        });
+        assert!(shell.read_with(cx, |shell, _| {
+            shell.model.route == Route::Settings && shell.settings_tab == 2
+        }));
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::EditorDark, cx)
+        });
+        assert!(shell.read_with(cx, |shell, _| {
+            shell.model.editor.is_open
+                && shell.model.resolved_theme == ResolvedTheme::Dark
+                && shell
+                    .model
+                    .selected_date
+                    .as_ref()
+                    .is_some_and(|date| date.to_string() == "2026-08-04")
+        }));
 
         shell.update(cx, |shell, cx| shell.create_backup(cx));
         cx.run_until_parked();

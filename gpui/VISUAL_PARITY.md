@@ -10,6 +10,25 @@ cd gpui
 cargo run --release -- --database fixtures/databases/visual-parity.db --today 2026-08-18
 ```
 
+The preview accepts deterministic visual states and exact window sizes without changing fixture data:
+
+```bash
+cd gpui
+cargo run --release -- \
+  --database fixtures/databases/visual-parity.db \
+  --today 2026-08-18 \
+  --visual-state editor-dark \
+  --window-size 1366x820 \
+  --interface-scale 100
+```
+
+On Niri, capture one state or the complete set without focusing the preview:
+
+```bash
+gpui/tools/visual-diff/capture-gpui-window.sh ledger /tmp/ledger.png
+gpui/tools/visual-diff/capture-gpui-screens.sh
+```
+
 The fixture contains two workspaces, multiple projects, worked and missing days, leave, overtime, OB, overnight work, notes, holidays, balance, and tax data. Its SHA-256 is `65edb70a9e981ab5403bc97cde0fc3706f5deae180df237566859f109a570502`.
 
 ## Linux baseline
@@ -22,7 +41,7 @@ The current Niri Wayland captures use a 1366 x 820 window at device scale 1:
 
 These images predate the latest shell and editor polish. They remain historical evidence only. New matching captures are required before visual-complete status.
 
-The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `open-focused false`. Launch verification on 2026-08-18 confirmed that the GPUI window did not take focus. Niri created no file for an unfocused window on another workspace during the latest `screenshot-window --id` attempt. No desktop focus was changed to force a capture.
+The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `open-focused false`. Launch verification on 2026-08-18 confirmed that the GPUI window did not take focus. The capture tool also compares focus before and after each image. Niri created no file during the latest attempt because the DMS fade-to-lock overlay held exclusive input and Niri reported no focused window. No desktop focus or lock state was changed to force a capture.
 
 ## Current measured implementation
 
