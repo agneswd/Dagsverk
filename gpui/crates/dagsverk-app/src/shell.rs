@@ -3001,7 +3001,12 @@ impl AppShell {
             CurrencyPreference::Dkk => "DKK",
         };
         div()
-            .p(px(24.0))
+            .w_full()
+            .max_w(px(1280.0))
+            .mx_auto()
+            .pt(px(24.0))
+            .px(px(32.0))
+            .pb(px(40.0))
             .flex()
             .flex_col()
             .gap(px(16.0))
@@ -3922,6 +3927,11 @@ impl Render for AppShell {
         let catch_up_hover = m3_state_layer(colors.primary, colors.on_primary, 0.08);
         let catch_up_pressed = m3_state_layer(colors.primary, colors.on_primary, 0.12);
         let can_export = !self.maintenance_busy && !self.model.entries.is_empty();
+        let snackbar_right = if self.model.editor.is_open {
+            416.0 * scale + 24.0
+        } else {
+            24.0
+        };
 
         div()
             .track_focus(&self.focus)
@@ -4626,15 +4636,18 @@ impl Render for AppShell {
                 root.child(
                     div()
                         .absolute()
-                        .bottom(px(24.0))
-                        .left(px(280.0))
-                        .px(px(18.0))
-                        .h(px(48.0))
+                        .bottom(px(24.0 * scale))
+                        .left(px(sidebar_width + 24.0 * scale))
+                        .right(px(snackbar_right))
+                        .max_w(px(560.0 * scale))
+                        .px(px(16.0 * scale))
+                        .min_h(px(48.0 * scale))
                         .flex()
                         .items_center()
-                        .rounded(px(12.0))
-                        .bg(colors.on_surface)
-                        .text_color(colors.surface_container_lowest)
+                        .rounded(px(4.0 * scale))
+                        .bg(colors.surface_container_highest)
+                        .text_color(colors.on_surface)
+                        .shadow(menu_elevation())
                         .child(message),
                 )
             })
