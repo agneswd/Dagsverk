@@ -5,7 +5,7 @@ use dagsverk_app::{
     platform::{NativeFileDialogService, NativeShellService},
     shell::{AppShell, AppShellServices},
     startup::StartupOptions,
-    state::AppModel,
+    state::{AppModel, Language},
 };
 use dagsverk_core::{clock::SystemClock, tax::TaxEngine};
 use dagsverk_data::Database;
@@ -93,7 +93,13 @@ fn create_runtime(
     let repository = Arc::new(Database::open(options.database_path()?, SystemClock)?);
     let mut tax = TaxEngine::default();
     tax.register_json(include_str!("../../../../public/tax-data/tax-2026.json"))?;
-    let mut model = AppModel::new(repository.clone(), clock, tax, false);
+    let mut model = AppModel::new_with_system_language(
+        repository.clone(),
+        clock,
+        tax,
+        false,
+        system_language(),
+    );
     model.initialize()?;
     Ok((
         model,
@@ -103,4 +109,18 @@ fn create_runtime(
             shell: Arc::new(NativeShellService),
         },
     ))
+}
+
+fn system_language() -> Language {
+    ["LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"]
+        .into_iter()
+        .filter_map(|name| std::env::var(name).ok())
+        .find(|value| !value.trim().is_empty())
+        .map_or(Language::English, |value| {
+            if value.to_ascii_lowercase().starts_with("sv") {
+                Language::Swedish
+            } else {
+                Language::English
+            }
+        })
 }

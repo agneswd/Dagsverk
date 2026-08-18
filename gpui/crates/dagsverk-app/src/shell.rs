@@ -3,6 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use chrono::Duration;
 use dagsverk_core::{
     calculations::{calculate_daily_pay, normalize_time},
+    i18n::translate,
     models::{
         AppPreferences, AppSettings, CompensationRateType, CompensationRuleType,
         CurrencyPreference, ExportLanguagePreference, HourlyPayBasis, LanguagePreference, Minutes,
@@ -335,6 +336,18 @@ impl AppShell {
             ResolvedTheme::Light => UiTheme::Light,
             ResolvedTheme::Dark => UiTheme::Dark,
         })
+    }
+
+    fn text(&self, key: &str) -> SharedString {
+        translate(
+            match self.model.language {
+                crate::state::Language::English => LanguagePreference::English,
+                crate::state::Language::Swedish => LanguagePreference::Swedish,
+            },
+            key,
+        )
+        .into_owned()
+        .into()
     }
 
     fn set_route(&mut self, route: Route, cx: &mut Context<Self>) {
@@ -1004,7 +1017,7 @@ impl AppShell {
             .hover(|style| style.bg(colors.surface_container_high))
             .active(|style| style.bg(colors.surface_container_highest))
             .child(m3_icon(icon, 24.0, colors))
-            .when(!self.sidebar_collapsed, |item| item.child(label))
+            .when(!self.sidebar_collapsed, |item| item.child(self.text(label)))
             .on_click(cx.listener(move |shell, _, _, cx| shell.set_route(route, cx)))
     }
 
@@ -1027,7 +1040,7 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap(px(20.0))
-            .child(div().text_size(px(28.0)).child("Data & Backups"))
+            .child(div().text_size(px(28.0)).child(self.text("Data & backups")))
             .child("Current database")
             .child(
                 div()
@@ -1330,7 +1343,7 @@ impl AppShell {
                     .gap(px(14.0))
                     .rounded(px(16.0))
                     .bg(colors.surface_container_low)
-                    .child(div().text_size(px(20.0)).child("Add project"))
+                    .child(div().text_size(px(20.0)).child(self.text("Add project")))
                     .child("Name")
                     .child(self.project_name_input.clone())
                     .child("Color")
@@ -1346,7 +1359,7 @@ impl AppShell {
                             .cursor_pointer()
                             .bg(colors.primary)
                             .text_color(colors.on_primary)
-                            .child("Add project")
+                            .child(self.text("Add project"))
                             .on_click(cx.listener(|shell, _, _, cx| shell.add_project(cx))),
                     ),
             )
@@ -1402,7 +1415,7 @@ impl AppShell {
                                         .py(px(4.0))
                                         .rounded(px(12.0))
                                         .bg(colors.primary_container)
-                                        .child("Default"),
+                                        .child(self.text("Default")),
                                 )
                             })
                             .when(!project.is_default, |row| {
@@ -1410,7 +1423,7 @@ impl AppShell {
                                     div()
                                         .id(("default-project", index))
                                         .cursor_pointer()
-                                        .child("Set default")
+                                        .child(self.text("Set Default"))
                                         .on_click(cx.listener(move |shell, _, _, cx| {
                                             shell.set_default_project(&default_id, cx)
                                         })),
@@ -1481,7 +1494,11 @@ impl AppShell {
                             .flex()
                             .items_center()
                             .justify_between()
-                            .child(div().text_size(px(22.0)).child("Manage workspaces"))
+                            .child(
+                                div()
+                                    .text_size(px(22.0))
+                                    .child(self.text("Manage workspaces")),
+                            )
                             .child(
                                 div()
                                     .id("close-workspaces")
@@ -1503,9 +1520,9 @@ impl AppShell {
                                     .flex()
                                     .flex_col()
                                     .gap(px(10.0))
-                                    .child("Workspace name")
+                                    .child(self.text("Workspace name"))
                                     .child(self.workspace_name_input.clone())
-                                    .child("Worker name")
+                                    .child(self.text("Worker name"))
                                     .child(self.workspace_worker_input.clone())
                                     .child("Organization or client")
                                     .child(self.workspace_organization_input.clone()),
@@ -1564,7 +1581,7 @@ impl AppShell {
                                             .cursor_pointer()
                                             .bg(colors.primary)
                                             .text_color(colors.on_primary)
-                                            .child("Create workspace")
+                                            .child(self.text("Create workspace"))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.create_workspace(cx)
                                             })),
@@ -1601,7 +1618,7 @@ impl AppShell {
                                                     .unwrap_or(colors.primary)),
                                         )
                                         .child(div().flex_1().child(workspace.name))
-                                        .when(is_active, |row| row.child("Active"))
+                                        .when(is_active, |row| row.child(self.text("Active")))
                                         .when(!is_active, |row| {
                                             row.child(
                                                 div()
@@ -1824,7 +1841,7 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap(px(20.0))
-            .child(div().text_size(px(24.0)).child("Settings"))
+            .child(div().text_size(px(24.0)).child(self.text("Settings")))
             .child(
                 div()
                     .h(px(44.0))
@@ -1856,7 +1873,7 @@ impl AppShell {
                                 } else {
                                     gpui::transparent_black()
                                 })
-                                .child(label)
+                                .child(self.text(label))
                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                     shell.settings_tab = index;
                                     cx.notify();
@@ -1888,7 +1905,7 @@ impl AppShell {
                             .items_center()
                             .rounded(px(20.0))
                             .opacity(if dirty { 1.0 } else { 0.38 })
-                            .child("Discard")
+                            .child(self.text("Discard"))
                             .when(dirty, |button| {
                                 button.cursor_pointer().on_click(
                                     cx.listener(|shell, _, _, cx| shell.discard_settings(cx)),
@@ -1906,7 +1923,7 @@ impl AppShell {
                             .opacity(if dirty { 1.0 } else { 0.38 })
                             .bg(colors.primary)
                             .text_color(colors.on_primary)
-                            .child("Save")
+                            .child(self.text("Save"))
                             .when(dirty, |button| {
                                 button.cursor_pointer().on_click(
                                     cx.listener(|shell, _, _, cx| shell.save_settings(cx)),
@@ -1923,8 +1940,8 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child("General"))
-            .child("Default project")
+            .child(div().text_size(px(18.0)).child(self.text("General")))
+            .child(self.text("Default Project"))
             .child(
                 div().flex().flex_wrap().gap(px(8.0)).children(
                     projects
@@ -1949,7 +1966,7 @@ impl AppShell {
                         }),
                 ),
             )
-            .child("Currency")
+            .child(self.text("Currency"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -1989,10 +2006,10 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child("Schedule"))
-            .child("Target hours per workday")
+            .child(div().text_size(px(18.0)).child(self.text("Schedule")))
+            .child(self.text("Hours per workday"))
             .child(self.settings_inputs.expected_hours.clone())
-            .child("Scheduled weekdays")
+            .child(self.text("Scheduled Weekdays"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2038,11 +2055,11 @@ impl AppShell {
                     cx.notify();
                 })),
             )
-            .child("Default start")
+            .child(self.text("Default Start"))
             .child(self.settings_inputs.default_start.clone())
-            .child("Default end")
+            .child(self.text("Default End"))
             .child(self.settings_inputs.default_end.clone())
-            .child("Default lunch minutes")
+            .child(self.text("Default Lunch"))
             .child(self.settings_inputs.default_lunch.clone())
     }
 
@@ -2052,8 +2069,8 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child("Overtime & OB"))
-            .child("Compensation mode")
+            .child(div().text_size(px(18.0)).child(self.text("Overtime & OB")))
+            .child(self.text("Compensation Mode"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2076,7 +2093,7 @@ impl AppShell {
                     }),
                 ),
             )
-            .child("Threshold")
+            .child(self.text("Overtime threshold"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2101,7 +2118,7 @@ impl AppShell {
             )
             .child("Fixed daily threshold")
             .child(self.settings_inputs.overtime_threshold.clone())
-            .child("OB during overtime")
+            .child(self.text("OB During Overtime"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2343,8 +2360,8 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child("Salary & Tax"))
-            .child("Salary model")
+            .child(div().text_size(px(18.0)).child(self.text("Salary & Tax")))
+            .child(self.text("Salary Model"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2367,13 +2384,13 @@ impl AppShell {
                     }),
                 ),
             )
-            .child("Hourly rate")
+            .child(self.text("Hourly Rate"))
             .child(self.settings_inputs.hourly_rate.clone())
-            .child("Monthly salary")
+            .child(self.text("Monthly Salary"))
             .child(self.settings_inputs.monthly_salary.clone())
-            .child("Employment percent")
+            .child(self.text("Employment percent"))
             .child(self.settings_inputs.employment_percent.clone())
-            .child("Hourly pay basis")
+            .child(self.text("Hourly Pay Basis"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2399,7 +2416,7 @@ impl AppShell {
                     }),
                 ),
             )
-            .child("Tax mode")
+            .child(self.text("Tax Engine Mode"))
             .child(
                 div().flex().flex_wrap().gap(px(8.0)).children(
                     [
@@ -2436,8 +2453,8 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child("Application"))
-            .child("Theme")
+            .child(div().text_size(px(18.0)).child(self.text("Application")))
+            .child(self.text("Theme"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2461,7 +2478,7 @@ impl AppShell {
                     }),
                 ),
             )
-            .child("Language")
+            .child(self.text("Language"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2485,7 +2502,7 @@ impl AppShell {
                     }),
                 ),
             )
-            .child("Interface scale")
+            .child(self.text("Interface scale"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [80, 90, 100, 110, 125, 150]
@@ -2507,7 +2524,7 @@ impl AppShell {
                         }),
                 ),
             )
-            .child("Export language")
+            .child(self.text("Export language"))
             .child(
                 div().flex().gap(px(8.0)).children(
                     [
@@ -2604,6 +2621,10 @@ impl AppShell {
                 &tax,
                 currency,
                 self.model.is_month_unstarted(),
+                match self.model.language {
+                    crate::state::Language::English => LanguagePreference::English,
+                    crate::state::Language::Swedish => LanguagePreference::Swedish,
+                },
                 colors,
             ))
             .child(self.month_view.clone())
@@ -2667,7 +2688,7 @@ impl AppShell {
                     .flex()
                     .flex_col()
                     .gap(px(18.0))
-                    .child("Status")
+                    .child(self.text("Status"))
                     .child(
                         div()
                             .flex()
@@ -2707,7 +2728,7 @@ impl AppShell {
                                 }),
                             ),
                     )
-                    .child("Reuse")
+                    .child(self.text("Reuse"))
                     .child(
                         div().flex().gap(px(8.0)).children(
                             ["Normal day", "Copy previous", "Copy last week"]
@@ -2759,7 +2780,7 @@ impl AppShell {
                     )
                     .when(status == WorkEntryStatus::Worked, |panel| {
                         panel
-                            .child("Presets")
+                            .child(self.text("Quick Presets"))
                             .child(
                                 div().flex().gap(px(8.0)).children(
                                     [
@@ -2802,11 +2823,11 @@ impl AppShell {
                                     ),
                                 ),
                             )
-                            .child("Start")
+                            .child(self.text("Start Time"))
                             .child(self.start_input.clone())
-                            .child("End")
+                            .child(self.text("End Time"))
                             .child(self.end_input.clone())
-                            .child("Lunch")
+                            .child(self.text("Lunch Break"))
                             .child(div().flex().gap(px(8.0)).children(
                                 [0_i64, 30, 45, 60].into_iter().map(|minutes| {
                                     div()
@@ -2839,7 +2860,7 @@ impl AppShell {
                                     .items_center()
                                     .justify_between()
                                     .cursor_pointer()
-                                    .child("Scheduled-hours override")
+                                    .child(self.text("Override scheduled hours"))
                                     .child(if scheduled_override { "On" } else { "Off" })
                                     .on_click(cx.listener(|shell, _, _, cx| {
                                         if let Some(draft) = shell.model.editor.draft.as_mut() {
@@ -2856,7 +2877,7 @@ impl AppShell {
                             .when(scheduled_override, |panel| {
                                 panel.child(self.scheduled_input.clone())
                             })
-                            .child("Project")
+                            .child(self.text("Project"))
                             .child(
                                 div().flex().flex_wrap().gap(px(8.0)).children(
                                     projects
@@ -2938,7 +2959,7 @@ impl AppShell {
                                 daily_pay.total.decimal().round_dp(2)
                             )),
                     )
-                    .child("Notes")
+                    .child(self.text("Notes (Optional)"))
                     .child(self.notes_input.clone())
                     .when_some(error, |panel, error| {
                         panel.child(div().text_color(colors.error).child(error))
@@ -2958,7 +2979,7 @@ impl AppShell {
                             .id("reset-entry")
                             .cursor_pointer()
                             .text_color(colors.error)
-                            .child("Reset")
+                            .child(self.text("Reset"))
                             .on_click(cx.listener(move |shell, _, _, cx| {
                                 if let Err(error) = shell.model.delete_entry(date) {
                                     shell.model.editor.validation_error = Some(error.to_string());
@@ -2973,7 +2994,7 @@ impl AppShell {
                                 div()
                                     .id("catch-up-back")
                                     .cursor_pointer()
-                                    .child("Back")
+                                    .child(self.text("Back"))
                                     .on_click(cx.listener(|shell, _, _, cx| {
                                         shell.model.move_catch_up(-1);
                                         shell.sync_editor_inputs(cx);
@@ -2985,7 +3006,7 @@ impl AppShell {
                                 div()
                                     .id("catch-up-skip")
                                     .cursor_pointer()
-                                    .child("Skip")
+                                    .child(self.text("Skip"))
                                     .on_click(cx.listener(|shell, _, _, cx| {
                                         shell.model.move_catch_up(1);
                                         shell.sync_editor_inputs(cx);
@@ -2998,7 +3019,7 @@ impl AppShell {
                         div()
                             .id("cancel-editor")
                             .cursor_pointer()
-                            .child("Cancel")
+                            .child(self.text("Cancel"))
                             .on_click(cx.listener(|shell, _, _, cx| {
                                 shell.model.close_catch_up();
                                 shell.refresh_month_view(cx);
@@ -3017,9 +3038,9 @@ impl AppShell {
                             .bg(colors.primary)
                             .text_color(colors.on_primary)
                             .child(if self.model.catch_up.is_some() {
-                                "Save and next"
+                                self.text("Save and next")
                             } else {
-                                "Save entry"
+                                self.text("Save entry")
                             })
                             .on_click(cx.listener(|shell, _, _, cx| shell.save_editor(cx))),
                     ),
@@ -3369,7 +3390,7 @@ impl Render for AppShell {
                                                     colors.surface
                                                 },
                                             )
-                                            .child("Ledger")
+                                            .child(self.text("Ledger"))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.set_view(MonthViewPreference::Ledger, cx)
                                             })),
@@ -3396,7 +3417,7 @@ impl Render for AppShell {
                                                     colors.surface
                                                 },
                                             )
-                                            .child("Calendar")
+                                            .child(self.text("Calendar"))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.set_view(MonthViewPreference::Calendar, cx)
                                             })),
@@ -3818,6 +3839,10 @@ fn month_view_data(model: &AppModel) -> MonthViewData {
         selected_date: model.selected_date,
         month_started: !model.is_month_unstarted(),
         mode: model.active_view,
+        language: match model.language {
+            crate::state::Language::English => LanguagePreference::English,
+            crate::state::Language::Swedish => LanguagePreference::Swedish,
+        },
         colors: M3ColorScheme::resolve(match model.resolved_theme {
             ResolvedTheme::Light => UiTheme::Light,
             ResolvedTheme::Dark => UiTheme::Dark,
@@ -3951,7 +3976,7 @@ mod tests {
     use chrono::{DateTime, Utc};
     use dagsverk_core::{
         clock::FixedClock,
-        models::{CompensationRuleType, MonthViewPreference},
+        models::{CompensationRuleType, LanguagePreference, MonthViewPreference},
         tax::TaxEngine,
     };
     use dagsverk_data::Database;
@@ -4059,6 +4084,20 @@ mod tests {
                 .start_time
                 .to_string()),
             "19:00"
+        );
+
+        shell.update(cx, |shell, cx| {
+            let mut preferences = shell.model.preferences.clone();
+            preferences.language_preference = LanguagePreference::Swedish;
+            shell
+                .model
+                .update_preferences(preferences)
+                .expect("Swedish preference");
+            cx.notify();
+        });
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.text("Settings").to_string()),
+            "Inställningar"
         );
     }
 

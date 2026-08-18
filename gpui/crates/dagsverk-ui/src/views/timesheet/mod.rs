@@ -4,9 +4,10 @@ use chrono::{Datelike, Duration, NaiveDate};
 use dagsverk_core::{
     calculations::{dates_in_month, is_scheduled_workday, split_overtime, worked_minutes},
     holidays::SwedishHolidayCalendar,
+    i18n::translate,
     models::{
-        AppSettings, IsoDate, MonthViewPreference, MonthlySummary, Project, TaxEstimate, WorkEntry,
-        WorkEntryStatus, YearMonth,
+        AppSettings, IsoDate, LanguagePreference, MonthViewPreference, MonthlySummary, Project,
+        TaxEstimate, WorkEntry, WorkEntryStatus, YearMonth,
     },
 };
 use gpui::{Context, EventEmitter, Hsla, KeyDownEvent, Render, Window, div, prelude::*, px, rgb};
@@ -23,6 +24,7 @@ pub struct MonthViewData {
     pub selected_date: Option<IsoDate>,
     pub month_started: bool,
     pub mode: MonthViewPreference,
+    pub language: LanguagePreference,
     pub colors: M3ColorScheme,
 }
 
@@ -79,22 +81,25 @@ impl MonthView {
                     .bg(colors.surface_container)
                     .text_size(px(12.0))
                     .text_color(colors.on_surface_variant)
-                    .children([
-                        "DATE",
-                        "STATUS",
-                        "LOGGED HOURS",
-                        "LUNCH",
-                        "HOURS",
-                        "OVERTIME",
-                        "PROJECT",
-                        "NOTES",
-                    ]),
+                    .children(
+                        [
+                            "Date",
+                            "Status",
+                            "Logged hours",
+                            "Lunch",
+                            "Hours",
+                            "Overtime",
+                            "Project",
+                            "Notes",
+                        ]
+                        .map(|key| localized(self.data.language, key).to_uppercase()),
+                    ),
             )
             .children(rows.into_iter().enumerate().map(|(index, row)| {
                 let date = row.date;
                 let date_for_key = date;
                 let date_for_click = date;
-                let status = row.status_label();
+                let status = row.status_label(self.data.language);
                 let status_color = match row.status {
                     WorkEntryStatus::Worked => colors.success_container,
                     WorkEntryStatus::Off => colors.surface_container_high,
@@ -179,7 +184,24 @@ impl MonthView {
                     .bg(colors.surface_container)
                     .text_size(px(12.0))
                     .text_color(colors.on_surface_variant)
-                    .children(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]),
+                    .children(
+                        [
+                            "Monday",
+                            "Tuesday",
+                            "Wednesday",
+                            "Thursday",
+                            "Friday",
+                            "Saturday",
+                            "Sunday",
+                        ]
+                        .map(|key| {
+                            localized(self.data.language, key)
+                                .chars()
+                                .take(3)
+                                .collect::<String>()
+                                .to_uppercase()
+                        }),
+                    ),
             )
             .child(
                 div()
@@ -244,7 +266,7 @@ impl MonthView {
                                     div()
                                         .text_size(px(11.0))
                                         .text_color(colors.warning)
-                                        .child("Unlogged"),
+                                        .child(localized(self.data.language, "Unlogged")),
                                 )
                             })
                             .when_some(cell.holiday, |item, holiday| {
@@ -259,7 +281,7 @@ impl MonthView {
                                 )
                             })
                             .when_some(cell.entry, |item, entry| {
-                                item.child(calendar_entry(entry, colors))
+                                item.child(calendar_entry(entry, colors, self.data.language))
                             })
                     })),
             )
@@ -379,6 +401,7 @@ pub fn summary_banner(
     tax: &TaxEstimate,
     currency: &str,
     unstarted: bool,
+    language: LanguagePreference,
     colors: M3ColorScheme,
 ) -> gpui::Div {
     let net = tax
@@ -389,22 +412,22 @@ pub fn summary_banner(
     let metrics = [
         (
             "schedule",
-            "Worked Time".to_owned(),
+            localized(language, "Worked Time"),
             format!("{} / {}h", summary.worked_hours, summary.expected_hours),
             String::new(),
         ),
         (
             "more_time",
-            "Overtime & OB".to_owned(),
+            localized(language, "Overtime & OB"),
             format!("{}h", summary.overtime_hours),
             format!("{}h OB", summary.ob_hours),
         ),
         (
             "balance",
-            "Time Balance".to_owned(),
+            localized(language, "Time Balance"),
             format_minutes(summary.closing_balance_minutes.value()),
             if unstarted {
-                "Opening balance".to_owned()
+                localized(language, "Opening Balance")
             } else {
                 format!(
                     "delta {}",
@@ -414,7 +437,7 @@ pub fn summary_banner(
         ),
         (
             "payments",
-            "Estimated Net Pay".to_owned(),
+            localized(language, "Estimated Net Pay"),
             format!("{net} {currency}"),
             if tax.is_available {
                 format!("Gross: {}", summary.gross_salary.decimal().round_dp(0))
@@ -491,15 +514,15 @@ struct LedgerRow {
 }
 
 impl LedgerRow {
-    fn status_label(&self) -> &'static str {
+    fn status_label(&self, language: LanguagePreference) -> String {
         if self.holiday.is_some() {
-            "Holiday"
+            localized(language, "Public Holiday")
         } else {
             match self.status {
-                WorkEntryStatus::Worked => "Worked",
-                WorkEntryStatus::Off => "Day Off",
-                WorkEntryStatus::Incomplete if self.is_missing => "Unlogged",
-                WorkEntryStatus::Incomplete => "-",
+                WorkEntryStatus::Worked => localized(language, "Worked"),
+                WorkEntryStatus::Off => localized(language, "Day Off"),
+                WorkEntryStatus::Incomplete if self.is_missing => localized(language, "Unlogged"),
+                WorkEntryStatus::Incomplete => "-".to_owned(),
             }
         }
     }
@@ -538,7 +561,11 @@ struct CalendarCell {
     entry: Option<WorkEntry>,
 }
 
-fn calendar_entry(entry: WorkEntry, colors: M3ColorScheme) -> gpui::Div {
+fn calendar_entry(
+    entry: WorkEntry,
+    colors: M3ColorScheme,
+    language: LanguagePreference,
+) -> gpui::Div {
     let (background, text) = match entry.status {
         WorkEntryStatus::Worked => (colors.primary_container, colors.on_primary_container),
         WorkEntryStatus::Off => (colors.surface_container_high, colors.on_surface_variant),
@@ -547,10 +574,12 @@ fn calendar_entry(entry: WorkEntry, colors: M3ColorScheme) -> gpui::Div {
     let label = match entry.status {
         WorkEntryStatus::Worked => match (entry.start_time, entry.end_time) {
             (Some(start), Some(end)) => format!("{start}-{end}"),
-            _ => "Worked".to_owned(),
+            _ => localized(language, "Worked"),
         },
-        WorkEntryStatus::Off => entry.notes.unwrap_or_else(|| "Day Off".to_owned()),
-        WorkEntryStatus::Incomplete => "Unlogged".to_owned(),
+        WorkEntryStatus::Off => entry
+            .notes
+            .unwrap_or_else(|| localized(language, "Day Off")),
+        WorkEntryStatus::Incomplete => localized(language, "Unlogged"),
     };
     div()
         .min_h(px(32.0))
@@ -560,6 +589,10 @@ fn calendar_entry(entry: WorkEntry, colors: M3ColorScheme) -> gpui::Div {
         .text_color(text)
         .text_size(px(11.0))
         .child(label)
+}
+
+fn localized(language: LanguagePreference, key: &str) -> String {
+    translate(language, key).into_owned()
 }
 
 fn format_hours(minutes: i64, plus: bool) -> String {
@@ -614,6 +647,7 @@ mod tests {
             selected_date: None,
             month_started: true,
             mode: MonthViewPreference::Ledger,
+            language: dagsverk_core::models::LanguagePreference::English,
             colors: M3ColorScheme::light(),
         });
         assert_eq!(view.rows().len(), 31);

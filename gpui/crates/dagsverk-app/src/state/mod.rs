@@ -127,6 +127,7 @@ pub struct AppModel {
     tax: TaxEngine,
     clock: Arc<dyn Clock>,
     system_dark: bool,
+    system_language: Language,
 }
 
 impl AppModel {
@@ -135,6 +136,16 @@ impl AppModel {
         clock: Arc<dyn Clock>,
         tax: TaxEngine,
         system_dark: bool,
+    ) -> Self {
+        Self::new_with_system_language(repository, clock, tax, system_dark, Language::English)
+    }
+
+    pub fn new_with_system_language(
+        repository: Arc<dyn DagsverkRepository>,
+        clock: Arc<dyn Clock>,
+        tax: TaxEngine,
+        system_dark: bool,
+        system_language: Language,
     ) -> Self {
         let workspace = default_workspace(clock.as_ref());
         let preferences = default_preferences();
@@ -183,6 +194,7 @@ impl AppModel {
             tax,
             clock,
             system_dark,
+            system_language,
         };
         model.apply_preferences();
         model
@@ -771,7 +783,8 @@ impl AppModel {
         self.interface_scale = self.preferences.interface_scale_percent as f32 / 100.0;
         self.language = match self.preferences.language_preference {
             LanguagePreference::Swedish => Language::Swedish,
-            LanguagePreference::English | LanguagePreference::System => Language::English,
+            LanguagePreference::English => Language::English,
+            LanguagePreference::System => self.system_language,
         };
     }
 }
@@ -791,7 +804,7 @@ mod tests {
     use dagsverk_data::Database;
     use tempfile::TempDir;
 
-    use super::{AppModel, InitializationState};
+    use super::{AppModel, InitializationState, Language};
 
     const TAX_DATA: &str = include_str!("../../../../../public/tax-data/tax-2026.json");
 
@@ -822,6 +835,14 @@ mod tests {
         assert!(!model.preferences.has_completed_setup);
         assert!(model.is_month_unstarted());
         assert_eq!(model.tax_estimate().gross_pay, Money::ZERO);
+    }
+
+    #[test]
+    fn system_language_uses_the_injected_platform_language() {
+        let (_directory, mut model) = model();
+        model.system_language = Language::Swedish;
+        model.apply_preferences();
+        assert_eq!(model.language, Language::Swedish);
     }
 
     #[test]
