@@ -29,7 +29,7 @@
 
 ## Day editor parity
 
-- Current behavior: The editor uses a 416px tonal side sheet, multiline notes, floating field labels, anchored project and day-off selects, a connected status control, a shared switch, live draft/pay updates, and a 64px footer.
+- Current behavior: The editor uses a 416px tonal side sheet, multiline notes, floating field labels, anchored project and day-off selects with leading icons and scrollable panels, a connected status control, a shared switch, live draft/pay updates, and a 64px footer.
 - Expected parity: Selects must close on all outside clicks and show leading icons. Fields must show supporting error text within the Material field anatomy.
 - Reason incomplete: The first shared select pass covers trigger anchoring and keyboard navigation. The common overlay host does not yet own outside-click dismissal.
 - Files involved: `gpui/crates/dagsverk-app/src/shell.rs`, `gpui/crates/dagsverk-ui/src/text_input.rs`, `gpui/crates/dagsverk-ui/src/m3/select.rs`.

@@ -3,7 +3,7 @@ use gpui::{
     SharedString, Window, actions, anchored, deferred, div, point, prelude::*, px,
 };
 
-use super::{M3ColorScheme, m3_icon_colored, menu_elevation};
+use super::{M3ColorScheme, UiScale, m3_focus_shadow, m3_icon_colored, menu_elevation};
 
 actions!(
     m3_select,
@@ -28,6 +28,7 @@ pub struct M3Select {
     open: bool,
     focus: FocusHandle,
     colors: M3ColorScheme,
+    leading_icon: Option<SharedString>,
 }
 
 impl M3Select {
@@ -60,6 +61,7 @@ impl M3Select {
             open: false,
             focus: cx.focus_handle().tab_index(1).tab_stop(true),
             colors,
+            leading_icon: None,
         }
     }
 
@@ -81,6 +83,11 @@ impl M3Select {
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
         self.colors = colors;
+        cx.notify();
+    }
+
+    pub fn set_leading_icon(&mut self, icon: impl Into<SharedString>, cx: &mut Context<Self>) {
+        self.leading_icon = Some(icon.into());
         cx.notify();
     }
 
@@ -213,10 +220,14 @@ impl Render for M3Select {
             } else {
                 colors.outline
             })
+            .shadow(m3_focus_shadow(focused, colors.primary, UiScale::default()))
             .bg(colors.surface_container_lowest)
             .cursor_pointer()
             .hover(move |style| style.border_color(colors.on_surface))
             .on_click(cx.listener(|select, _, window, cx| select.toggle(&ToggleSelect, window, cx)))
+            .when_some(self.leading_icon.clone(), |field, icon| {
+                field.child(m3_icon_colored(icon, 20.0, colors.on_surface_variant))
+            })
             .child(
                 div()
                     .min_w_0()
@@ -254,9 +265,10 @@ impl Render for M3Select {
                         .snap_to_window_with_margin(px(8.0))
                         .child(
                             div()
+                                .id("m3-select-panel")
                                 .w(px(368.0))
                                 .max_h(px(384.0))
-                                .overflow_hidden()
+                                .overflow_y_scroll()
                                 .p(px(8.0))
                                 .flex()
                                 .flex_col()

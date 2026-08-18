@@ -363,6 +363,7 @@ impl AppShell {
                 cx,
             )
         });
+        project_select.update(cx, |select, cx| select.set_leading_icon("folder", cx));
         let reason_select = cx.new(|cx| {
             M3Select::new(
                 "Day Off Type",
@@ -372,6 +373,7 @@ impl AppShell {
                 cx,
             )
         });
+        reason_select.update(cx, |select, cx| select.set_leading_icon("beach_access", cx));
         let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
         scheduled_input.update(cx, |input, cx| input.set_suffix("hours", cx));
         let scheduled_override_switch = cx.new(|cx| {
