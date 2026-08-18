@@ -1,13 +1,13 @@
 use gpui::{
     App, AppContext, Context, Entity, Focusable, KeyBinding, Render, Window, actions, div,
-    prelude::*, px,
+    prelude::*,
 };
 
 use crate::{
     m3::{
         M3Button, M3ButtonVariant, M3Chip, M3ChoiceGroup, M3ChoiceKind, M3ColorScheme, M3Dialog,
         M3ExpansionPanel, M3IconButton, M3Menu, M3Select, M3SnackbarHost, M3Status, M3Switch,
-        ResolvedTheme, m3_card, m3_divider, m3_icon, m3_progress_bar, m3_status_chip,
+        ResolvedTheme, UiScale, m3_card, m3_divider, m3_icon, m3_progress_bar, m3_status_chip,
     },
     text_input::{TextInput, TextInputEvent},
 };
@@ -31,6 +31,7 @@ pub struct ComponentGallery {
     theme: ResolvedTheme,
     activations: usize,
     input_changes: usize,
+    scale: UiScale,
 }
 
 impl ComponentGallery {
@@ -46,6 +47,10 @@ impl ComponentGallery {
     }
 
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        Self::new_with_scale(window, UiScale::default(), cx)
+    }
+
+    pub fn new_with_scale(window: &mut Window, scale: UiScale, cx: &mut Context<Self>) -> Self {
         window.set_window_title("Dagsverk GPUI Preview");
         let colors = M3ColorScheme::light();
         let specs = [
@@ -63,9 +68,13 @@ impl ComponentGallery {
             .into_iter()
             .map(|(id, label, variant)| cx.new(|cx| M3Button::new(id, label, variant, colors, cx)))
             .collect();
+        for button in &buttons {
+            button.update(cx, |button, cx| button.set_scale(scale, cx));
+        }
         buttons[5].update(cx, |button, cx| button.set_enabled(false, cx));
         buttons[1].update(cx, |button, cx| button.set_leading_icon(Some("check"), cx));
         let icon_button = cx.new(|cx| M3IconButton::new("gallery-icon", "settings", colors, cx));
+        icon_button.update(cx, |button, cx| button.set_scale(scale, cx));
         cx.subscribe(&icon_button, |gallery, _, _, cx| {
             gallery.activations += 1;
             cx.notify();
@@ -88,6 +97,9 @@ impl ComponentGallery {
             )
         });
         let snackbar = cx.new(|cx| M3SnackbarHost::new(colors, cx));
+        dialog.update(cx, |dialog, cx| dialog.set_scale(scale, cx));
+        menu.update(cx, |menu, cx| menu.set_scale(scale, cx));
+        snackbar.update(cx, |snackbar, cx| snackbar.set_scale(scale, cx));
 
         for (index, button) in buttons.iter().enumerate() {
             let dialog = dialog.clone();
@@ -112,6 +124,8 @@ impl ComponentGallery {
 
         let input = cx.new(|cx| TextInput::new(cx, "Text input"));
         let textarea = cx.new(|cx| TextInput::new_multiline(cx, "Notes (Optional)"));
+        input.update(cx, |input, cx| input.set_scale(scale, cx));
+        textarea.update(cx, |input, cx| input.set_scale(scale, cx));
         input.update(cx, |input, cx| {
             input.set_error(Some("Example validation error".into()), cx)
         });
@@ -127,6 +141,7 @@ impl ComponentGallery {
                 cx,
             )
         });
+        select.update(cx, |select, cx| select.set_scale(scale, cx));
         cx.subscribe(&input, |gallery, _, event: &TextInputEvent, cx| {
             let TextInputEvent::Changed(_) = event;
             gallery.input_changes += 1;
@@ -134,10 +149,14 @@ impl ComponentGallery {
         })
         .detach();
         let switch = cx.new(|cx| M3Switch::new("gallery-switch", true, colors, cx));
+        switch.update(cx, |switch, cx| switch.set_scale(scale, cx));
         let chips = vec![
             cx.new(|cx| M3Chip::new("chip-selected", "Selected", true, colors, cx)),
             cx.new(|cx| M3Chip::new("chip-unselected", "Filter chip", false, colors, cx)),
         ];
+        for chip in &chips {
+            chip.update(cx, |chip, cx| chip.set_scale(scale, cx));
+        }
         let tabs = cx.new(|cx| {
             M3ChoiceGroup::new(
                 "gallery-tabs",
@@ -158,6 +177,8 @@ impl ComponentGallery {
                 cx,
             )
         });
+        tabs.update(cx, |tabs, cx| tabs.set_scale(scale, cx));
+        segmented.update(cx, |segmented, cx| segmented.set_scale(scale, cx));
         let expansion = cx.new(|cx| {
             M3ExpansionPanel::new(
                 "gallery-expansion",
@@ -167,6 +188,7 @@ impl ComponentGallery {
                 cx,
             )
         });
+        expansion.update(cx, |panel, cx| panel.set_scale(scale, cx));
         window.focus(&input.read(cx).focus_handle(cx));
         Self {
             buttons,
@@ -185,6 +207,7 @@ impl ComponentGallery {
             theme: ResolvedTheme::Light,
             activations: 0,
             input_changes: 0,
+            scale,
         }
     }
 
@@ -235,6 +258,7 @@ impl ComponentGallery {
 impl Render for ComponentGallery {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = M3ColorScheme::resolve(self.theme);
+        let scale = self.scale;
         div()
             .on_action(cx.listener(Self::tab))
             .on_action(cx.listener(Self::tab_previous))
@@ -242,35 +266,35 @@ impl Render for ComponentGallery {
             .relative()
             .size_full()
             .overflow_y_scroll()
-            .p(px(32.0))
+            .p(scale.px(32.0))
             .bg(colors.background)
             .font_family("Roboto")
             .text_color(colors.on_surface)
             .child(
                 div()
-                    .max_w(px(960.0))
+                    .max_w(scale.px(960.0))
                     .mx_auto()
                     .flex()
                     .flex_col()
-                    .gap(px(24.0))
+                    .gap(scale.px(24.0))
                     .child(
                         div()
-                            .text_size(px(24.0))
-                            .line_height(px(32.0))
+                            .text_size(scale.px(24.0))
+                            .line_height(scale.px(32.0))
                             .child("Dagsverk Material 3 component gallery"),
                     )
                     .child(
                         m3_card(colors)
-                            .p(px(24.0))
+                            .p(scale.px(24.0))
                             .flex()
                             .flex_col()
-                            .gap(px(16.0))
+                            .gap(scale.px(16.0))
                             .child("Buttons")
                             .child(
                                 div()
                                     .flex()
                                     .flex_wrap()
-                                    .gap(px(12.0))
+                                    .gap(scale.px(12.0))
                                     .children(self.buttons.iter().cloned())
                                     .child(self.icon_button.clone()),
                             )
@@ -278,10 +302,10 @@ impl Render for ComponentGallery {
                     )
                     .child(
                         m3_card(colors)
-                            .p(px(24.0))
+                            .p(scale.px(24.0))
                             .flex()
                             .flex_col()
-                            .gap(px(12.0))
+                            .gap(scale.px(12.0))
                             .child("Text input")
                             .child(self.input.clone())
                             .child(self.textarea.clone())
@@ -289,23 +313,23 @@ impl Render for ComponentGallery {
                     )
                     .child(
                         m3_card(colors)
-                            .p(px(24.0))
+                            .p(scale.px(24.0))
                             .flex()
                             .flex_col()
-                            .gap(px(16.0))
+                            .gap(scale.px(16.0))
                             .child("Selection and status")
                             .child(
                                 div()
                                     .flex()
                                     .items_center()
-                                    .gap(px(12.0))
+                                    .gap(scale.px(12.0))
                                     .child(self.switch.clone())
                                     .children(self.chips.iter().cloned()),
                             )
                             .child(
                                 div()
                                     .flex()
-                                    .gap(px(8.0))
+                                    .gap(scale.px(8.0))
                                     .child(m3_status_chip("Neutral", M3Status::Neutral, colors))
                                     .child(m3_status_chip("Worked", M3Status::Success, colors))
                                     .child(m3_status_chip("Warning", M3Status::Warning, colors))
@@ -314,10 +338,10 @@ impl Render for ComponentGallery {
                     )
                     .child(
                         m3_card(colors)
-                            .p(px(24.0))
+                            .p(scale.px(24.0))
                             .flex()
                             .flex_col()
-                            .gap(px(16.0))
+                            .gap(scale.px(16.0))
                             .child("Tabs and progress")
                             .child(self.tabs.clone())
                             .child(m3_divider(colors))
@@ -327,18 +351,18 @@ impl Render for ComponentGallery {
                     )
                     .child(
                         m3_card(colors)
-                            .p(px(24.0))
+                            .p(scale.px(24.0))
                             .flex()
                             .items_center()
-                            .gap(px(16.0))
+                            .gap(scale.px(16.0))
                             .child("Material Symbols")
-                            .child(m3_icon("schedule", 24.0, colors))
-                            .child(m3_icon("calendar_month", 24.0, colors))
-                            .child(m3_icon("settings", 24.0, colors)),
+                            .child(m3_icon("schedule", 24.0 * scale.factor(), colors))
+                            .child(m3_icon("calendar_month", 24.0 * scale.factor(), colors))
+                            .child(m3_icon("settings", 24.0 * scale.factor(), colors)),
                     )
                     .child(
                         div()
-                            .text_size(px(12.0))
+                            .text_size(scale.px(12.0))
                             .text_color(colors.on_surface_variant)
                             .child(
                                 "Tab and Shift-Tab move focus. Enter and Space activate buttons.",
@@ -354,6 +378,7 @@ impl Render for ComponentGallery {
 #[cfg(test)]
 mod tests {
     use super::ComponentGallery;
+    use crate::m3::UiScale;
     use gpui::{Focusable, KeyUpEvent, Keystroke, TestAppContext};
 
     #[gpui::test]
@@ -454,5 +479,14 @@ mod tests {
 
         snackbar.update(cx, |snackbar, cx| snackbar.show("Saved", cx));
         assert!(snackbar.read_with(cx, |snackbar, _| snackbar.is_visible()));
+    }
+
+    #[gpui::test]
+    fn gallery_uses_requested_interface_scale(cx: &mut TestAppContext) {
+        let scale = UiScale::from_percent(150).expect("supported scale");
+        let (gallery, cx) =
+            cx.add_window_view(|window, cx| ComponentGallery::new_with_scale(window, scale, cx));
+
+        assert_eq!(gallery.read_with(cx, |gallery, _| gallery.scale), scale);
     }
 }

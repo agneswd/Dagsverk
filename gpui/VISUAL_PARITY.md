@@ -57,6 +57,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - Notes preserve typed and pasted line breaks.
 - Project and day-off fields use outlined, trigger-anchored selects with keyboard navigation.
 - Focused shared controls use a 3 px shadow outline that does not change layout. No production Rust control uses a permanent 2 px border.
+- The component gallery applies `--interface-scale` to its layout and every reusable control, including overlays.
 
 ## Comparison tolerances
 

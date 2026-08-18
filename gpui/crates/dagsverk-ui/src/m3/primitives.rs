@@ -44,6 +44,7 @@ pub struct M3ChoiceGroup {
     kind: M3ChoiceKind,
     colors: M3ColorScheme,
     focus: Vec<FocusHandle>,
+    scale: UiScale,
 }
 
 impl M3ChoiceGroup {
@@ -68,6 +69,7 @@ impl M3ChoiceGroup {
             kind,
             colors,
             focus,
+            scale: UiScale::default(),
         }
     }
 
@@ -86,6 +88,11 @@ impl M3ChoiceGroup {
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
         self.colors = colors;
+        cx.notify();
+    }
+
+    pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
+        self.scale = scale;
         cx.notify();
     }
 
@@ -128,6 +135,7 @@ impl Render for M3ChoiceGroup {
         let colors = self.colors;
         let kind = self.kind;
         let id = self.id.clone();
+        let scale = self.scale;
         let items = self
             .items
             .iter()
@@ -155,7 +163,7 @@ impl Render for M3ChoiceGroup {
                     .tab_index(index as isize)
                     .tab_stop(enabled)
                     .h_full()
-                    .px(px(16.0))
+                    .px(scale.px(16.0))
                     .flex()
                     .items_center()
                     .justify_center()
@@ -170,8 +178,8 @@ impl Render for M3ChoiceGroup {
                         })
                     })
                     .bg(background)
-                    .shadow(choice_focus_shadow(is_focused, colors.primary))
-                    .m3_typography(TypographyRole::LabelLarge, UiScale::default())
+                    .shadow(choice_focus_shadow(is_focused, colors.primary, scale))
+                    .m3_typography(TypographyRole::LabelLarge, scale)
                     .text_color(foreground)
                     .opacity(if enabled { 1.0 } else { 0.38 })
                     .when(enabled, |item| {
@@ -192,20 +200,20 @@ impl Render for M3ChoiceGroup {
             .collect::<Vec<_>>();
 
         div()
-            .h(px(40.0))
+            .h(scale.px(40.0))
             .flex()
             .items_center()
             .overflow_hidden()
             .when(kind == M3ChoiceKind::Segmented, |group| {
                 group
-                    .rounded(px(20.0))
+                    .rounded(scale.px(20.0))
                     .border_1()
                     .border_color(colors.outline_variant)
             })
             .when(kind == M3ChoiceKind::Tabs, |group| {
                 group
                     .w_full()
-                    .rounded_t(px(16.0))
+                    .rounded_t(scale.px(16.0))
                     .border_b_1()
                     .border_color(colors.grid_line)
                     .bg(colors.surface_container_low)
@@ -214,13 +222,13 @@ impl Render for M3ChoiceGroup {
     }
 }
 
-fn choice_focus_shadow(focused: bool, color: gpui::Hsla) -> Vec<BoxShadow> {
+fn choice_focus_shadow(focused: bool, color: gpui::Hsla, scale: UiScale) -> Vec<BoxShadow> {
     focused
         .then(|| BoxShadow {
             color: color.opacity(FOCUS_OPACITY),
             offset: point(px(0.0), px(0.0)),
             blur_radius: px(0.0),
-            spread_radius: px(3.0),
+            spread_radius: scale.px(3.0),
         })
         .into_iter()
         .collect()
@@ -236,6 +244,7 @@ pub struct M3ExpansionPanel {
     expanded: bool,
     colors: M3ColorScheme,
     focus: FocusHandle,
+    scale: UiScale,
 }
 
 impl M3ExpansionPanel {
@@ -253,6 +262,7 @@ impl M3ExpansionPanel {
             expanded: false,
             colors,
             focus: cx.focus_handle().tab_index(0),
+            scale: UiScale::default(),
         }
     }
 
@@ -262,6 +272,11 @@ impl M3ExpansionPanel {
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
         self.colors = colors;
+        cx.notify();
+    }
+
+    pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
+        self.scale = scale;
         cx.notify();
     }
 
@@ -277,9 +292,10 @@ impl EventEmitter<M3ExpansionPanelEvent> for M3ExpansionPanel {}
 impl Render for M3ExpansionPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focused = self.focus.is_focused(window);
+        let scale = self.scale;
         div()
             .w_full()
-            .rounded(px(12.0))
+            .rounded(scale.px(12.0))
             .border_1()
             .border_color(self.colors.outline_variant)
             .bg(self.colors.surface_container_lowest)
@@ -288,23 +304,23 @@ impl Render for M3ExpansionPanel {
                     .id(self.id.clone())
                     .track_focus(&self.focus)
                     .tab_index(0)
-                    .h(px(48.0))
-                    .px(px(16.0))
+                    .h(scale.px(48.0))
+                    .px(scale.px(16.0))
                     .flex()
                     .items_center()
                     .justify_between()
-                    .shadow(choice_focus_shadow(focused, self.colors.primary))
-                    .rounded(px(12.0))
+                    .shadow(choice_focus_shadow(focused, self.colors.primary, scale))
+                    .rounded(scale.px(12.0))
                     .cursor_pointer()
                     .on_click(cx.listener(|this, _, _, cx| this.toggle(cx)))
                     .child(self.title.clone())
-                    .child(m3_icon("expand_more", 20.0, self.colors)),
+                    .child(m3_icon("expand_more", 20.0 * scale.factor(), self.colors)),
             )
             .when(self.expanded, |panel| {
                 panel.child(
                     div()
-                        .px(px(16.0))
-                        .pb(px(16.0))
+                        .px(scale.px(16.0))
+                        .pb(scale.px(16.0))
                         .text_color(self.colors.on_surface_variant)
                         .child(self.body.clone()),
                 )

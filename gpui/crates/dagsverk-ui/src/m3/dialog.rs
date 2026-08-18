@@ -1,9 +1,9 @@
 use gpui::{
     App, Context, ElementId, EventEmitter, FocusHandle, KeyBinding, MouseButton, Render,
-    SharedString, Window, actions, div, prelude::*, px,
+    SharedString, Window, actions, div, prelude::*,
 };
 
-use super::{M3ColorScheme, ROBOTO_FAMILY};
+use super::{M3ColorScheme, M3TypographyExt, ROBOTO_FAMILY, TypographyRole, UiScale};
 
 actions!(m3_dialog, [DismissDialog, CycleDialogFocus]);
 
@@ -20,6 +20,7 @@ pub struct M3Dialog {
     needs_focus: bool,
     colors: M3ColorScheme,
     close_focus: FocusHandle,
+    scale: UiScale,
 }
 
 impl M3Dialog {
@@ -46,6 +47,7 @@ impl M3Dialog {
             needs_focus: false,
             colors,
             close_focus: cx.focus_handle().tab_index(0),
+            scale: UiScale::default(),
         }
     }
 
@@ -65,6 +67,11 @@ impl M3Dialog {
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
         self.colors = colors;
+        cx.notify();
+    }
+
+    pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
+        self.scale = scale;
         cx.notify();
     }
 
@@ -93,6 +100,7 @@ impl Render for M3Dialog {
             window.focus(&self.close_focus);
             self.needs_focus = false;
         }
+        let scale = self.scale;
 
         div().size_full().when(self.open, |root| {
             root.child(
@@ -113,26 +121,24 @@ impl Render for M3Dialog {
                     )
                     .child(
                         div()
-                            .w(px(480.0))
-                            .p(px(24.0))
+                            .w(scale.px(480.0))
+                            .p(scale.px(24.0))
                             .flex()
                             .flex_col()
-                            .gap(px(16.0))
-                            .rounded(px(28.0))
+                            .gap(scale.px(16.0))
+                            .rounded(scale.px(28.0))
                             .bg(self.colors.surface_container_high)
                             .font_family(ROBOTO_FAMILY)
                             .text_color(self.colors.on_surface)
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
                                 div()
-                                    .text_size(px(24.0))
-                                    .line_height(px(32.0))
+                                    .m3_typography(TypographyRole::HeadlineSmall, scale)
                                     .child(self.title.clone()),
                             )
                             .child(
                                 div()
-                                    .text_size(px(14.0))
-                                    .line_height(px(20.0))
+                                    .m3_typography(TypographyRole::BodyMedium, scale)
                                     .text_color(self.colors.on_surface_variant)
                                     .child(self.message.clone()),
                             )
@@ -141,13 +147,13 @@ impl Render for M3Dialog {
                                     .id("m3-dialog-close")
                                     .track_focus(&self.close_focus)
                                     .tab_index(0)
-                                    .h(px(40.0))
-                                    .px(px(24.0))
+                                    .h(scale.px(40.0))
+                                    .px(scale.px(24.0))
                                     .flex()
                                     .items_center()
                                     .justify_center()
                                     .ml_auto()
-                                    .rounded(px(20.0))
+                                    .rounded(scale.px(20.0))
                                     .bg(self.colors.primary)
                                     .text_color(self.colors.on_primary)
                                     .cursor_pointer()

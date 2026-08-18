@@ -1,6 +1,6 @@
 use gpui::{
     App, Context, EventEmitter, FocusHandle, KeyBinding, MouseButton, Render, SharedString, Window,
-    actions, div, prelude::*, px,
+    actions, div, prelude::*,
 };
 
 use super::{M3ColorScheme, ROBOTO_FAMILY, UiScale, m3_focus_shadow};
@@ -20,6 +20,7 @@ pub struct M3Menu {
     needs_focus: bool,
     colors: M3ColorScheme,
     focus: Vec<FocusHandle>,
+    scale: UiScale,
 }
 
 impl M3Menu {
@@ -47,6 +48,7 @@ impl M3Menu {
             needs_focus: false,
             colors,
             focus,
+            scale: UiScale::default(),
         }
     }
 
@@ -65,6 +67,11 @@ impl M3Menu {
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
         self.colors = colors;
+        cx.notify();
+    }
+
+    pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
+        self.scale = scale;
         cx.notify();
     }
 
@@ -119,6 +126,7 @@ impl Render for M3Menu {
         }
 
         let colors = self.colors;
+        let scale = self.scale;
         let items = self
             .items
             .iter()
@@ -131,12 +139,12 @@ impl Render for M3Menu {
                     .id(("m3-menu-item", index))
                     .track_focus(&focus)
                     .tab_index(index as isize)
-                    .h(px(48.0))
-                    .px(px(16.0))
+                    .h(scale.px(48.0))
+                    .px(scale.px(16.0))
                     .flex()
                     .items_center()
-                    .rounded(px(8.0))
-                    .shadow(m3_focus_shadow(focused, colors.primary, UiScale::default()))
+                    .rounded(scale.px(8.0))
+                    .shadow(m3_focus_shadow(focused, colors.primary, scale))
                     .hover(|style| style.bg(colors.surface_container_highest))
                     .cursor_pointer()
                     .on_click(cx.listener(move |this, _, _, cx| this.select(index, cx)))
@@ -161,13 +169,13 @@ impl Render for M3Menu {
                     .child(
                         div()
                             .absolute()
-                            .top(px(88.0))
-                            .right(px(48.0))
-                            .w(px(240.0))
-                            .p(px(8.0))
+                            .top(scale.px(88.0))
+                            .right(scale.px(48.0))
+                            .w(scale.px(240.0))
+                            .p(scale.px(8.0))
                             .flex()
                             .flex_col()
-                            .rounded(px(16.0))
+                            .rounded(scale.px(16.0))
                             .bg(colors.surface_container_high)
                             .font_family(ROBOTO_FAMILY)
                             .text_color(colors.on_surface)
@@ -189,6 +197,7 @@ pub struct M3SnackbarHost {
     message: Option<SharedString>,
     colors: M3ColorScheme,
     dismiss_focus: FocusHandle,
+    scale: UiScale,
 }
 
 impl M3SnackbarHost {
@@ -197,6 +206,7 @@ impl M3SnackbarHost {
             message: None,
             colors,
             dismiss_focus: cx.focus_handle().tab_index(0),
+            scale: UiScale::default(),
         }
     }
 
@@ -214,6 +224,11 @@ impl M3SnackbarHost {
         cx.notify();
     }
 
+    pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
+        self.scale = scale;
+        cx.notify();
+    }
+
     fn dismiss(&mut self, cx: &mut Context<Self>) {
         if self.message.take().is_some() {
             cx.emit(M3SnackbarEvent::Dismissed);
@@ -227,21 +242,22 @@ impl EventEmitter<M3SnackbarEvent> for M3SnackbarHost {}
 impl Render for M3SnackbarHost {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let dismiss_focused = self.dismiss_focus.is_focused(window);
+        let scale = self.scale;
         div()
             .size_full()
             .when_some(self.message.clone(), |root, message| {
                 root.child(
                     div()
                         .absolute()
-                        .left(px(24.0))
-                        .bottom(px(24.0))
-                        .min_w(px(320.0))
-                        .h(px(48.0))
-                        .px(px(16.0))
+                        .left(scale.px(24.0))
+                        .bottom(scale.px(24.0))
+                        .min_w(scale.px(320.0))
+                        .h(scale.px(48.0))
+                        .px(scale.px(16.0))
                         .flex()
                         .items_center()
                         .justify_between()
-                        .rounded(px(4.0))
+                        .rounded(scale.px(4.0))
                         .bg(self.colors.surface_container_highest)
                         .font_family(ROBOTO_FAMILY)
                         .text_color(self.colors.on_surface)
@@ -252,13 +268,13 @@ impl Render for M3SnackbarHost {
                                 .id("m3-snackbar-dismiss")
                                 .track_focus(&self.dismiss_focus)
                                 .tab_index(0)
-                                .px(px(8.0))
+                                .px(scale.px(8.0))
                                 .shadow(m3_focus_shadow(
                                     dismiss_focused,
                                     self.colors.primary,
-                                    UiScale::default(),
+                                    scale,
                                 ))
-                                .rounded(px(8.0))
+                                .rounded(scale.px(8.0))
                                 .text_color(self.colors.primary)
                                 .cursor_pointer()
                                 .on_click(cx.listener(|this, _, _, cx| this.dismiss(cx)))

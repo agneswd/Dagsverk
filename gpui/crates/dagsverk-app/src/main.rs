@@ -14,7 +14,7 @@ use dagsverk_core::{
     tax::TaxEngine,
 };
 use dagsverk_data::Database;
-use dagsverk_ui::component_gallery::ComponentGallery;
+use dagsverk_ui::{component_gallery::ComponentGallery, m3::UiScale};
 use gpui::{
     App, AppContext, Application, Bounds, TitlebarOptions, WindowBounds, WindowOptions, px, size,
 };
@@ -108,7 +108,10 @@ fn main() {
             .map(|_| ())
         } else {
             cx.open_window(window_options(), |window, cx| {
-                cx.new(|cx| ComponentGallery::new(window, cx))
+                let scale = interface_scale_percent
+                    .and_then(UiScale::from_percent)
+                    .unwrap_or_default();
+                cx.new(|cx| ComponentGallery::new_with_scale(window, scale, cx))
             })
             .map(|_| ())
         };
