@@ -6,6 +6,7 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+chrono.workspace = true
 dagsverk-core.workspace = true
 gpui.workspace = true
 unicode-segmentation.workspace = true

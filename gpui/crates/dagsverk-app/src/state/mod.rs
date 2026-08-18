@@ -670,6 +670,10 @@ impl AppModel {
         self.summary().missing_past_days.len()
     }
 
+    pub fn today(&self) -> IsoDate {
+        IsoDate::new(self.clock.today())
+    }
+
     fn apply_preferences(&mut self) {
         self.resolved_theme = match self.preferences.theme_preference {
             ThemePreference::Dark => ResolvedTheme::Dark,

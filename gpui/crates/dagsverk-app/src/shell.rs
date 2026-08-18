@@ -1,6 +1,16 @@
-use dagsverk_core::models::MonthViewPreference;
-use dagsverk_ui::m3::{M3ColorScheme, ResolvedTheme as UiTheme, m3_card, m3_icon};
-use gpui::{App, Context, KeyBinding, Render, Window, actions, div, prelude::*, px};
+use dagsverk_core::{
+    calculations::normalize_time,
+    models::{CurrencyPreference, Minutes, MonthViewPreference, WorkEntryStatus},
+};
+use dagsverk_ui::{
+    m3::{M3ColorScheme, ResolvedTheme as UiTheme, m3_icon},
+    text_input::TextInput,
+    views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
+};
+use gpui::{
+    App, AppContext, Context, Entity, FocusHandle, Focusable, KeyBinding, Render, Window, actions,
+    div, prelude::*, px,
+};
 
 use crate::state::{AppModel, ResolvedTheme, Route};
 
@@ -20,6 +30,11 @@ actions!(
 
 pub struct AppShell {
     model: AppModel,
+    month_view: Entity<MonthView>,
+    start_input: Entity<TextInput>,
+    end_input: Entity<TextInput>,
+    notes_input: Entity<TextInput>,
+    focus: FocusHandle,
     sidebar_collapsed: bool,
 }
 
@@ -37,10 +52,27 @@ impl AppShell {
         ]);
     }
 
-    pub fn new(model: AppModel, window: &mut Window) -> Self {
+    pub fn new(model: AppModel, window: &mut Window, cx: &mut Context<Self>) -> Self {
         window.set_window_title("Dagsverk GPUI Preview");
+        let month_view = cx.new(|_| MonthView::new(month_view_data(&model)));
+        let start_input = cx.new(|cx| TextInput::new(cx, "Start time"));
+        let end_input = cx.new(|cx| TextInput::new(cx, "End time"));
+        let notes_input = cx.new(|cx| TextInput::new(cx, "Notes"));
+        let focus = cx.focus_handle();
+        window.focus(&focus);
+        cx.subscribe(&month_view, |shell, _, event: &MonthViewEvent, cx| {
+            shell.model.open_editor(event.0);
+            shell.sync_editor_inputs(cx);
+            shell.refresh_month_view(cx);
+        })
+        .detach();
         Self {
             model,
+            month_view,
+            start_input,
+            end_input,
+            notes_input,
+            focus,
             sidebar_collapsed: false,
         }
     }
@@ -64,6 +96,79 @@ impl AppShell {
         } else {
             self.model.route = Route::Timesheet;
         }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn refresh_month_view(&mut self, cx: &mut Context<Self>) {
+        let data = month_view_data(&self.model);
+        self.month_view
+            .update(cx, |month_view, cx| month_view.set_data(data, cx));
+    }
+
+    fn sync_editor_inputs(&mut self, cx: &mut Context<Self>) {
+        let Some(draft) = self.model.editor.draft.as_ref() else {
+            return;
+        };
+        let colors = self.colors();
+        let start = draft
+            .start_time
+            .unwrap_or(self.model.settings.default_start_time)
+            .to_string();
+        let end = draft
+            .end_time
+            .unwrap_or(self.model.settings.default_end_time)
+            .to_string();
+        self.start_input.update(cx, |input, cx| {
+            input.set_text(start, cx);
+            input.set_colors(colors, cx);
+        });
+        self.end_input.update(cx, |input, cx| {
+            input.set_text(end, cx);
+            input.set_colors(colors, cx);
+        });
+        let notes = draft.notes.clone().unwrap_or_default();
+        self.notes_input.update(cx, |input, cx| {
+            input.set_text(notes, cx);
+            input.set_colors(colors, cx);
+        });
+    }
+
+    fn save_editor(&mut self, cx: &mut Context<Self>) {
+        let Some(mut draft) = self.model.editor.draft.clone() else {
+            return;
+        };
+        if draft.status == WorkEntryStatus::Worked {
+            let start = normalize_time(self.start_input.read(cx).text());
+            let end = normalize_time(self.end_input.read(cx).text());
+            let (Some(start), Some(end)) = (start, end) else {
+                self.model.editor.validation_error =
+                    Some("Enter valid start and end times.".to_owned());
+                cx.notify();
+                return;
+            };
+            draft.start_time = Some(start);
+            draft.end_time = Some(end);
+        } else if draft.status == WorkEntryStatus::Off {
+            draft.start_time = None;
+            draft.end_time = None;
+            draft.lunch_minutes = Minutes::ZERO;
+            draft.project_name = None;
+        }
+        let notes = self.notes_input.read(cx).text().trim().to_owned();
+        draft.notes = (!notes.is_empty()).then_some(notes);
+        match self.model.save_entry(draft) {
+            Ok(()) => {
+                if self.model.catch_up.is_some() {
+                    self.model.move_catch_up(1);
+                    self.sync_editor_inputs(cx);
+                } else {
+                    self.model.close_editor();
+                }
+                self.refresh_month_view(cx);
+            }
+            Err(error) => self.model.editor.validation_error = Some(error.to_string()),
+        }
         cx.notify();
     }
 
@@ -72,6 +177,7 @@ impl AppShell {
             Ok(data) => {
                 self.model.apply_load(&key, data);
                 self.model.transient_error = None;
+                self.refresh_month_view(cx);
             }
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
@@ -94,14 +200,7 @@ impl AppShell {
     }
 
     fn save_active(&mut self, _: &SaveActive, _: &mut Window, cx: &mut Context<Self>) {
-        if let Some(entry) = self.model.editor.draft.clone() {
-            if let Err(error) = self.model.save_entry(entry) {
-                self.model.transient_error = Some(error.to_string());
-            } else if self.model.catch_up.is_some() {
-                self.model.move_catch_up(1);
-            }
-        }
-        cx.notify();
+        self.save_editor(cx);
     }
 
     fn close_surface(&mut self, _: &CloseSurface, _: &mut Window, cx: &mut Context<Self>) {
@@ -181,64 +280,248 @@ impl AppShell {
 
     fn timesheet(&self, colors: M3ColorScheme) -> gpui::Div {
         let summary = self.model.summary();
-        let cards = [
-            ("Worked", format!("{} h", summary.worked_hours)),
-            ("Expected", format!("{} h", summary.expected_hours)),
-            (
-                "Balance",
-                format!("{} min", summary.closing_balance_minutes.value()),
-            ),
-            ("Gross pay", summary.gross_salary.decimal().to_string()),
-        ];
+        let tax = self.model.tax_estimate();
+        let currency = match self.model.settings.currency_preference {
+            CurrencyPreference::Sek => "SEK",
+            CurrencyPreference::Eur => "EUR",
+            CurrencyPreference::Usd => "USD",
+            CurrencyPreference::Gbp => "GBP",
+            CurrencyPreference::Nok => "NOK",
+            CurrencyPreference::Dkk => "DKK",
+        };
         div()
             .p(px(24.0))
             .flex()
             .flex_col()
             .gap(px(16.0))
+            .child(summary_banner(
+                &summary,
+                &tax,
+                currency,
+                self.model.is_month_unstarted(),
+                colors,
+            ))
+            .child(self.month_view.clone())
+    }
+
+    fn editor_panel(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let Some(draft) = self.model.editor.draft.as_ref() else {
+            return div();
+        };
+        let date = draft.date;
+        let status = draft.status;
+        let lunch = draft.lunch_minutes.value();
+        let error = self.model.editor.validation_error.clone();
+        div()
+            .w(px(400.0))
+            .h_full()
+            .flex_none()
+            .flex()
+            .flex_col()
+            .border_l_1()
+            .border_color(colors.outline_variant)
+            .bg(colors.surface_container_lowest)
             .child(
                 div()
-                    .grid()
-                    .grid_cols(4)
-                    .gap(px(12.0))
-                    .children(cards.into_iter().map(|(label, value)| {
-                        m3_card(colors)
-                            .p(px(18.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(6.0))
-                            .child(
-                                div()
-                                    .text_size(px(12.0))
-                                    .text_color(colors.on_surface_variant)
-                                    .child(label),
-                            )
-                            .child(div().text_size(px(20.0)).child(value))
-                    })),
+                    .h(px(64.0))
+                    .px(px(24.0))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .border_b_1()
+                    .border_color(colors.grid_line)
+                    .child(div().text_size(px(18.0)).child(date.to_string()))
+                    .child(
+                        div()
+                            .id("close-editor")
+                            .cursor_pointer()
+                            .child(m3_icon("close", 24.0, colors))
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.model.close_catch_up();
+                                shell.refresh_month_view(cx);
+                                cx.notify();
+                            })),
+                    ),
             )
             .child(
-                m3_card(colors)
-                    .p(px(20.0))
+                div()
+                    .id("editor-scroll")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .p(px(24.0))
                     .flex()
                     .flex_col()
-                    .gap(px(10.0))
-                    .child(format!(
-                        "{} view - {} saved entries",
-                        match self.model.active_view {
-                            MonthViewPreference::Ledger => "Ledger",
-                            MonthViewPreference::Calendar => "Calendar",
-                        },
-                        self.model.entries.len()
-                    ))
-                    .children(self.model.entries.iter().take(31).map(|entry| {
+                    .gap(px(18.0))
+                    .child("Status")
+                    .child(
                         div()
-                            .h(px(36.0))
+                            .flex()
+                            .rounded(px(20.0))
+                            .border_1()
+                            .border_color(colors.outline_variant)
+                            .children(
+                                [
+                                    ("status-worked", "Worked", WorkEntryStatus::Worked),
+                                    ("status-off", "Day Off", WorkEntryStatus::Off),
+                                    ("status-incomplete", "Unlogged", WorkEntryStatus::Incomplete),
+                                ]
+                                .into_iter()
+                                .map(|(id, label, value)| {
+                                    div()
+                                        .id(id)
+                                        .h(px(40.0))
+                                        .px(px(12.0))
+                                        .flex_1()
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .cursor_pointer()
+                                        .rounded(px(18.0))
+                                        .bg(if status == value {
+                                            colors.secondary_container
+                                        } else {
+                                            colors.surface_container_lowest
+                                        })
+                                        .child(label)
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            if let Some(draft) = shell.model.editor.draft.as_mut() {
+                                                draft.status = value;
+                                            }
+                                            cx.notify();
+                                        }))
+                                }),
+                            ),
+                    )
+                    .when(status == WorkEntryStatus::Worked, |panel| {
+                        panel
+                            .child("Presets")
+                            .child(
+                                div().flex().gap(px(8.0)).children(
+                                    [
+                                        ("08:00-16:30", "08:00", "16:30"),
+                                        ("08:30-17:00", "08:30", "17:00"),
+                                        ("09:00-17:30", "09:00", "17:30"),
+                                    ]
+                                    .into_iter()
+                                    .enumerate()
+                                    .map(
+                                        |(index, (label, start, end))| {
+                                            div()
+                                                .id(("preset", index))
+                                                .h(px(36.0))
+                                                .px(px(10.0))
+                                                .flex()
+                                                .items_center()
+                                                .rounded(px(18.0))
+                                                .border_1()
+                                                .border_color(colors.outline_variant)
+                                                .cursor_pointer()
+                                                .text_size(px(12.0))
+                                                .child(label)
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.start_input.update(cx, |input, cx| {
+                                                        input.set_text(start, cx)
+                                                    });
+                                                    shell.end_input.update(cx, |input, cx| {
+                                                        input.set_text(end, cx)
+                                                    });
+                                                    if let Some(draft) =
+                                                        shell.model.editor.draft.as_mut()
+                                                    {
+                                                        draft.status = WorkEntryStatus::Worked;
+                                                        draft.lunch_minutes = Minutes::new(30);
+                                                    }
+                                                    cx.notify();
+                                                }))
+                                        },
+                                    ),
+                                ),
+                            )
+                            .child("Start")
+                            .child(self.start_input.clone())
+                            .child("End")
+                            .child(self.end_input.clone())
+                            .child("Lunch")
+                            .child(div().flex().gap(px(8.0)).children(
+                                [0_i64, 30, 45, 60].into_iter().map(|minutes| {
+                                    div()
+                                        .id(("lunch", minutes as usize))
+                                        .h(px(36.0))
+                                        .px(px(14.0))
+                                        .flex()
+                                        .items_center()
+                                        .rounded(px(18.0))
+                                        .cursor_pointer()
+                                        .bg(if lunch == minutes {
+                                            colors.secondary_container
+                                        } else {
+                                            colors.surface_container
+                                        })
+                                        .child(format!("{minutes}m"))
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            if let Some(draft) = shell.model.editor.draft.as_mut() {
+                                                draft.lunch_minutes = Minutes::new(minutes);
+                                            }
+                                            cx.notify();
+                                        }))
+                                }),
+                            ))
+                    })
+                    .child("Notes")
+                    .child(self.notes_input.clone())
+                    .when_some(error, |panel, error| {
+                        panel.child(div().text_color(colors.error).child(error))
+                    }),
+            )
+            .child(
+                div()
+                    .h(px(72.0))
+                    .px(px(24.0))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .border_t_1()
+                    .border_color(colors.grid_line)
+                    .child(
+                        div()
+                            .id("reset-entry")
+                            .cursor_pointer()
+                            .text_color(colors.error)
+                            .child("Reset")
+                            .on_click(cx.listener(move |shell, _, _, cx| {
+                                if let Err(error) = shell.model.delete_entry(date) {
+                                    shell.model.editor.validation_error = Some(error.to_string());
+                                }
+                                shell.refresh_month_view(cx);
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        div()
+                            .id("save-entry")
+                            .h(px(40.0))
+                            .px(px(20.0))
                             .flex()
                             .items_center()
-                            .border_b_1()
-                            .border_color(colors.grid_line)
-                            .child(format!("{}  {:?}", entry.date, entry.status))
-                    })),
+                            .rounded(px(20.0))
+                            .cursor_pointer()
+                            .bg(colors.primary)
+                            .text_color(colors.on_primary)
+                            .child(if self.model.catch_up.is_some() {
+                                "Save and next"
+                            } else {
+                                "Save entry"
+                            })
+                            .on_click(cx.listener(|shell, _, _, cx| shell.save_editor(cx))),
+                    ),
             )
+    }
+}
+
+impl Focusable for AppShell {
+    fn focus_handle(&self, _: &App) -> FocusHandle {
+        self.focus.clone()
     }
 }
 
@@ -271,6 +554,8 @@ impl Render for AppShell {
         );
 
         div()
+            .track_focus(&self.focus)
+            .key_context("Dagsverk")
             .on_action(cx.listener(|shell, _: &ShowLedger, _, cx| {
                 shell.set_view(MonthViewPreference::Ledger, cx)
             }))
@@ -395,6 +680,62 @@ impl Render for AppShell {
                             )
                             .child(
                                 div()
+                                    .h(px(40.0))
+                                    .p(px(2.0))
+                                    .flex()
+                                    .items_center()
+                                    .rounded(px(20.0))
+                                    .border_1()
+                                    .border_color(colors.outline_variant)
+                                    .child(
+                                        div()
+                                            .id("view-ledger")
+                                            .h_full()
+                                            .px(px(16.0))
+                                            .flex()
+                                            .items_center()
+                                            .rounded(px(18.0))
+                                            .cursor_pointer()
+                                            .bg(
+                                                if self.model.active_view
+                                                    == MonthViewPreference::Ledger
+                                                {
+                                                    colors.secondary_container
+                                                } else {
+                                                    colors.surface
+                                                },
+                                            )
+                                            .child("Ledger")
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.set_view(MonthViewPreference::Ledger, cx)
+                                            })),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("view-calendar")
+                                            .h_full()
+                                            .px(px(16.0))
+                                            .flex()
+                                            .items_center()
+                                            .rounded(px(18.0))
+                                            .cursor_pointer()
+                                            .bg(
+                                                if self.model.active_view
+                                                    == MonthViewPreference::Calendar
+                                                {
+                                                    colors.secondary_container
+                                                } else {
+                                                    colors.surface
+                                                },
+                                            )
+                                            .child("Calendar")
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.set_view(MonthViewPreference::Calendar, cx)
+                                            })),
+                                    ),
+                            )
+                            .child(
+                                div()
                                     .id("toggle-theme")
                                     .cursor_pointer()
                                     .child(m3_icon("dark_mode", 24.0, colors))
@@ -402,20 +743,84 @@ impl Render for AppShell {
                                         if let Err(error) = shell.model.toggle_theme() {
                                             shell.model.transient_error = Some(error.to_string());
                                         }
+                                        shell.refresh_month_view(cx);
                                         cx.notify();
                                     })),
                             ),
                     )
                     .child(
                         div()
-                            .id("route-content")
                             .flex_1()
                             .min_h_0()
-                            .overflow_y_scroll()
-                            .rounded_tl(px(24.0))
-                            .bg(colors.background)
-                            .child(self.route_content(colors)),
+                            .flex()
+                            .child(
+                                div()
+                                    .id("route-content")
+                                    .flex_1()
+                                    .min_w_0()
+                                    .overflow_y_scroll()
+                                    .rounded_tl(px(24.0))
+                                    .bg(colors.background)
+                                    .child(self.route_content(colors)),
+                            )
+                            .when(self.model.editor.is_open, |content| {
+                                content.child(self.editor_panel(colors, cx))
+                            }),
                     ),
             )
+    }
+}
+
+fn month_view_data(model: &AppModel) -> MonthViewData {
+    MonthViewData {
+        month: model.current_month,
+        entries: model.entries.clone(),
+        settings: model.settings.clone(),
+        projects: model.projects.clone(),
+        today: model.today(),
+        selected_date: model.selected_date,
+        month_started: !model.is_month_unstarted(),
+        mode: model.active_view,
+        colors: M3ColorScheme::resolve(match model.resolved_theme {
+            ResolvedTheme::Light => UiTheme::Light,
+            ResolvedTheme::Dark => UiTheme::Dark,
+        }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use chrono::{DateTime, Utc};
+    use dagsverk_core::{clock::FixedClock, models::MonthViewPreference, tax::TaxEngine};
+    use dagsverk_data::Database;
+    use gpui::TestAppContext;
+    use tempfile::tempdir;
+
+    use super::AppShell;
+    use crate::state::AppModel;
+
+    #[gpui::test]
+    fn global_view_shortcuts_persist_from_the_focused_shell(cx: &mut TestAppContext) {
+        let directory = tempdir().expect("temporary data directory");
+        let now = DateTime::parse_from_rfc3339("2026-08-18T10:00:00Z")
+            .expect("fixed time")
+            .with_timezone(&Utc);
+        let clock = FixedClock::new(now);
+        let repository = Arc::new(
+            Database::open(directory.path().join("dagsverk.db"), clock)
+                .expect("temporary database"),
+        );
+        let mut model = AppModel::new(repository, Arc::new(clock), TaxEngine::default(), false);
+        model.initialize().expect("application state");
+
+        cx.update(AppShell::register_key_bindings);
+        let (shell, cx) = cx.add_window_view(|window, cx| AppShell::new(model, window, cx));
+        cx.simulate_keystrokes("ctrl-2");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.model.active_view),
+            MonthViewPreference::Calendar
+        );
     }
 }

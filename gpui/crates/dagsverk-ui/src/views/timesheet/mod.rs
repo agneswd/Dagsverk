@@ -1,0 +1,616 @@
+use std::collections::BTreeMap;
+
+use chrono::{Datelike, Duration, NaiveDate};
+use dagsverk_core::{
+    calculations::{dates_in_month, is_scheduled_workday, split_overtime, worked_minutes},
+    holidays::SwedishHolidayCalendar,
+    models::{
+        AppSettings, IsoDate, MonthViewPreference, MonthlySummary, Project, TaxEstimate, WorkEntry,
+        WorkEntryStatus, YearMonth,
+    },
+};
+use gpui::{Context, EventEmitter, Hsla, KeyDownEvent, Render, Window, div, prelude::*, px, rgb};
+
+use crate::m3::{M3ColorScheme, m3_card, m3_icon};
+
+#[derive(Clone)]
+pub struct MonthViewData {
+    pub month: YearMonth,
+    pub entries: Vec<WorkEntry>,
+    pub settings: AppSettings,
+    pub projects: Vec<Project>,
+    pub today: IsoDate,
+    pub selected_date: Option<IsoDate>,
+    pub month_started: bool,
+    pub mode: MonthViewPreference,
+    pub colors: M3ColorScheme,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MonthViewEvent(pub IsoDate);
+
+pub struct MonthView {
+    data: MonthViewData,
+}
+
+impl MonthView {
+    pub fn new(data: MonthViewData) -> Self {
+        Self { data }
+    }
+
+    pub fn set_data(&mut self, data: MonthViewData, cx: &mut Context<Self>) {
+        self.data = data;
+        cx.notify();
+    }
+
+    fn activate(&mut self, date: IsoDate, event: &KeyDownEvent, cx: &mut Context<Self>) {
+        if matches!(event.keystroke.key.as_str(), "enter" | "space" | " ") {
+            cx.stop_propagation();
+            cx.emit(MonthViewEvent(date));
+        }
+    }
+
+    fn project_color(&self, name: Option<&str>) -> Hsla {
+        name.and_then(|name| {
+            self.data
+                .projects
+                .iter()
+                .find(|project| project.name.eq_ignore_ascii_case(name))
+                .and_then(|project| project.color.as_deref())
+        })
+        .and_then(parse_hex)
+        .unwrap_or(self.data.colors.primary)
+    }
+
+    fn ledger(&mut self, cx: &mut Context<Self>) -> gpui::Div {
+        let colors = self.data.colors;
+        let rows = self.rows();
+        m3_card(colors)
+            .overflow_hidden()
+            .child(
+                div()
+                    .h(px(56.0))
+                    .px(px(16.0))
+                    .grid()
+                    .grid_cols(8)
+                    .items_center()
+                    .bg(colors.surface_container)
+                    .text_size(px(12.0))
+                    .text_color(colors.on_surface_variant)
+                    .children([
+                        "DATE",
+                        "STATUS",
+                        "LOGGED HOURS",
+                        "LUNCH",
+                        "HOURS",
+                        "OVERTIME",
+                        "PROJECT",
+                        "NOTES",
+                    ]),
+            )
+            .children(rows.into_iter().enumerate().map(|(index, row)| {
+                let date = row.date;
+                let date_for_key = date;
+                let date_for_click = date;
+                let status = row.status_label();
+                let status_color = match row.status {
+                    WorkEntryStatus::Worked => colors.success_container,
+                    WorkEntryStatus::Off => colors.surface_container_high,
+                    WorkEntryStatus::Incomplete if row.is_missing => colors.warning_container,
+                    WorkEntryStatus::Incomplete => colors.surface_container_low,
+                };
+                let project_color = self.project_color(row.project_name.as_deref());
+                div()
+                    .id(("ledger-row", index))
+                    .tab_index(0)
+                    .h(px(52.0))
+                    .px(px(16.0))
+                    .grid()
+                    .grid_cols(8)
+                    .items_center()
+                    .border_b_1()
+                    .border_color(colors.grid_line)
+                    .cursor_pointer()
+                    .focus(|style| style.border_2().border_color(colors.primary))
+                    .hover(|style| style.bg(colors.surface_container))
+                    .on_click(
+                        cx.listener(move |_, _, _, cx| cx.emit(MonthViewEvent(date_for_click))),
+                    )
+                    .on_key_down(
+                        cx.listener(move |view, event, _, cx| {
+                            view.activate(date_for_key, event, cx)
+                        }),
+                    )
+                    .child(
+                        div()
+                            .font_weight(gpui::FontWeight::MEDIUM)
+                            .text_color(if row.is_today {
+                                colors.primary
+                            } else {
+                                colors.on_surface
+                            })
+                            .child(format!("{:02}  {}", row.day, row.weekday)),
+                    )
+                    .child(
+                        div()
+                            .w(px(90.0))
+                            .h(px(26.0))
+                            .rounded(px(13.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .bg(status_color)
+                            .text_size(px(12.0))
+                            .child(status),
+                    )
+                    .child(row.interval())
+                    .child(row.lunch())
+                    .child(row.hours())
+                    .child(row.overtime())
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .child(div().size(px(8.0)).rounded_full().bg(project_color))
+                            .child(row.project_name.unwrap_or_else(|| "-".to_owned())),
+                    )
+                    .child(row.notes.unwrap_or_else(|| "-".to_owned()))
+            }))
+    }
+
+    fn calendar(&mut self, cx: &mut Context<Self>) -> gpui::Div {
+        let colors = self.data.colors;
+        let cells = self.calendar_cells();
+        m3_card(colors)
+            .overflow_hidden()
+            .child(
+                div()
+                    .h(px(40.0))
+                    .grid()
+                    .grid_cols(7)
+                    .items_center()
+                    .bg(colors.surface_container)
+                    .text_size(px(12.0))
+                    .text_color(colors.on_surface_variant)
+                    .children(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]),
+            )
+            .child(
+                div()
+                    .grid()
+                    .grid_cols(7)
+                    .gap(px(1.0))
+                    .bg(colors.grid_line)
+                    .children(cells.into_iter().enumerate().map(|(index, cell)| {
+                        let date = cell.date;
+                        let date_for_key = date;
+                        let date_for_click = date;
+                        let selected = self.data.selected_date == Some(date);
+                        div()
+                            .id(("calendar-cell", index))
+                            .tab_index(if cell.current_month { 0 } else { -1 })
+                            .min_h(px(110.0))
+                            .p(px(12.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(6.0))
+                            .bg(if selected {
+                                colors.primary_container
+                            } else if cell.current_month {
+                                colors.surface_container_low
+                            } else {
+                                colors.surface_container
+                            })
+                            .when(cell.current_month, |item| {
+                                item.cursor_pointer()
+                                    .focus(|style| style.border_2().border_color(colors.primary))
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .on_click(cx.listener(move |_, _, _, cx| {
+                                        cx.emit(MonthViewEvent(date_for_click))
+                                    }))
+                                    .on_key_down(cx.listener(move |view, event, _, cx| {
+                                        view.activate(date_for_key, event, cx)
+                                    }))
+                            })
+                            .child(
+                                div()
+                                    .size(px(24.0))
+                                    .rounded_full()
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .bg(if cell.is_today {
+                                        colors.primary
+                                    } else {
+                                        gpui::transparent_black()
+                                    })
+                                    .text_color(if cell.is_today {
+                                        colors.on_primary
+                                    } else {
+                                        colors.on_surface
+                                    })
+                                    .child(cell.day.to_string()),
+                            )
+                            .when(cell.is_missing, |item| {
+                                item.child(
+                                    div()
+                                        .text_size(px(11.0))
+                                        .text_color(colors.warning)
+                                        .child("Unlogged"),
+                                )
+                            })
+                            .when_some(cell.holiday, |item, holiday| {
+                                item.child(
+                                    div()
+                                        .rounded(px(6.0))
+                                        .p(px(6.0))
+                                        .bg(colors.warning_container)
+                                        .text_color(colors.on_warning_container)
+                                        .text_size(px(11.0))
+                                        .child(holiday),
+                                )
+                            })
+                            .when_some(cell.entry, |item, entry| {
+                                item.child(calendar_entry(entry, colors))
+                            })
+                    })),
+            )
+    }
+
+    fn rows(&self) -> Vec<LedgerRow> {
+        let entries: BTreeMap<_, _> = self
+            .data
+            .entries
+            .iter()
+            .map(|entry| (entry.date, entry))
+            .collect();
+        dates_in_month(self.data.month.year, self.data.month.month)
+            .into_iter()
+            .map(|date| {
+                let entry = entries.get(&date).copied();
+                let status = entry.map_or(WorkEntryStatus::Incomplete, |entry| entry.status);
+                let overtime = entry.map_or(0, |entry| {
+                    split_overtime(
+                        entry,
+                        &self.data.settings.expected_hours,
+                        &self.data.settings.overtime_compensation,
+                        SwedishHolidayCalendar,
+                    )
+                    .1
+                    .value()
+                });
+                let naive = date.as_naive_date();
+                LedgerRow {
+                    date,
+                    day: naive.day(),
+                    weekday: naive.format("%a").to_string(),
+                    is_today: date == self.data.today,
+                    is_missing: self.data.month_started
+                        && date < self.data.today
+                        && status == WorkEntryStatus::Incomplete
+                        && is_scheduled_workday(
+                            date,
+                            &self.data.settings.expected_hours,
+                            SwedishHolidayCalendar,
+                        ),
+                    holiday: SwedishHolidayCalendar.holiday_name(date),
+                    status,
+                    start_time: entry.and_then(|entry| entry.start_time),
+                    end_time: entry.and_then(|entry| entry.end_time),
+                    lunch_minutes: entry.map_or(0, |entry| entry.lunch_minutes.value()),
+                    worked_minutes: entry.map_or(0, |entry| worked_minutes(entry).value()),
+                    overtime_minutes: overtime,
+                    project_name: entry.and_then(|entry| entry.project_name.clone()),
+                    notes: entry.and_then(|entry| entry.notes.clone()),
+                }
+            })
+            .collect()
+    }
+
+    fn calendar_cells(&self) -> Vec<CalendarCell> {
+        let first = NaiveDate::from_ymd_opt(self.data.month.year, self.data.month.month, 1)
+            .unwrap_or_else(|| unreachable!());
+        let leading = i64::from(first.weekday().num_days_from_monday());
+        let mut date = first - Duration::days(leading);
+        let month_days = dates_in_month(self.data.month.year, self.data.month.month).len();
+        let cell_count = (leading as usize + month_days).div_ceil(7) * 7;
+        let entries: BTreeMap<_, _> = self
+            .data
+            .entries
+            .iter()
+            .map(|entry| (entry.date, entry.clone()))
+            .collect();
+        (0..cell_count)
+            .map(|_| {
+                let iso = IsoDate::new(date);
+                let current_month = self.data.month.contains(iso);
+                let entry = entries.get(&iso).cloned();
+                let status = entry
+                    .as_ref()
+                    .map_or(WorkEntryStatus::Incomplete, |entry| entry.status);
+                let cell = CalendarCell {
+                    date: iso,
+                    day: date.day(),
+                    current_month,
+                    is_today: iso == self.data.today,
+                    is_missing: current_month
+                        && self.data.month_started
+                        && iso < self.data.today
+                        && status == WorkEntryStatus::Incomplete
+                        && is_scheduled_workday(
+                            iso,
+                            &self.data.settings.expected_hours,
+                            SwedishHolidayCalendar,
+                        ),
+                    holiday: current_month
+                        .then(|| SwedishHolidayCalendar.holiday_name(iso))
+                        .flatten()
+                        .map(str::to_owned),
+                    entry,
+                };
+                date += Duration::days(1);
+                cell
+            })
+            .collect()
+    }
+}
+
+impl EventEmitter<MonthViewEvent> for MonthView {}
+
+impl Render for MonthView {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        match self.data.mode {
+            MonthViewPreference::Ledger => self.ledger(cx),
+            MonthViewPreference::Calendar => self.calendar(cx),
+        }
+    }
+}
+
+pub fn summary_banner(
+    summary: &MonthlySummary,
+    tax: &TaxEstimate,
+    currency: &str,
+    unstarted: bool,
+    colors: M3ColorScheme,
+) -> gpui::Div {
+    let net = tax
+        .estimated_net_pay
+        .unwrap_or(summary.gross_salary)
+        .decimal()
+        .round_dp(0);
+    let metrics = [
+        (
+            "schedule",
+            "Worked Time".to_owned(),
+            format!("{} / {}h", summary.worked_hours, summary.expected_hours),
+            String::new(),
+        ),
+        (
+            "more_time",
+            "Overtime & OB".to_owned(),
+            format!("{}h", summary.overtime_hours),
+            format!("{}h OB", summary.ob_hours),
+        ),
+        (
+            "balance",
+            "Time Balance".to_owned(),
+            format_minutes(summary.closing_balance_minutes.value()),
+            if unstarted {
+                "Opening balance".to_owned()
+            } else {
+                format!(
+                    "delta {}",
+                    format_minutes(summary.monthly_difference_minutes.value())
+                )
+            },
+        ),
+        (
+            "payments",
+            "Estimated Net Pay".to_owned(),
+            format!("{net} {currency}"),
+            if tax.is_available {
+                format!("Gross: {}", summary.gross_salary.decimal().round_dp(0))
+            } else {
+                "Gross".to_owned()
+            },
+        ),
+    ];
+    div()
+        .grid()
+        .grid_cols(4)
+        .gap(px(24.0))
+        .p(px(16.0))
+        .rounded(px(16.0))
+        .bg(colors.surface_container_low)
+        .children(metrics.into_iter().map(|(icon, label, value, qualifier)| {
+            div()
+                .flex()
+                .items_center()
+                .gap(px(12.0))
+                .child(
+                    div()
+                        .size(px(36.0))
+                        .rounded(px(12.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(colors.primary_container)
+                        .child(m3_icon(icon, 20.0, colors)),
+                )
+                .child(
+                    div()
+                        .min_w_0()
+                        .flex()
+                        .flex_col()
+                        .child(
+                            div()
+                                .text_size(px(11.0))
+                                .text_color(colors.on_surface_variant)
+                                .child(label),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .items_baseline()
+                                .gap(px(8.0))
+                                .child(div().text_size(px(16.0)).child(value))
+                                .child(
+                                    div()
+                                        .text_size(px(12.0))
+                                        .text_color(colors.on_surface_variant)
+                                        .child(qualifier),
+                                ),
+                        ),
+                )
+        }))
+}
+
+struct LedgerRow {
+    date: IsoDate,
+    day: u32,
+    weekday: String,
+    is_today: bool,
+    is_missing: bool,
+    holiday: Option<&'static str>,
+    status: WorkEntryStatus,
+    start_time: Option<dagsverk_core::models::ClockTime>,
+    end_time: Option<dagsverk_core::models::ClockTime>,
+    lunch_minutes: i64,
+    worked_minutes: i64,
+    overtime_minutes: i64,
+    project_name: Option<String>,
+    notes: Option<String>,
+}
+
+impl LedgerRow {
+    fn status_label(&self) -> &'static str {
+        if self.holiday.is_some() {
+            "Holiday"
+        } else {
+            match self.status {
+                WorkEntryStatus::Worked => "Worked",
+                WorkEntryStatus::Off => "Day Off",
+                WorkEntryStatus::Incomplete if self.is_missing => "Unlogged",
+                WorkEntryStatus::Incomplete => "-",
+            }
+        }
+    }
+
+    fn interval(&self) -> String {
+        match (self.start_time, self.end_time, self.status) {
+            (Some(start), Some(end), WorkEntryStatus::Worked) => format!("{start}-{end}"),
+            _ => "-".to_owned(),
+        }
+    }
+
+    fn lunch(&self) -> String {
+        if self.lunch_minutes > 0 {
+            format!("{}m", self.lunch_minutes)
+        } else {
+            "-".to_owned()
+        }
+    }
+
+    fn hours(&self) -> String {
+        format_hours(self.worked_minutes, false)
+    }
+
+    fn overtime(&self) -> String {
+        format_hours(self.overtime_minutes, true)
+    }
+}
+
+struct CalendarCell {
+    date: IsoDate,
+    day: u32,
+    current_month: bool,
+    is_today: bool,
+    is_missing: bool,
+    holiday: Option<String>,
+    entry: Option<WorkEntry>,
+}
+
+fn calendar_entry(entry: WorkEntry, colors: M3ColorScheme) -> gpui::Div {
+    let (background, text) = match entry.status {
+        WorkEntryStatus::Worked => (colors.primary_container, colors.on_primary_container),
+        WorkEntryStatus::Off => (colors.surface_container_high, colors.on_surface_variant),
+        WorkEntryStatus::Incomplete => (colors.surface_container, colors.on_surface_variant),
+    };
+    let label = match entry.status {
+        WorkEntryStatus::Worked => match (entry.start_time, entry.end_time) {
+            (Some(start), Some(end)) => format!("{start}-{end}"),
+            _ => "Worked".to_owned(),
+        },
+        WorkEntryStatus::Off => entry.notes.unwrap_or_else(|| "Day Off".to_owned()),
+        WorkEntryStatus::Incomplete => "Unlogged".to_owned(),
+    };
+    div()
+        .min_h(px(32.0))
+        .p(px(6.0))
+        .rounded(px(6.0))
+        .bg(background)
+        .text_color(text)
+        .text_size(px(11.0))
+        .child(label)
+}
+
+fn format_hours(minutes: i64, plus: bool) -> String {
+    if minutes <= 0 {
+        "-".to_owned()
+    } else {
+        let hundredths = (minutes * 100 + 30) / 60;
+        let value = format!("{}.{:02}h", hundredths / 100, hundredths % 100);
+        if plus { format!("+{value}") } else { value }
+    }
+}
+
+fn format_minutes(minutes: i64) -> String {
+    let sign = if minutes < 0 { "-" } else { "" };
+    let absolute = minutes.abs();
+    format!("{sign}{}:{:02}", absolute / 60, absolute % 60)
+}
+
+fn parse_hex(value: &str) -> Option<Hsla> {
+    let value = value.strip_prefix('#').unwrap_or(value);
+    (value.len() == 6)
+        .then(|| u32::from_str_radix(value, 16).ok())
+        .flatten()
+        .map(|value| rgb(value).into())
+}
+
+#[cfg(test)]
+mod tests {
+    use dagsverk_core::models::{MonthViewPreference, YearMonth, default_settings};
+
+    use crate::m3::M3ColorScheme;
+
+    use super::{MonthView, MonthViewData, format_hours, format_minutes, parse_hex};
+
+    #[test]
+    fn display_helpers_cover_empty_negative_and_project_colors() {
+        assert_eq!(format_hours(0, false), "-");
+        assert_eq!(format_hours(90, true), "+1.50h");
+        assert_eq!(format_minutes(-75), "-1:15");
+        assert!(parse_hex("#5F875F").is_some());
+        assert!(parse_hex("bad").is_none());
+    }
+
+    #[test]
+    fn ledger_and_calendar_cover_the_complete_month() {
+        let view = MonthView::new(MonthViewData {
+            month: YearMonth::new(2026, 8).expect("month"),
+            entries: Vec::new(),
+            settings: default_settings(),
+            projects: Vec::new(),
+            today: "2026-08-18".parse().expect("date"),
+            selected_date: None,
+            month_started: true,
+            mode: MonthViewPreference::Ledger,
+            colors: M3ColorScheme::light(),
+        });
+        assert_eq!(view.rows().len(), 31);
+        let cells = view.calendar_cells();
+        assert_eq!(cells.len() % 7, 0);
+        assert_eq!(cells.iter().filter(|cell| cell.current_month).count(), 31);
+    }
+}

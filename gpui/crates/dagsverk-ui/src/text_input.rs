@@ -68,6 +68,18 @@ impl TextInput {
         }
     }
 
+    pub fn text(&self) -> &str {
+        &self.content
+    }
+
+    pub fn set_text(&mut self, text: impl Into<SharedString>, cx: &mut Context<Self>) {
+        self.content = text.into();
+        self.selected_range = self.content.len()..self.content.len();
+        self.selection_reversed = false;
+        self.marked_range = None;
+        cx.notify();
+    }
+
     pub fn register_key_bindings(cx: &mut App) {
         use gpui::KeyBinding;
 

@@ -62,7 +62,7 @@ fn main() {
         };
         let result = if let Some(model) = model.take() {
             cx.open_window(window_options(), |window, cx| {
-                cx.new(|_| AppShell::new(model, window))
+                cx.new(|cx| AppShell::new(model, window, cx))
             })
             .map(|_| ())
         } else {
