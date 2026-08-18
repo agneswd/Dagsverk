@@ -23,6 +23,7 @@
     "gpui:icons": "npx tsx scripts/generate-material-icon-inventory.ts",
     "gpui:i18n": "npx tsx scripts/generate-gpui-i18n.ts",
     "gpui:fixtures": "npx tsx scripts/generate-gpui-parity-fixtures.ts",
+    "gpui:visual-fixture": "npx tsx scripts/generate-gpui-visual-fixture.ts",
     "gpui:db-compat": "npm run build:electron && npx tsx scripts/test-gpui-database-compatibility.ts"
   },
   "private": true,
