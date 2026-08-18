@@ -29,6 +29,7 @@ pub struct M3Select {
     focus: FocusHandle,
     colors: M3ColorScheme,
     leading_icon: Option<SharedString>,
+    scale: UiScale,
 }
 
 impl M3Select {
@@ -62,6 +63,7 @@ impl M3Select {
             focus: cx.focus_handle().tab_index(1).tab_stop(true),
             colors,
             leading_icon: None,
+            scale: UiScale::default(),
         }
     }
 
@@ -89,6 +91,13 @@ impl M3Select {
     pub fn set_leading_icon(&mut self, icon: impl Into<SharedString>, cx: &mut Context<Self>) {
         self.leading_icon = Some(icon.into());
         cx.notify();
+    }
+
+    pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
+        if self.scale != scale {
+            self.scale = scale;
+            cx.notify();
+        }
     }
 
     fn toggle(&mut self, _: &ToggleSelect, window: &mut Window, cx: &mut Context<Self>) {
@@ -164,6 +173,7 @@ impl Render for M3Select {
         let focused = self.focus.is_focused(window);
         let viewport = window.viewport_size();
         let colors = self.colors;
+        let scale = self.scale;
         let value = self.options.get(self.selected).cloned().unwrap_or_default();
         let options = self
             .options
@@ -175,12 +185,12 @@ impl Render for M3Select {
                 let highlighted = index == self.highlighted;
                 div()
                     .id(("m3-select-option", index))
-                    .h(px(48.0))
-                    .px(px(12.0))
+                    .h(scale.px(48.0))
+                    .px(scale.px(12.0))
                     .flex()
                     .items_center()
                     .justify_between()
-                    .rounded(px(8.0))
+                    .rounded(scale.px(8.0))
                     .cursor_pointer()
                     .bg(if highlighted {
                         colors.surface_container_highest
@@ -191,7 +201,11 @@ impl Render for M3Select {
                     .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                     .child(label)
                     .when(selected, |item| {
-                        item.child(m3_icon_colored("check", 18.0, colors.primary))
+                        item.child(m3_icon_colored(
+                            "check",
+                            18.0 * scale.factor(),
+                            colors.primary,
+                        ))
                     })
                     .on_click(cx.listener(move |select, _, _, cx| select.choose(index, cx)))
             });
@@ -208,26 +222,30 @@ impl Render for M3Select {
             .on_action(cx.listener(Self::previous))
             .on_action(cx.listener(Self::first))
             .on_action(cx.listener(Self::last))
-            .h(px(56.0))
+            .h(scale.px(56.0))
             .w_full()
-            .px(px(16.0))
+            .px(scale.px(16.0))
             .flex()
             .items_center()
             .justify_between()
-            .rounded(px(4.0))
+            .rounded(scale.px(4.0))
             .border_1()
             .border_color(if focused || self.open {
                 colors.primary
             } else {
                 colors.outline
             })
-            .shadow(m3_focus_shadow(focused, colors.primary, UiScale::default()))
+            .shadow(m3_focus_shadow(focused, colors.primary, scale))
             .bg(colors.surface_container_lowest)
             .cursor_pointer()
             .hover(move |style| style.border_color(colors.on_surface))
             .on_click(cx.listener(|select, _, window, cx| select.toggle(&ToggleSelect, window, cx)))
             .when_some(self.leading_icon.clone(), |field, icon| {
-                field.child(m3_icon_colored(icon, 20.0, colors.on_surface_variant))
+                field.child(m3_icon_colored(
+                    icon,
+                    20.0 * scale.factor(),
+                    colors.on_surface_variant,
+                ))
             })
             .child(
                 div()
@@ -236,16 +254,16 @@ impl Render for M3Select {
                     .flex_col()
                     .child(
                         div()
-                            .text_size(px(12.0))
-                            .line_height(px(16.0))
+                            .text_size(scale.px(12.0))
+                            .line_height(scale.px(16.0))
                             .text_color(colors.on_surface_variant)
                             .child(self.label.clone()),
                     )
                     .child(
                         div()
                             .truncate()
-                            .text_size(px(16.0))
-                            .line_height(px(24.0))
+                            .text_size(scale.px(16.0))
+                            .line_height(scale.px(24.0))
                             .child(value),
                     ),
             )
@@ -255,7 +273,7 @@ impl Render for M3Select {
                 } else {
                     "expand_more"
                 },
-                20.0,
+                20.0 * scale.factor(),
                 colors.on_surface_variant,
             ))
             .when(self.open, |field| {
@@ -282,18 +300,18 @@ impl Render for M3Select {
                         deferred(
                             anchored()
                                 .anchor(Corner::TopLeft)
-                                .offset(point(px(0.0), px(64.0)))
-                                .snap_to_window_with_margin(px(8.0))
+                                .offset(point(px(0.0), scale.px(64.0)))
+                                .snap_to_window_with_margin(scale.px(8.0))
                                 .child(
                                     div()
                                         .id("m3-select-panel")
-                                        .w(px(368.0))
-                                        .max_h(px(384.0))
+                                        .w(scale.px(368.0))
+                                        .max_h(scale.px(384.0))
                                         .overflow_y_scroll()
-                                        .p(px(8.0))
+                                        .p(scale.px(8.0))
                                         .flex()
                                         .flex_col()
-                                        .rounded(px(12.0))
+                                        .rounded(scale.px(12.0))
                                         .bg(colors.surface_container)
                                         .shadow(menu_elevation())
                                         .children(options),

@@ -11,7 +11,7 @@ use gpui::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::m3::{M3ColorScheme, m3_icon_colored};
+use crate::m3::{M3ColorScheme, UiScale, m3_icon_colored};
 
 actions!(
     text_input,
@@ -52,6 +52,7 @@ pub struct TextInput {
     multiline: bool,
     leading_icon: Option<&'static str>,
     suffix: Option<SharedString>,
+    scale: UiScale,
 }
 
 #[derive(Clone)]
@@ -76,6 +77,7 @@ impl TextInput {
             multiline: false,
             leading_icon: None,
             suffix: None,
+            scale: UiScale::default(),
         }
     }
 
@@ -100,6 +102,13 @@ impl TextInput {
     pub fn set_suffix(&mut self, suffix: impl Into<SharedString>, cx: &mut Context<Self>) {
         self.suffix = Some(suffix.into());
         cx.notify();
+    }
+
+    pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
+        if self.scale != scale {
+            self.scale = scale;
+            cx.notify();
+        }
     }
 
     pub fn text(&self) -> &str {
@@ -298,7 +307,7 @@ impl TextInput {
         if position.y > bounds.bottom() {
             return self.content.len();
         }
-        let line_height = px(24.0);
+        let line_height = self.scale.px(24.0);
         let line_index = (((position.y - bounds.top()) / line_height) as usize)
             .min(self.last_layout.len().saturating_sub(1));
         self.last_layout.get(line_index).map_or(0, |layout| {
@@ -447,7 +456,7 @@ impl EntityInputHandler for TextInput {
         let layout = self.last_layout.iter().find(|layout| {
             range.start >= layout.start && range.start <= layout.start + layout.line.len()
         })?;
-        let line_height = px(24.0);
+        let line_height = self.scale.px(24.0);
         let line_index = self
             .last_layout
             .iter()
@@ -474,7 +483,7 @@ impl EntityInputHandler for TextInput {
         _: &mut Context<Self>,
     ) -> Option<usize> {
         let bounds = self.last_bounds?;
-        let line_height = px(24.0);
+        let line_height = self.scale.px(24.0);
         let line_index = (((point.y - bounds.top()) / line_height) as usize)
             .min(self.last_layout.len().saturating_sub(1));
         let layout = self.last_layout.get(line_index)?;
@@ -551,7 +560,7 @@ impl Element for TextElement {
             underline: None,
             strikethrough: None,
         };
-        let line_height = px(24.0);
+        let line_height = input.scale.px(24.0);
         let lines = display_text
             .split('\n')
             .scan(0, |start, text| {
@@ -580,7 +589,7 @@ impl Element for TextElement {
                                 len: marked.end - marked.start,
                                 underline: Some(UnderlineStyle {
                                     color: Some(run.color),
-                                    thickness: px(1.),
+                                    thickness: input.scale.px(1.0),
                                     wavy: false,
                                 }),
                                 ..run.clone()
@@ -647,7 +656,7 @@ impl Element for TextElement {
                             + layout.line.x_for_index(cursor.saturating_sub(layout.start)),
                         bounds.top() + line_height * index,
                     ),
-                    size(px(2.), line_height),
+                    size(input.scale.px(2.0), line_height),
                 ),
                 input.colors.primary,
             )
@@ -678,7 +687,7 @@ impl Element for TextElement {
         for selection in prepaint.selection.drain(..) {
             window.paint_quad(selection);
         }
-        let line_height = px(24.0);
+        let line_height = self.input.read(cx).scale.px(24.0);
         for (index, layout) in prepaint.lines.iter().enumerate() {
             let _ = layout.line.paint(
                 point(bounds.left(), bounds.top() + line_height * index),
@@ -725,15 +734,19 @@ impl Render for TextInput {
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
-            .h(if self.multiline { px(88.) } else { px(56.) })
+            .h(if self.multiline {
+                self.scale.px(88.0)
+            } else {
+                self.scale.px(56.0)
+            })
             .w_full()
-            .px(px(16.))
+            .px(self.scale.px(16.0))
             .flex()
             .items_center()
-            .gap(px(8.0))
+            .gap(self.scale.px(8.0))
             .justify_center()
             .overflow_hidden()
-            .rounded(px(4.))
+            .rounded(self.scale.px(4.0))
             .border_1()
             .border_color(if focused {
                 self.colors.primary
@@ -745,7 +758,7 @@ impl Render for TextInput {
                     color: self.colors.primary,
                     offset: point(px(0.0), px(0.0)),
                     blur_radius: px(0.0),
-                    spread_radius: px(1.0),
+                    spread_radius: self.scale.px(1.0),
                 }]
             } else {
                 Vec::new()
@@ -753,10 +766,14 @@ impl Render for TextInput {
             .hover(move |style| style.border_color(hover_outline))
             .bg(self.colors.surface_container_lowest)
             .text_color(self.colors.on_surface)
-            .text_size(px(16.))
-            .line_height(px(24.))
+            .text_size(self.scale.px(16.0))
+            .line_height(self.scale.px(24.0))
             .when_some(self.leading_icon, |field, icon| {
-                field.child(m3_icon_colored(icon, 20.0, self.colors.on_surface_variant))
+                field.child(m3_icon_colored(
+                    icon,
+                    20.0 * self.scale.factor(),
+                    self.colors.on_surface_variant,
+                ))
             })
             .child(
                 div()
@@ -766,14 +783,18 @@ impl Render for TextInput {
                     .flex_col()
                     .child(
                         div()
-                            .text_size(px(12.0))
-                            .line_height(px(16.0))
+                            .text_size(self.scale.px(12.0))
+                            .line_height(self.scale.px(16.0))
                             .text_color(self.colors.on_surface_variant)
                             .child(self.placeholder.clone()),
                     )
                     .child(
                         div()
-                            .h(if self.multiline { px(48.0) } else { px(24.0) })
+                            .h(if self.multiline {
+                                self.scale.px(48.0)
+                            } else {
+                                self.scale.px(24.0)
+                            })
                             .w_full()
                             .child(TextElement { input: cx.entity() }),
                     ),
@@ -781,7 +802,7 @@ impl Render for TextInput {
             .when_some(self.suffix.clone(), |field, suffix| {
                 field.child(
                     div()
-                        .text_size(px(14.0))
+                        .text_size(self.scale.px(14.0))
                         .text_color(self.colors.on_surface_variant)
                         .child(suffix),
                 )

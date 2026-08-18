@@ -324,6 +324,7 @@ impl AppShell {
     pub fn apply_visual_scale(&mut self, percent: u16, cx: &mut Context<Self>) {
         self.model.preferences.interface_scale_percent = i32::from(percent);
         self.model.interface_scale = f32::from(percent) / 100.0;
+        self.sync_editor_inputs(cx);
         self.refresh_month_view(cx);
         cx.notify();
     }
@@ -623,6 +624,7 @@ impl AppShell {
             return;
         };
         let colors = self.colors();
+        let scale = interface_scale(&self.model);
         let start = draft
             .start_time
             .unwrap_or(self.model.settings.default_start_time)
@@ -634,15 +636,18 @@ impl AppShell {
         self.start_input.update(cx, |input, cx| {
             input.set_text(start, cx);
             input.set_colors(colors, cx);
+            input.set_scale(scale, cx);
         });
         self.end_input.update(cx, |input, cx| {
             input.set_text(end, cx);
             input.set_colors(colors, cx);
+            input.set_scale(scale, cx);
         });
         let notes = draft.notes.clone().unwrap_or_default();
         self.notes_input.update(cx, |input, cx| {
             input.set_text(notes, cx);
             input.set_colors(colors, cx);
+            input.set_scale(scale, cx);
         });
         let project_options = editor_project_options(&self.model);
         let selected_project = draft
@@ -657,6 +662,7 @@ impl AppShell {
                 cx,
             );
             select.set_colors(colors, cx);
+            select.set_scale(scale, cx);
         });
         let selected_reason = draft
             .notes
@@ -670,6 +676,7 @@ impl AppShell {
         self.reason_select.update(cx, |select, cx| {
             select.set_options(DAY_OFF_REASONS, selected_reason, cx);
             select.set_colors(colors, cx);
+            select.set_scale(scale, cx);
         });
         let scheduled = draft.scheduled_minutes_override.map_or_else(
             || {
@@ -681,8 +688,11 @@ impl AppShell {
             },
             |minutes| format_hours_input(minutes.value()),
         );
-        self.scheduled_input
-            .update(cx, |input, cx| input.set_text(scheduled, cx));
+        self.scheduled_input.update(cx, |input, cx| {
+            input.set_text(scheduled, cx);
+            input.set_colors(colors, cx);
+            input.set_scale(scale, cx);
+        });
         self.scheduled_override_switch.update(cx, |switch, cx| {
             switch.set_checked(draft.scheduled_minutes_override.is_some(), cx);
             switch.set_colors(colors, cx);
