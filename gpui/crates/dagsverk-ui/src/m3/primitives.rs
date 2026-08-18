@@ -1,9 +1,12 @@
 use gpui::{
-    Context, ElementId, EventEmitter, FocusHandle, Render, SharedString, Window, div, prelude::*,
-    px, relative,
+    BoxShadow, Context, ElementId, EventEmitter, FocusHandle, KeyDownEvent, Render, SharedString,
+    Window, div, point, prelude::*, px, relative,
 };
 
-use super::{M3ColorScheme, ROBOTO_FAMILY, m3_icon};
+use super::{
+    FOCUS_OPACITY, HOVER_OPACITY, M3ColorScheme, M3TypographyExt, PRESSED_OPACITY, TypographyRole,
+    UiScale, m3_icon, m3_state_layer,
+};
 
 pub fn m3_divider(colors: M3ColorScheme) -> gpui::Div {
     div().w_full().h(px(1.0)).bg(colors.outline_variant)
@@ -72,6 +75,10 @@ impl M3ChoiceGroup {
         self.selected
     }
 
+    pub fn focus_handle(&self, index: usize) -> Option<FocusHandle> {
+        self.focus.get(index).cloned()
+    }
+
     pub fn set_enabled(&mut self, enabled: bool, cx: &mut Context<Self>) {
         self.enabled = enabled;
         cx.notify();
@@ -87,6 +94,27 @@ impl M3ChoiceGroup {
             self.selected = index;
             cx.emit(M3ChoiceEvent(index));
             cx.notify();
+        }
+    }
+
+    fn navigate(
+        &mut self,
+        current: usize,
+        event: &KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let last = self.items.len().saturating_sub(1);
+        let next = match event.keystroke.key.as_str() {
+            "left" => current.checked_sub(1).unwrap_or(last),
+            "right" => (current + 1) % self.items.len().max(1),
+            "home" => 0,
+            "end" => last,
+            _ => return,
+        };
+        self.select(next, cx);
+        if let Some(focus) = self.focus.get(next) {
+            window.focus(focus);
         }
     }
 }
@@ -109,58 +137,93 @@ impl Render for M3ChoiceGroup {
             .map(|(index, (label, focus))| {
                 let is_selected = index == selected;
                 let is_focused = focus.is_focused(window);
+                let background = if is_selected {
+                    colors.secondary_container
+                } else if kind == M3ChoiceKind::Tabs {
+                    colors.surface_container_low
+                } else {
+                    colors.surface
+                };
+                let foreground = if is_selected {
+                    colors.on_secondary_container
+                } else {
+                    colors.on_surface_variant
+                };
                 div()
                     .id((id.clone(), index))
                     .track_focus(&focus)
                     .tab_index(index as isize)
                     .tab_stop(enabled)
-                    .h(px(40.0))
+                    .h_full()
                     .px(px(16.0))
                     .flex()
                     .items_center()
                     .justify_center()
-                    .when(kind == M3ChoiceKind::Segmented, |item| {
-                        item.rounded(px(20.0))
-                            .border_1()
-                            .border_color(if is_focused {
-                                colors.primary
-                            } else {
-                                colors.outline
-                            })
+                    .when(kind == M3ChoiceKind::Segmented && index > 0, |item| {
+                        item.border_l_1().border_color(colors.outline_variant)
                     })
                     .when(kind == M3ChoiceKind::Tabs, |item| {
-                        item.border_b_2()
-                            .border_color(if is_selected || is_focused {
-                                colors.primary
-                            } else {
-                                colors.background
-                            })
+                        item.border_b_2().border_color(if is_selected {
+                            colors.primary
+                        } else {
+                            colors.surface_container_low
+                        })
                     })
-                    .bg(if is_selected {
-                        colors.secondary_container
-                    } else {
-                        colors.background
-                    })
-                    .font_family(ROBOTO_FAMILY)
-                    .text_size(px(14.0))
-                    .font_weight(gpui::FontWeight::MEDIUM)
-                    .text_color(if is_selected {
-                        colors.on_secondary_container
-                    } else {
-                        colors.on_surface_variant
-                    })
+                    .bg(background)
+                    .shadow(choice_focus_shadow(is_focused, colors.primary))
+                    .m3_typography(TypographyRole::LabelLarge, UiScale::default())
+                    .text_color(foreground)
                     .opacity(if enabled { 1.0 } else { 0.38 })
                     .when(enabled, |item| {
                         item.cursor_pointer()
-                            .hover(|style| style.opacity(0.92))
+                            .hover(move |style| {
+                                style.bg(m3_state_layer(background, foreground, HOVER_OPACITY))
+                            })
+                            .active(move |style| {
+                                style.bg(m3_state_layer(background, foreground, PRESSED_OPACITY))
+                            })
                             .on_click(cx.listener(move |this, _, _, cx| this.select(index, cx)))
+                            .on_key_down(cx.listener(move |this, event, window, cx| {
+                                this.navigate(index, event, window, cx)
+                            }))
                     })
                     .child(label)
             })
             .collect::<Vec<_>>();
 
-        div().flex().items_center().children(items)
+        div()
+            .h(px(40.0))
+            .flex()
+            .items_center()
+            .overflow_hidden()
+            .when(kind == M3ChoiceKind::Segmented, |group| {
+                group
+                    .rounded(px(20.0))
+                    .border_1()
+                    .border_color(colors.outline_variant)
+            })
+            .when(kind == M3ChoiceKind::Tabs, |group| {
+                group
+                    .w_full()
+                    .rounded_t(px(16.0))
+                    .border_b_1()
+                    .border_color(colors.grid_line)
+                    .bg(colors.surface_container_low)
+            })
+            .children(items)
     }
+}
+
+fn choice_focus_shadow(focused: bool, color: gpui::Hsla) -> Vec<BoxShadow> {
+    focused
+        .then(|| BoxShadow {
+            color: color.opacity(FOCUS_OPACITY),
+            offset: point(px(0.0), px(0.0)),
+            blur_radius: px(0.0),
+            spread_radius: px(3.0),
+        })
+        .into_iter()
+        .collect()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

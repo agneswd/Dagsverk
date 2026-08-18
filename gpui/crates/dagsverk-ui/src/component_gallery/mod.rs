@@ -6,8 +6,8 @@ use gpui::{
 use crate::{
     m3::{
         M3Button, M3ButtonVariant, M3Chip, M3ChoiceGroup, M3ChoiceKind, M3ColorScheme, M3Dialog,
-        M3ExpansionPanel, M3Menu, M3SnackbarHost, M3Status, M3Switch, ResolvedTheme, m3_card,
-        m3_divider, m3_icon, m3_progress_bar, m3_status_chip,
+        M3ExpansionPanel, M3IconButton, M3Menu, M3SnackbarHost, M3Status, M3Switch, ResolvedTheme,
+        m3_card, m3_divider, m3_icon, m3_progress_bar, m3_status_chip,
     },
     text_input::TextInput,
 };
@@ -16,6 +16,7 @@ actions!(component_gallery, [Tab, TabPrevious]);
 
 pub struct ComponentGallery {
     buttons: Vec<Entity<M3Button>>,
+    icon_button: Entity<M3IconButton>,
     input: Entity<TextInput>,
     switch: Entity<M3Switch>,
     chips: Vec<Entity<M3Chip>>,
@@ -59,6 +60,13 @@ impl ComponentGallery {
             .map(|(id, label, variant)| cx.new(|cx| M3Button::new(id, label, variant, colors, cx)))
             .collect();
         buttons[5].update(cx, |button, cx| button.set_enabled(false, cx));
+        buttons[1].update(cx, |button, cx| button.set_leading_icon(Some("check"), cx));
+        let icon_button = cx.new(|cx| M3IconButton::new("gallery-icon", "settings", colors, cx));
+        cx.subscribe(&icon_button, |gallery, _, _, cx| {
+            gallery.activations += 1;
+            cx.notify();
+        })
+        .detach();
         let dialog = cx.new(|cx| {
             M3Dialog::new(
                 "gallery-dialog",
@@ -136,6 +144,7 @@ impl ComponentGallery {
         window.focus(&input.read(cx).focus_handle(cx));
         Self {
             buttons,
+            icon_button,
             input,
             switch,
             chips,
@@ -159,6 +168,8 @@ impl ComponentGallery {
         for button in &self.buttons {
             button.update(cx, |button, cx| button.set_colors(colors, cx));
         }
+        self.icon_button
+            .update(cx, |button, cx| button.set_colors(colors, cx));
         self.input
             .update(cx, |input, cx| input.set_colors(colors, cx));
         self.switch
@@ -227,7 +238,8 @@ impl Render for ComponentGallery {
                                     .flex()
                                     .flex_wrap()
                                     .gap(px(12.0))
-                                    .children(self.buttons.iter().cloned()),
+                                    .children(self.buttons.iter().cloned())
+                                    .child(self.icon_button.clone()),
                             )
                             .child(format!("Button activations: {}", self.activations)),
                     )
@@ -314,7 +326,9 @@ mod tests {
         cx.update(ComponentGallery::register_key_bindings);
         let (gallery, cx) = cx.add_window_view(ComponentGallery::new);
         let buttons = gallery.read_with(cx, |gallery, _| gallery.buttons.clone());
+        let icon_button = gallery.read_with(cx, |gallery, _| gallery.icon_button.clone());
         let switch = gallery.read_with(cx, |gallery, _| gallery.switch.clone());
+        let segmented = gallery.read_with(cx, |gallery, _| gallery.segmented.clone());
         let dialog = gallery.read_with(cx, |gallery, _| gallery.dialog.clone());
         let menu = gallery.read_with(cx, |gallery, _| gallery.menu.clone());
         let snackbar = gallery.read_with(cx, |gallery, _| gallery.snackbar.clone());
@@ -327,13 +341,21 @@ mod tests {
         });
         assert_eq!(gallery.read_with(cx, |gallery, _| gallery.activations), 1);
 
+        cx.update(|window, app| window.focus(&icon_button.read(app).focus_handle()));
+        cx.refresh().expect("refresh focused icon button");
+        cx.run_until_parked();
+        cx.simulate_event(KeyUpEvent {
+            keystroke: Keystroke::parse("enter").expect("enter keystroke"),
+        });
+        assert_eq!(gallery.read_with(cx, |gallery, _| gallery.activations), 2);
+
         cx.update(|window, app| window.focus(&buttons[5].read(app).focus_handle()));
         cx.refresh().expect("refresh disabled button");
         cx.run_until_parked();
         cx.simulate_event(KeyUpEvent {
             keystroke: Keystroke::parse("space").expect("space keystroke"),
         });
-        assert_eq!(gallery.read_with(cx, |gallery, _| gallery.activations), 1);
+        assert_eq!(gallery.read_with(cx, |gallery, _| gallery.activations), 2);
 
         cx.update(|window, app| window.focus(&switch.read(app).focus_handle()));
         cx.refresh().expect("refresh focused switch");
@@ -342,6 +364,17 @@ mod tests {
             keystroke: Keystroke::parse("space").expect("space keystroke"),
         });
         assert!(!switch.read_with(cx, |switch, _| switch.checked()));
+
+        let segmented_focus = segmented
+            .read_with(cx, |segmented, _| segmented.focus_handle(0))
+            .expect("first segmented item has focus");
+        cx.update(|window, _| window.focus(&segmented_focus));
+        cx.refresh().expect("refresh segmented focus");
+        cx.simulate_keystrokes("right");
+        assert_eq!(
+            segmented.read_with(cx, |segmented, _| segmented.selected()),
+            1
+        );
 
         dialog.update(cx, |dialog, cx| dialog.open(cx));
         cx.refresh().expect("refresh open dialog");

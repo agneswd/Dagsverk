@@ -1,0 +1,5 @@
+pub const HOVER_OPACITY: f32 = 0.08;
+pub const PRESSED_OPACITY: f32 = 0.12;
+pub const FOCUS_OPACITY: f32 = 0.72;
+pub const DISABLED_CONTENT_OPACITY: f32 = 0.38;
+pub const DISABLED_CONTAINER_OPACITY: f32 = 0.12;

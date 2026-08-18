@@ -1,4 +1,8 @@
-use gpui::FontWeight;
+use std::sync::Arc;
+
+use gpui::{FontFeatures, FontWeight, Styled, font};
+
+use super::UiScale;
 
 pub const ROBOTO_FAMILY: &str = "Roboto";
 
@@ -57,6 +61,26 @@ impl M3Typography {
         }
     }
 }
+
+pub trait M3TypographyExt: Styled + Sized {
+    fn m3_typography(self, role: TypographyRole, scale: UiScale) -> Self {
+        let token = M3Typography::for_role(role);
+        let mut material_font = font(ROBOTO_FAMILY);
+        if token.tabular_numbers {
+            material_font.features = FontFeatures(Arc::new(vec![("tnum".into(), 1)]));
+        }
+        let element = self
+            .font(material_font)
+            .text_size(scale.px(token.size))
+            .font_weight(token.weight);
+        match token.line_height {
+            Some(line_height) => element.line_height(scale.px(line_height)),
+            None => element,
+        }
+    }
+}
+
+impl<T: Styled> M3TypographyExt for T {}
 
 #[cfg(test)]
 mod tests {

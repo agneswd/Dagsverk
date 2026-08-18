@@ -73,7 +73,7 @@ impl M3ColorScheme {
             on_warning_container: color(0x4e2600),
             error: color(0xba1a1a),
             error_container: color(0xffdad6),
-            on_error_container: color(0x410002),
+            on_error_container: color(0x93000a),
         }
     }
 
@@ -103,9 +103,9 @@ impl M3ColorScheme {
             warning: color(0xfdd663),
             warning_container: color(0x44391f),
             on_warning_container: color(0xffe0b2),
-            error: color(0xf2b8b5),
-            error_container: color(0x8c1d18),
-            on_error_container: color(0xf9dedc),
+            error: color(0xffb4ab),
+            error_container: color(0x93000a),
+            on_error_container: color(0xffdad6),
         }
     }
 }
@@ -135,6 +135,8 @@ mod tests {
         assert_eq!(dark.background, expected(0x131314));
         assert_eq!(dark.surface_container, expected(0x232426));
         assert_eq!(dark.primary, expected(0xacd4a8));
-        assert_eq!(dark.error, expected(0xf2b8b5));
+        assert_eq!(light.on_error_container, expected(0x93000a));
+        assert_eq!(dark.error, expected(0xffb4ab));
+        assert_eq!(dark.error_container, expected(0x93000a));
     }
 }

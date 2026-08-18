@@ -1,9 +1,12 @@
 use gpui::{
-    Context, ElementId, EventEmitter, FocusHandle, Focusable, Render, SharedString, Window, div,
-    prelude::*, px,
+    BoxShadow, Context, ElementId, EventEmitter, FocusHandle, Focusable, Render, SharedString,
+    Window, div, point, prelude::*, px,
 };
 
-use super::{M3ColorScheme, ROBOTO_FAMILY};
+use super::{
+    DISABLED_CONTENT_OPACITY, FOCUS_OPACITY, HOVER_OPACITY, M3ColorScheme, M3TypographyExt,
+    PRESSED_OPACITY, ROBOTO_FAMILY, TypographyRole, UiScale, m3_icon_colored, m3_state_layer,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct M3SwitchEvent(pub bool);
@@ -70,6 +73,16 @@ impl Focusable for M3Switch {
 impl Render for M3Switch {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focused = self.focus.is_focused(window);
+        let background = if self.checked {
+            self.colors.primary
+        } else {
+            self.colors.surface_container_highest
+        };
+        let foreground = if self.checked {
+            self.colors.on_primary
+        } else {
+            self.colors.outline
+        };
         div()
             .id(self.id.clone())
             .track_focus(&self.focus)
@@ -82,25 +95,31 @@ impl Render for M3Switch {
             .items_center()
             .when_else(
                 self.checked,
-                |track| track.justify_end().bg(self.colors.primary),
-                |track| {
-                    track
-                        .justify_start()
-                        .bg(self.colors.surface_container_highest)
-                },
+                |track| track.justify_end().bg(background),
+                |track| track.justify_start().bg(background),
             )
             .rounded(px(16.0))
-            .border_2()
-            .border_color(if focused || self.checked {
+            .border_1()
+            .border_color(if self.checked {
                 self.colors.primary
             } else {
                 self.colors.outline
             })
-            .opacity(if self.enabled { 1.0 } else { 0.38 })
+            .shadow(selection_focus_shadow(focused, self.colors.primary))
+            .opacity(if self.enabled {
+                1.0
+            } else {
+                DISABLED_CONTENT_OPACITY
+            })
             .when(self.enabled, |track| {
                 track
                     .cursor_pointer()
-                    .hover(|style| style.opacity(0.92))
+                    .hover(move |style| {
+                        style.bg(m3_state_layer(background, foreground, HOVER_OPACITY))
+                    })
+                    .active(move |style| {
+                        style.bg(m3_state_layer(background, foreground, PRESSED_OPACITY))
+                    })
                     .on_click(cx.listener(|this, _, _, cx| this.toggle(cx)))
             })
             .child(
@@ -180,6 +199,16 @@ impl Focusable for M3Chip {
 impl Render for M3Chip {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focused = self.focus.is_focused(window);
+        let background = if self.selected {
+            self.colors.secondary_container
+        } else {
+            self.colors.background
+        };
+        let foreground = if self.selected {
+            self.colors.on_secondary_container
+        } else {
+            self.colors.on_surface_variant
+        };
         div()
             .id(self.id.clone())
             .track_focus(&self.focus)
@@ -189,34 +218,46 @@ impl Render for M3Chip {
             .px(px(16.0))
             .flex()
             .items_center()
+            .gap(px(8.0))
             .rounded(px(8.0))
-            .border_2()
-            .border_color(if focused {
-                self.colors.primary
+            .border_1()
+            .border_color(self.colors.outline)
+            .shadow(selection_focus_shadow(focused, self.colors.primary))
+            .bg(background)
+            .m3_typography(TypographyRole::LabelLarge, UiScale::default())
+            .text_color(foreground)
+            .opacity(if self.enabled {
+                1.0
             } else {
-                self.colors.outline
+                DISABLED_CONTENT_OPACITY
             })
-            .bg(if self.selected {
-                self.colors.secondary_container
-            } else {
-                self.colors.background
-            })
-            .font_family(ROBOTO_FAMILY)
-            .text_size(px(14.0))
-            .font_weight(gpui::FontWeight::MEDIUM)
-            .text_color(if self.selected {
-                self.colors.on_secondary_container
-            } else {
-                self.colors.on_surface_variant
-            })
-            .opacity(if self.enabled { 1.0 } else { 0.38 })
             .when(self.enabled, |chip| {
                 chip.cursor_pointer()
-                    .hover(|style| style.opacity(0.92))
+                    .hover(move |style| {
+                        style.bg(m3_state_layer(background, foreground, HOVER_OPACITY))
+                    })
+                    .active(move |style| {
+                        style.bg(m3_state_layer(background, foreground, PRESSED_OPACITY))
+                    })
                     .on_click(cx.listener(|this, _, _, cx| this.toggle(cx)))
+            })
+            .when(self.selected, |chip| {
+                chip.child(m3_icon_colored("check", 18.0, foreground))
             })
             .child(self.label.clone())
     }
+}
+
+fn selection_focus_shadow(focused: bool, color: gpui::Hsla) -> Vec<BoxShadow> {
+    focused
+        .then(|| BoxShadow {
+            color: color.opacity(FOCUS_OPACITY),
+            offset: point(px(0.0), px(0.0)),
+            blur_radius: px(0.0),
+            spread_radius: px(3.0),
+        })
+        .into_iter()
+        .collect()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
