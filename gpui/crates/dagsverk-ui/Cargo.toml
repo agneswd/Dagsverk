@@ -1,0 +1,17 @@
+[package]
+name = "dagsverk-ui"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+dagsverk-core.workspace = true
+gpui.workspace = true
+unicode-segmentation.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[lints]
+workspace = true

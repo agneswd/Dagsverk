@@ -1,0 +1,1 @@
+//! Pure Dagsverk domain logic.

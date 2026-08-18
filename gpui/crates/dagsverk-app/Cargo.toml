@@ -1,0 +1,19 @@
+[package]
+name = "dagsverk-app"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "dagsverk-gpui"
+path = "src/main.rs"
+
+[dependencies]
+dagsverk-data.workspace = true
+dagsverk-export.workspace = true
+dagsverk-ui.workspace = true
+gpui.workspace = true
+
+[lints]
+workspace = true

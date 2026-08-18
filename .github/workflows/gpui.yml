@@ -1,0 +1,49 @@
+name: GPUI
+
+on:
+  push:
+    paths:
+      - "gpui/**"
+      - "src/app/core/**"
+      - "electron/**"
+      - "src/styles.scss"
+      - ".github/workflows/gpui.yml"
+  pull_request:
+    paths:
+      - "gpui/**"
+      - "src/app/core/**"
+      - "electron/**"
+      - "src/styles.scss"
+      - ".github/workflows/gpui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: Rust on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: gpui
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.96.0
+          components: clippy,rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: gpui
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-x11-dev libfontconfig-dev libwayland-dev libx11-xcb-dev libxcb1-dev
+        working-directory: .
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo build --workspace --release
