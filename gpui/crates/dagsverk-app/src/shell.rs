@@ -4006,12 +4006,13 @@ impl AppShell {
     }
 
     fn month_actions_menu(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         div()
-            .w(px(240.0))
-            .p(px(8.0))
+            .w(scale.px(240.0))
+            .p(scale.px(8.0))
             .flex()
             .flex_col()
-            .rounded(px(12.0))
+            .rounded(scale.px(12.0))
             .bg(colors.surface_container)
             .shadow(menu_elevation())
             .on_mouse_down_out(cx.listener(|shell, _, _, cx| {
@@ -4025,6 +4026,7 @@ impl AppShell {
                     self.text("Fill normal workdays"),
                     true,
                     colors,
+                    scale,
                 )
                 .on_click(cx.listener(|shell, _, _, cx| {
                     shell.month_actions_open = false;
@@ -4038,6 +4040,7 @@ impl AppShell {
                     self.text("Copy month"),
                     !self.model.is_month_unstarted(),
                     colors,
+                    scale,
                 )
                 .when(!self.model.is_month_unstarted(), |item| {
                     item.on_click(cx.listener(|shell, _, _, cx| {
@@ -4053,6 +4056,7 @@ impl AppShell {
                     self.text("Paste month"),
                     self.model.can_paste_month(),
                     colors,
+                    scale,
                 )
                 .when(self.model.can_paste_month(), |item| {
                     item.on_click(cx.listener(|shell, _, _, cx| {
@@ -4061,7 +4065,12 @@ impl AppShell {
                     }))
                 }),
             )
-            .child(div().h(px(1.0)).my(px(4.0)).bg(colors.outline_variant))
+            .child(
+                div()
+                    .h(scale.px(1.0))
+                    .my(scale.px(4.0))
+                    .bg(colors.outline_variant),
+            )
             .child(
                 header_menu_item(
                     "menu-reset-month",
@@ -4069,6 +4078,7 @@ impl AppShell {
                     self.text("Reset month"),
                     self.model.can_reset_month(),
                     colors,
+                    scale,
                 )
                 .text_color(colors.error)
                 .when(self.model.can_reset_month(), |item| {
@@ -4082,12 +4092,13 @@ impl AppShell {
     }
 
     fn export_menu(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         div()
-            .w(px(240.0))
-            .p(px(8.0))
+            .w(scale.px(240.0))
+            .p(scale.px(8.0))
             .flex()
             .flex_col()
-            .rounded(px(12.0))
+            .rounded(scale.px(12.0))
             .bg(colors.surface_container)
             .shadow(menu_elevation())
             .on_mouse_down_out(cx.listener(|shell, _, _, cx| {
@@ -4101,6 +4112,7 @@ impl AppShell {
                     "Excel (.xlsx)",
                     true,
                     colors,
+                    scale,
                 )
                 .on_click(cx.listener(|shell, _, _, cx| {
                     shell.export_menu_open = false;
@@ -4114,6 +4126,7 @@ impl AppShell {
                     "OpenDocument (.ods)",
                     true,
                     colors,
+                    scale,
                 )
                 .on_click(cx.listener(|shell, _, _, cx| {
                     shell.export_menu_open = false;
@@ -4123,6 +4136,7 @@ impl AppShell {
     }
 
     fn month_menu(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let year = self.model.current_month.year;
         let month = self.model.current_month.month;
         let names = if self.model.language == crate::state::Language::Swedish {
@@ -4135,12 +4149,12 @@ impl AppShell {
             ]
         };
         div()
-            .w(px(280.0))
-            .p(px(8.0))
+            .w(scale.px(280.0))
+            .p(scale.px(8.0))
             .flex()
             .flex_col()
-            .gap(px(4.0))
-            .rounded(px(12.0))
+            .gap(scale.px(4.0))
+            .rounded(scale.px(12.0))
             .bg(colors.surface_container)
             .shadow(menu_elevation())
             .on_mouse_down_out(cx.listener(|shell, _, _, cx| {
@@ -4149,18 +4163,18 @@ impl AppShell {
             }))
             .child(
                 div()
-                    .h(px(40.0))
+                    .h(scale.px(40.0))
                     .flex()
                     .items_center()
                     .justify_between()
                     .child(
                         div()
                             .id("previous-year")
-                            .p(px(8.0))
+                            .p(scale.px(8.0))
                             .rounded_full()
                             .cursor_pointer()
                             .hover(|style| style.bg(colors.surface_container_high))
-                            .child(m3_icon("chevron_left", 20.0, colors))
+                            .child(m3_icon("chevron_left", 20.0 * scale.factor(), colors))
                             .on_click(cx.listener(move |shell, _, _, cx| {
                                 let key = shell.model.select_month(
                                     YearMonth::new(year - 1, month)
@@ -4173,11 +4187,11 @@ impl AppShell {
                     .child(
                         div()
                             .id("next-year")
-                            .p(px(8.0))
+                            .p(scale.px(8.0))
                             .rounded_full()
                             .cursor_pointer()
                             .hover(|style| style.bg(colors.surface_container_high))
-                            .child(m3_icon("chevron_right", 20.0, colors))
+                            .child(m3_icon("chevron_right", 20.0 * scale.factor(), colors))
                             .on_click(cx.listener(move |shell, _, _, cx| {
                                 let key = shell.model.select_month(
                                     YearMonth::new(year + 1, month)
@@ -4187,17 +4201,17 @@ impl AppShell {
                             })),
                     ),
             )
-            .child(div().grid().grid_cols(3).gap(px(4.0)).children(
+            .child(div().grid().grid_cols(3).gap(scale.px(4.0)).children(
                 names.into_iter().enumerate().map(|(index, name)| {
                     let selected = index as u32 + 1 == month;
                     div()
                         .id(("select-month", index))
-                        .h(px(40.0))
-                        .px(px(8.0))
+                        .h(scale.px(40.0))
+                        .px(scale.px(8.0))
                         .flex()
                         .items_center()
                         .justify_center()
-                        .rounded(px(8.0))
+                        .rounded(scale.px(8.0))
                         .cursor_pointer()
                         .bg(if selected {
                             colors.primary_container
@@ -4526,7 +4540,7 @@ impl Render for AppShell {
                         div()
                             .relative()
                             .h(px(64.0 * scale))
-                            .px(px(24.0))
+                            .px(px(24.0 * scale))
                             .flex()
                             .items_center()
                             .justify_between()
@@ -4536,18 +4550,18 @@ impl Render for AppShell {
                                 div()
                                     .flex()
                                     .items_center()
-                                    .gap(px(4.0))
+                                    .gap(px(4.0 * scale))
                                     .child(
                                         div()
                                             .id("previous-month")
-                                            .p(px(8.0))
+                                            .p(px(8.0 * scale))
                                             .rounded_full()
                                             .cursor_pointer()
                                             .hover(|style| style.bg(colors.surface_container_high))
                                             .active(|style| {
                                                 style.bg(colors.surface_container_highest)
                                             })
-                                            .child(m3_icon("chevron_left", 24.0, colors))
+                                            .child(m3_icon("chevron_left", 24.0 * scale, colors))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 let key = shell.model.previous_month();
                                                 shell.load_month(key, cx);
@@ -4556,20 +4570,20 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("month-selector")
-                                            .w(px(164.0))
-                                            .h(px(40.0))
-                                            .px(px(12.0))
+                                            .w(px(164.0 * scale))
+                                            .h(px(40.0 * scale))
+                                            .px(px(12.0 * scale))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .gap(px(4.0))
-                                            .rounded(px(20.0))
+                                            .gap(px(4.0 * scale))
+                                            .rounded(px(20.0 * scale))
                                             .cursor_pointer()
                                             .hover(|style| {
                                                 style.bg(colors.surface_container_high)
                                             })
-                                            .child(div().text_size(px(16.0)).child(month))
-                                            .child(m3_icon("arrow_drop_down", 20.0, colors))
+                                            .child(div().text_size(px(16.0 * scale)).child(month))
+                                            .child(m3_icon("arrow_drop_down", 20.0 * scale, colors))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.month_menu_open = !shell.month_menu_open;
                                                 shell.month_actions_open = false;
@@ -4581,8 +4595,8 @@ impl Render for AppShell {
                                                     deferred(
                                                         anchored()
                                                             .anchor(Corner::TopLeft)
-                                                            .offset(point(px(0.0), px(48.0)))
-                                                            .snap_to_window_with_margin(px(8.0))
+                                                            .offset(point(px(0.0), px(48.0 * scale)))
+                                                            .snap_to_window_with_margin(px(8.0 * scale))
                                                             .child(self.month_menu(colors, cx)),
                                                     )
                                                     .priority(2),
@@ -4592,14 +4606,14 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("next-month")
-                                            .p(px(8.0))
+                                            .p(px(8.0 * scale))
                                             .rounded_full()
                                             .cursor_pointer()
                                             .hover(|style| style.bg(colors.surface_container_high))
                                             .active(|style| {
                                                 style.bg(colors.surface_container_highest)
                                             })
-                                            .child(m3_icon("chevron_right", 24.0, colors))
+                                            .child(m3_icon("chevron_right", 24.0 * scale, colors))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 let key = shell.model.next_month();
                                                 shell.load_month(key, cx);
@@ -4608,12 +4622,12 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("today")
-                                            .h(px(40.0))
-                                            .ml(px(8.0))
-                                            .px(px(16.0))
+                                            .h(px(40.0 * scale))
+                                            .ml(px(8.0 * scale))
+                                            .px(px(16.0 * scale))
                                             .flex()
                                             .items_center()
-                                            .rounded(px(20.0))
+                                            .rounded(px(20.0 * scale))
                                             .border_1()
                                             .border_color(colors.outline_variant)
                                             .cursor_pointer()
@@ -4632,7 +4646,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("month-actions")
-                                            .p(px(8.0))
+                                            .p(px(8.0 * scale))
                                             .rounded_full()
                                             .cursor_pointer()
                                             .hover(|style| {
@@ -4641,7 +4655,7 @@ impl Render for AppShell {
                                             .active(|style| {
                                                 style.bg(colors.surface_container_highest)
                                             })
-                                            .child(m3_icon("more_vert", 24.0, colors))
+                                            .child(m3_icon("more_vert", 24.0 * scale, colors))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.month_actions_open =
                                                     !shell.month_actions_open;
@@ -4653,8 +4667,8 @@ impl Render for AppShell {
                                                     deferred(
                                                         anchored()
                                                             .anchor(Corner::TopRight)
-                                                            .offset(point(px(40.0), px(48.0)))
-                                                            .snap_to_window_with_margin(px(8.0))
+                                                            .offset(point(px(40.0 * scale), px(48.0 * scale)))
+                                                            .snap_to_window_with_margin(px(8.0 * scale))
                                                             .child(self.month_actions_menu(colors, cx)),
                                                     )
                                                     .priority(2),
@@ -4665,10 +4679,10 @@ impl Render for AppShell {
                             })
                             .when(self.model.route == Route::Timesheet, |header| header.child(
                                         div()
-                                            .h(px(40.0))
+                                            .h(px(40.0 * scale))
                                             .flex()
                                             .items_center()
-                                            .rounded(px(20.0))
+                                            .rounded(px(20.0 * scale))
                                             .border_1()
                                             .border_color(colors.outline_variant)
                                             .overflow_hidden()
@@ -4676,10 +4690,10 @@ impl Render for AppShell {
                                                 div()
                                             .id("view-ledger")
                                             .h_full()
-                                            .px(px(16.0))
+                                            .px(px(16.0 * scale))
                                                     .flex()
                                                     .items_center()
-                                                    .gap(px(8.0))
+                                                    .gap(px(8.0 * scale))
                                                     .cursor_pointer()
                                             .hover(|style| style.bg(colors.surface_container_high))
                                             .active(|style| {
@@ -4696,7 +4710,7 @@ impl Render for AppShell {
                                             )
                                                     .child(m3_icon_colored(
                                                         "table_rows",
-                                                        18.0,
+                                                        18.0 * scale,
                                                         if self.model.active_view
                                                             == MonthViewPreference::Ledger
                                                         {
@@ -4714,10 +4728,10 @@ impl Render for AppShell {
                                         div()
                                             .id("view-calendar")
                                             .h_full()
-                                            .px(px(16.0))
+                                            .px(px(16.0 * scale))
                                                     .flex()
                                                     .items_center()
-                                                    .gap(px(8.0))
+                                                    .gap(px(8.0 * scale))
                                                     .border_l_1()
                                                     .border_color(colors.outline_variant)
                                                     .cursor_pointer()
@@ -4736,7 +4750,7 @@ impl Render for AppShell {
                                             )
                                                     .child(m3_icon_colored(
                                                         "calendar_month",
-                                                        18.0,
+                                                        18.0 * scale,
                                                         if self.model.active_view
                                                             == MonthViewPreference::Calendar
                                                         {
@@ -4755,17 +4769,17 @@ impl Render for AppShell {
                                 div()
                                     .flex()
                                     .items_center()
-                                    .gap(px(8.0))
+                                    .gap(px(8.0 * scale))
                                     .when(self.model.missing_days_count() > 0, |actions| {
                                         actions.child(
                                             div()
                                                 .id("catch-up")
-                                                .h(px(40.0))
-                                                .px(px(16.0))
+                                                .h(px(40.0 * scale))
+                                                .px(px(16.0 * scale))
                                                 .flex()
                                                 .items_center()
-                                                .gap(px(8.0))
-                                                .rounded(px(20.0))
+                                                .gap(px(8.0 * scale))
+                                                .rounded(px(20.0 * scale))
                                                 .cursor_pointer()
                                                 .bg(colors.primary)
                                                 .text_color(colors.on_primary)
@@ -4773,7 +4787,7 @@ impl Render for AppShell {
                                                 .active(move |style| style.bg(catch_up_pressed))
                                                 .child(m3_icon_colored(
                                                     "auto_fix_high",
-                                                    18.0,
+                                                    18.0 * scale,
                                                     colors.on_primary,
                                                 ))
                                                 .child(format!(
@@ -4791,10 +4805,10 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("export-report")
-                                            .p(px(8.0))
+                                            .p(px(8.0 * scale))
                                             .rounded_full()
                                             .opacity(if can_export { 1.0 } else { 0.38 })
-                                            .child(m3_icon("download", 24.0, colors))
+                                            .child(m3_icon("download", 24.0 * scale, colors))
                                             .when(can_export, |button| {
                                                 button
                                                     .cursor_pointer()
@@ -4817,8 +4831,8 @@ impl Render for AppShell {
                                                     deferred(
                                                         anchored()
                                                             .anchor(Corner::TopRight)
-                                                            .offset(point(px(40.0), px(48.0)))
-                                                            .snap_to_window_with_margin(px(8.0))
+                                                            .offset(point(px(40.0 * scale), px(48.0 * scale)))
+                                                            .snap_to_window_with_margin(px(8.0 * scale))
                                                             .child(self.export_menu(colors, cx)),
                                                     )
                                                     .priority(2),
@@ -4828,7 +4842,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("toggle-theme")
-                                            .p(px(8.0))
+                                            .p(px(8.0 * scale))
                                             .rounded_full()
                                             .cursor_pointer()
                                             .hover(|style| {
@@ -4837,7 +4851,7 @@ impl Render for AppShell {
                                             .active(|style| {
                                                 style.bg(colors.surface_container_highest)
                                             })
-                                            .child(m3_icon(theme_icon, 24.0, colors))
+                                            .child(m3_icon(theme_icon, 24.0 * scale, colors))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 if let Err(error) = shell.model.toggle_theme() {
                                                     shell.model.transient_error =
@@ -4854,12 +4868,12 @@ impl Render for AppShell {
                                         div()
                                             .flex()
                                             .items_center()
-                                            .gap(px(8.0))
+                                            .gap(px(8.0 * scale))
                                             .when(self.model.route == Route::DataBackups, |title| {
                                                 title.child(
                                                     div()
                                                         .id("back-to-settings")
-                                                        .size(px(40.0))
+                                                        .size(px(40.0 * scale))
                                                         .flex()
                                                         .items_center()
                                                         .justify_center()
@@ -4868,7 +4882,7 @@ impl Render for AppShell {
                                                         .hover(|style| {
                                                             style.bg(colors.surface_container_high)
                                                         })
-                                                        .child(m3_icon("arrow_back", 24.0, colors))
+                                                        .child(m3_icon("arrow_back", 24.0 * scale, colors))
                                                         .on_click(cx.listener(
                                                             |shell, _, _, cx| {
                                                                 shell.set_route(
@@ -4881,15 +4895,15 @@ impl Render for AppShell {
                                             })
                                             .child(
                                                 div()
-                                                    .text_size(px(22.0))
-                                                    .line_height(px(28.0))
+                                                    .text_size(px(22.0 * scale))
+                                                    .line_height(px(28.0 * scale))
                                                     .child(self.text(route_title)),
                                             ),
                                     )
                                     .child(
                                         div()
                                             .id("toggle-theme-route")
-                                            .size(px(40.0))
+                                            .size(px(40.0 * scale))
                                             .flex()
                                             .items_center()
                                             .justify_center()
@@ -4898,7 +4912,7 @@ impl Render for AppShell {
                                             .hover(|style| {
                                                 style.bg(colors.surface_container_high)
                                             })
-                                            .child(m3_icon(theme_icon, 24.0, colors))
+                                            .child(m3_icon(theme_icon, 24.0 * scale, colors))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 if let Err(error) = shell.model.toggle_theme() {
                                                     shell.model.transient_error =
@@ -4920,7 +4934,7 @@ impl Render for AppShell {
                                 div()
                                     .flex_1()
                                     .min_w_0()
-                                    .rounded_tl(px(24.0))
+                                    .rounded_tl(px(24.0 * scale))
                                     .overflow_hidden()
                                     .bg(colors.background)
                                     .child(
@@ -5703,24 +5717,25 @@ fn header_menu_item(
     label: impl Into<SharedString>,
     enabled: bool,
     colors: M3ColorScheme,
+    scale: UiScale,
 ) -> Stateful<gpui::Div> {
     let background = colors.surface_container;
     let foreground = colors.on_surface;
     div()
         .id(id)
-        .h(px(48.0))
-        .px(px(12.0))
+        .h(scale.px(48.0))
+        .px(scale.px(12.0))
         .flex()
         .items_center()
-        .gap(px(12.0))
-        .rounded(px(8.0))
+        .gap(scale.px(12.0))
+        .rounded(scale.px(8.0))
         .opacity(if enabled { 1.0 } else { 0.38 })
         .when(enabled, |item| {
             item.cursor_pointer()
                 .hover(move |style| style.bg(m3_state_layer(background, foreground, 0.08)))
                 .active(move |style| style.bg(m3_state_layer(background, foreground, 0.12)))
         })
-        .child(m3_icon(icon, 24.0, colors))
+        .child(m3_icon(icon, 24.0 * scale.factor(), colors))
         .child(label.into())
 }
 
