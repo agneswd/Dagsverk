@@ -61,7 +61,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - Production notices use the shared snackbar host and avoid the sidebar and open day editor at every interface scale.
 - Projects stack below an 860 px content pane. Route pages reduce horizontal padding below 720 px.
 - The timesheet header hides labels and secondary actions from the measured available pane width, including the docked editor width.
-- Settings tabs share one tonal surface with the first settings card and use the selected text and indicator colors.
+- Settings uses the shared keyboard-capable Material tabs. They share one tonal surface with the first card and use selected text and indicator colors.
 - Add Project uses a filled icon button state and stays disabled until the trimmed project name is non-empty.
 - Create Workspace uses the same filled icon and disabled-state behavior for invalid form values.
 

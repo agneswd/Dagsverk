@@ -17,9 +17,10 @@ use dagsverk_data::DataMaintenance;
 use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
     m3::{
-        M3ColorScheme, M3Select, M3SelectEvent, M3SnackbarEvent, M3SnackbarHost, M3Switch,
-        M3SwitchEvent, ResolvedTheme as UiTheme, UiScale, m3_icon, m3_icon_colored, m3_icon_filled,
-        m3_state_layer, menu_elevation, side_sheet_elevation, workspace_menu_elevation,
+        M3ChoiceEvent, M3ChoiceGroup, M3ChoiceKind, M3ColorScheme, M3Select, M3SelectEvent,
+        M3SnackbarEvent, M3SnackbarHost, M3Switch, M3SwitchEvent, ResolvedTheme as UiTheme,
+        UiScale, m3_icon, m3_icon_colored, m3_icon_filled, m3_state_layer, menu_elevation,
+        side_sheet_elevation, workspace_menu_elevation,
     },
     text_input::{TextInput, TextInputEvent},
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
@@ -238,6 +239,7 @@ pub struct AppShell {
     scheduled_input: Entity<TextInput>,
     scheduled_override_switch: Entity<M3Switch>,
     exclude_holidays_switch: Entity<M3Switch>,
+    settings_tabs: Entity<M3ChoiceGroup>,
     snackbar: Entity<M3SnackbarHost>,
     project_name_input: Entity<TextInput>,
     project_color_input: Entity<TextInput>,
@@ -334,6 +336,8 @@ impl AppShell {
                 MonthViewPreference::Ledger
             };
         self.settings_tab = usize::from(matches!(state, VisualState::SettingsOvertime)) * 2;
+        self.settings_tabs
+            .update(cx, |tabs, cx| tabs.set_selected(self.settings_tab, cx));
         self.manage_workspaces =
             matches!(state, VisualState::Workspaces | VisualState::WorkspacesDark);
         self.month_menu_open = matches!(state, VisualState::MonthMenu);
@@ -423,6 +427,22 @@ impl AppShell {
             )
         });
         let snackbar = cx.new(|cx| M3SnackbarHost::new(M3ColorScheme::light(), cx));
+        let settings_tabs = cx.new(|cx| {
+            M3ChoiceGroup::new(
+                "settings-tabs",
+                [
+                    "General",
+                    "Schedule",
+                    "Overtime & OB",
+                    "Salary & Tax",
+                    "Application",
+                ],
+                0,
+                M3ChoiceKind::Tabs,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
         let project_name_input = cx.new(|cx| TextInput::new(cx, "Project name"));
         let project_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
         project_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
@@ -528,6 +548,11 @@ impl AppShell {
             cx.notify();
         })
         .detach();
+        cx.subscribe(&settings_tabs, |shell, _, event: &M3ChoiceEvent, cx| {
+            shell.settings_tab = event.0;
+            cx.notify();
+        })
+        .detach();
         cx.subscribe(&notes_input, |shell, _, event: &TextInputEvent, cx| {
             let TextInputEvent::Changed(value) = event;
             if let Some(draft) = shell.model.editor.draft.as_mut() {
@@ -588,6 +613,7 @@ impl AppShell {
             scheduled_input,
             scheduled_override_switch,
             exclude_holidays_switch,
+            settings_tabs,
             snackbar,
             project_name_input,
             project_color_input,
@@ -700,6 +726,8 @@ impl AppShell {
         ] {
             switch.update(cx, |switch, cx| switch.set_scale(scale, cx));
         }
+        self.settings_tabs
+            .update(cx, |tabs, cx| tabs.set_scale(scale, cx));
         self.settings_inputs.set_scale(scale, cx);
         for inputs in &self.rate_band_inputs {
             inputs.set_scale(scale, cx);
@@ -1528,6 +1556,19 @@ impl AppShell {
     ) -> gpui::Div {
         let scale = interface_scale(&self.model);
         let (_, page_padding) = route_page_layout(pane_width);
+        let selected_tab = self.settings_tab;
+        let tab_labels = [
+            self.text("General"),
+            self.text("Schedule"),
+            self.text("Overtime & OB"),
+            self.text("Salary & Tax"),
+            self.text("Application"),
+        ];
+        self.settings_tabs.update(cx, |tabs, cx| {
+            tabs.set_colors(colors, cx);
+            tabs.set_selected(selected_tab, cx);
+            tabs.set_labels(tab_labels, cx);
+        });
         let database_path = self.services.data.database_path();
         let busy = self.maintenance_busy;
         div()
@@ -2806,72 +2847,7 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap_0()
-            .child(
-                div()
-                    .h(scale.px(44.0))
-                    .flex()
-                    .gap(scale.px(4.0))
-                    .rounded_t(scale.px(16.0))
-                    .overflow_hidden()
-                    .bg(colors.surface_container_low)
-                    .border_b_1()
-                    .border_color(colors.outline_variant)
-                    .children(
-                        [
-                            "General",
-                            "Schedule",
-                            "Overtime & OB",
-                            "Salary & Tax",
-                            "Application",
-                        ]
-                        .into_iter()
-                        .enumerate()
-                        .map(|(index, label)| {
-                            div()
-                                .id(("settings-tab", index))
-                                .h_full()
-                                .px(scale.px(16.0))
-                                .flex()
-                                .items_center()
-                                .cursor_pointer()
-                                .border_b_2()
-                                .border_color(if self.settings_tab == index {
-                                    colors.primary
-                                } else {
-                                    gpui::transparent_black()
-                                })
-                                .text_color(if self.settings_tab == index {
-                                    colors.primary
-                                } else {
-                                    colors.on_surface_variant
-                                })
-                                .font_weight(if self.settings_tab == index {
-                                    gpui::FontWeight::MEDIUM
-                                } else {
-                                    gpui::FontWeight::NORMAL
-                                })
-                                .hover(move |style| {
-                                    style.bg(m3_state_layer(
-                                        colors.surface_container_low,
-                                        colors.on_surface,
-                                        0.08,
-                                    ))
-                                })
-                                .active(move |style| {
-                                    style.bg(m3_state_layer(
-                                        colors.surface_container_low,
-                                        colors.on_surface,
-                                        0.12,
-                                    ))
-                                })
-                                .child(self.text(label))
-                                .on_click(cx.listener(move |shell, _, _, cx| {
-                                    shell.settings_tab = index;
-                                    cx.notify();
-                                }))
-                        }),
-                    ),
-            )
+            .child(self.settings_tabs.clone())
             .child(
                 div()
                     .p(scale.px(24.0))
@@ -6361,6 +6337,10 @@ mod tests {
         assert!(shell.read_with(cx, |shell, _| {
             shell.model.route == Route::Settings && shell.settings_tab == 2
         }));
+        assert_eq!(
+            shell.read_with(cx, |shell, cx| shell.settings_tabs.read(cx).selected()),
+            2
+        );
         shell.update(cx, |shell, cx| {
             shell.apply_visual_state(VisualState::EditorDark, cx)
         });

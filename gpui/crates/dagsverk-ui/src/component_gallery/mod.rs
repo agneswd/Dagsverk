@@ -388,6 +388,7 @@ mod tests {
         let buttons = gallery.read_with(cx, |gallery, _| gallery.buttons.clone());
         let icon_button = gallery.read_with(cx, |gallery, _| gallery.icon_button.clone());
         let switch = gallery.read_with(cx, |gallery, _| gallery.switch.clone());
+        let tabs = gallery.read_with(cx, |gallery, _| gallery.tabs.clone());
         let segmented = gallery.read_with(cx, |gallery, _| gallery.segmented.clone());
         let dialog = gallery.read_with(cx, |gallery, _| gallery.dialog.clone());
         let menu = gallery.read_with(cx, |gallery, _| gallery.menu.clone());
@@ -461,6 +462,14 @@ mod tests {
             segmented.read_with(cx, |segmented, _| segmented.selected()),
             1
         );
+
+        let tab_focus = tabs
+            .read_with(cx, |tabs, _| tabs.focus_handle(0))
+            .expect("first tab has focus");
+        cx.update(|window, _| window.focus(&tab_focus));
+        cx.refresh().expect("refresh tab focus");
+        cx.simulate_keystrokes("right");
+        assert_eq!(tabs.read_with(cx, |tabs, _| tabs.selected()), 1);
 
         dialog.update(cx, |dialog, cx| dialog.open(cx));
         cx.refresh().expect("refresh open dialog");

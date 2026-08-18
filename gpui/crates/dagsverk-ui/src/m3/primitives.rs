@@ -87,13 +87,37 @@ impl M3ChoiceGroup {
     }
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
-        self.colors = colors;
-        cx.notify();
+        if self.colors != colors {
+            self.colors = colors;
+            cx.notify();
+        }
     }
 
     pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
-        self.scale = scale;
-        cx.notify();
+        if self.scale != scale {
+            self.scale = scale;
+            cx.notify();
+        }
+    }
+
+    pub fn set_selected(&mut self, selected: usize, cx: &mut Context<Self>) {
+        let selected = selected.min(self.items.len().saturating_sub(1));
+        if self.selected != selected {
+            self.selected = selected;
+            cx.notify();
+        }
+    }
+
+    pub fn set_labels(
+        &mut self,
+        labels: impl IntoIterator<Item = impl Into<SharedString>>,
+        cx: &mut Context<Self>,
+    ) {
+        let labels: Vec<_> = labels.into_iter().map(Into::into).collect();
+        if labels.len() == self.items.len() && labels != self.items {
+            self.items = labels;
+            cx.notify();
+        }
     }
 
     fn select(&mut self, index: usize, cx: &mut Context<Self>) {
@@ -145,14 +169,16 @@ impl Render for M3ChoiceGroup {
             .map(|(index, (label, focus))| {
                 let is_selected = index == selected;
                 let is_focused = focus.is_focused(window);
-                let background = if is_selected {
-                    colors.secondary_container
-                } else if kind == M3ChoiceKind::Tabs {
+                let background = if kind == M3ChoiceKind::Tabs {
                     colors.surface_container_low
+                } else if is_selected {
+                    colors.secondary_container
                 } else {
                     colors.surface
                 };
-                let foreground = if is_selected {
+                let foreground = if kind == M3ChoiceKind::Tabs && is_selected {
+                    colors.primary
+                } else if is_selected {
                     colors.on_secondary_container
                 } else {
                     colors.on_surface_variant
