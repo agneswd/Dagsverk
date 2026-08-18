@@ -19,3 +19,5 @@ The default GPUI features enable Wayland, X11, the font backend, and the Windows
 The core crate uses `rust_decimal::Decimal` for money, rates, percentages, and hours. `Money` serializes as a canonical decimal string. Date and time values validate and serialize as the existing `YYYY-MM-DD` and `HH:mm` formats.
 
 Calculation code receives a `Clock`. Production uses `SystemClock`, while tests and visual fixtures use `FixedClock`.
+
+The TypeScript engine generates committed parity fixtures. Rust tests read those fixtures directly. The canonical tax source remains `public/tax-data/tax-2026.json`. Its test SHA-256 is `f660a261b4f4abb44b3595f69d1e93bd2895faad19847ff45b50865919ebc0b6`.
