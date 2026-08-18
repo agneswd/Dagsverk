@@ -1,0 +1,4169 @@
+{
+  "sourceCommit": "5ecce00f8161ea7d65951a6b48dfbe39923a5228",
+  "generatedAt": "2026-08-18T12:35:31+02:00",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "year": 2024,
+      "named": [
+        {
+          "date": "2024-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2024-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2024-03-29",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2024-03-31",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2024-04-01",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2024-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2024-05-09",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2024-05-19",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2024-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2024-06-22",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2024-11-02",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2024-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2024-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2024-01-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-01-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-01-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-01-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-02-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-02-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-02-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-02-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-03-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-03-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-03-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-03-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-03-31",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2024-04-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-04-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-04-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-04-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-05-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-05-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-05-19",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2024-05-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-06-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-06-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-06-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-06-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-06-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-07-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-07-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-07-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-07-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-08-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-08-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-08-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-08-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-09-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-09-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-09-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-09-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-09-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-10-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-10-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-10-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-10-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-11-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-11-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-11-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-11-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-12-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-12-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-12-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-12-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2024-12-29",
+          "isPublicHoliday": true,
+          "name": null
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2024-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2024-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2024-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2024-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2025-01-02",
+          "time": "07:00",
+          "output": false
+        }
+      ]
+    },
+    {
+      "year": 2025,
+      "named": [
+        {
+          "date": "2025-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2025-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2025-04-18",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2025-04-20",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2025-04-21",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2025-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2025-05-29",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2025-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2025-06-08",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2025-06-21",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2025-11-01",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2025-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2025-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2025-01-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-01-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-01-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-01-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-02-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-02-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-02-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-02-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-03-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-03-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-03-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-03-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-03-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-04-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-04-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-04-20",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2025-04-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-05-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-05-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-05-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-05-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-06-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-06-08",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2025-06-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-06-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-06-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-07-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-07-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-07-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-07-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-08-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-08-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-08-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-08-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-08-31",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-09-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-09-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-09-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-09-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-10-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-10-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-10-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-10-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-11-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-11-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-11-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-11-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-11-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-12-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-12-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-12-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2025-12-28",
+          "isPublicHoliday": true,
+          "name": null
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2025-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2025-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2025-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2025-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2026-01-02",
+          "time": "07:00",
+          "output": false
+        }
+      ]
+    },
+    {
+      "year": 2026,
+      "named": [
+        {
+          "date": "2026-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2026-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2026-04-03",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2026-04-05",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2026-04-06",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2026-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2026-05-14",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2026-05-24",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2026-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2026-06-20",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2026-10-31",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2026-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2026-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2026-01-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-01-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-01-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-01-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-02-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-02-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-02-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-02-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-03-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-03-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-03-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-03-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-03-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-04-05",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2026-04-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-04-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-04-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-05-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-05-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-05-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-05-24",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2026-05-31",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-06-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-06-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-06-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-06-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-07-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-07-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-07-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-07-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-08-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-08-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-08-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-08-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-08-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-09-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-09-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-09-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-09-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-10-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-10-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-10-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-10-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-11-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-11-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-11-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-11-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-11-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-12-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-12-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-12-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2026-12-27",
+          "isPublicHoliday": true,
+          "name": null
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2026-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2026-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2026-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2026-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2027-01-02",
+          "time": "07:00",
+          "output": true
+        }
+      ]
+    },
+    {
+      "year": 2027,
+      "named": [
+        {
+          "date": "2027-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2027-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2027-03-26",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2027-03-28",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2027-03-29",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2027-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2027-05-06",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2027-05-16",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2027-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2027-06-26",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2027-11-06",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2027-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2027-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2027-01-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-01-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-01-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-01-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-01-31",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-02-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-02-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-02-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-02-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-03-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-03-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-03-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-03-28",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2027-04-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-04-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-04-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-04-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-05-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-05-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-05-16",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2027-05-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-05-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-06-06",
+          "isPublicHoliday": true,
+          "name": "National Day"
+        },
+        {
+          "date": "2027-06-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-06-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-06-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-07-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-07-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-07-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-07-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-08-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-08-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-08-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-08-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-08-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-09-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-09-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-09-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-09-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-10-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-10-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-10-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-10-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-10-31",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-11-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-11-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-11-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-11-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-12-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-12-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-12-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2027-12-26",
+          "isPublicHoliday": true,
+          "name": "Boxing Day"
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2027-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2027-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2027-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2027-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2028-01-02",
+          "time": "07:00",
+          "output": true
+        }
+      ]
+    },
+    {
+      "year": 2028,
+      "named": [
+        {
+          "date": "2028-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2028-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2028-04-14",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2028-04-16",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2028-04-17",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2028-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2028-05-25",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2028-06-04",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2028-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2028-06-24",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2028-11-04",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2028-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2028-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2028-01-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-01-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-01-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-01-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-01-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-02-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-02-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-02-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-02-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-03-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-03-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-03-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-03-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-04-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-04-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-04-16",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2028-04-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-04-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-05-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-05-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-05-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-05-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-06-04",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2028-06-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-06-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-06-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-07-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-07-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-07-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-07-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-07-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-08-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-08-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-08-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-08-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-09-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-09-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-09-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-09-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-10-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-10-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-10-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-10-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-10-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-11-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-11-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-11-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-11-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-12-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-12-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-12-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-12-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2028-12-31",
+          "isPublicHoliday": true,
+          "name": null
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2028-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2028-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2028-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2028-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2029-01-02",
+          "time": "07:00",
+          "output": false
+        }
+      ]
+    },
+    {
+      "year": 2029,
+      "named": [
+        {
+          "date": "2029-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2029-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2029-03-30",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2029-04-01",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2029-04-02",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2029-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2029-05-10",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2029-05-20",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2029-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2029-06-23",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2029-11-03",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2029-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2029-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2029-01-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-01-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-01-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-01-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-02-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-02-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-02-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-02-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-03-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-03-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-03-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-03-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-04-01",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2029-04-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-04-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-04-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-04-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-05-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-05-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-05-20",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2029-05-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-06-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-06-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-06-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-06-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-07-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-07-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-07-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-07-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-07-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-08-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-08-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-08-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-08-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-09-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-09-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-09-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-09-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-09-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-10-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-10-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-10-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-10-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-11-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-11-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-11-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-11-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-12-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-12-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-12-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-12-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2029-12-30",
+          "isPublicHoliday": true,
+          "name": null
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2029-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2029-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2029-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2029-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2030-01-02",
+          "time": "07:00",
+          "output": false
+        }
+      ]
+    },
+    {
+      "year": 2030,
+      "named": [
+        {
+          "date": "2030-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2030-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2030-04-19",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2030-04-21",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2030-04-22",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2030-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2030-05-30",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2030-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2030-06-09",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2030-06-22",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2030-11-02",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2030-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2030-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2030-01-06",
+          "isPublicHoliday": true,
+          "name": "Epiphany"
+        },
+        {
+          "date": "2030-01-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-01-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-01-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-02-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-02-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-02-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-02-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-03-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-03-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-03-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-03-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-03-31",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-04-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-04-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-04-21",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2030-04-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-05-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-05-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-05-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-05-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-06-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-06-09",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2030-06-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-06-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-06-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-07-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-07-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-07-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-07-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-08-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-08-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-08-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-08-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-09-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-09-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-09-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-09-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-09-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-10-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-10-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-10-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-10-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-11-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-11-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-11-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-11-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-12-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-12-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-12-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-12-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2030-12-29",
+          "isPublicHoliday": true,
+          "name": null
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2030-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2030-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2030-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2030-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2031-01-02",
+          "time": "07:00",
+          "output": false
+        }
+      ]
+    },
+    {
+      "year": 2031,
+      "named": [
+        {
+          "date": "2031-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2031-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2031-04-11",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2031-04-13",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2031-04-14",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2031-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2031-05-22",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2031-06-01",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2031-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2031-06-21",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2031-11-01",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2031-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2031-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2031-01-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-01-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-01-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-01-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-02-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-02-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-02-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-02-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-03-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-03-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-03-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-03-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-03-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-04-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-04-13",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2031-04-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-04-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-05-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-05-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-05-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-05-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-06-01",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2031-06-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-06-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-06-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-06-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-07-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-07-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-07-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-07-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-08-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-08-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-08-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-08-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-08-31",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-09-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-09-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-09-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-09-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-10-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-10-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-10-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-10-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-11-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-11-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-11-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-11-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-11-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-12-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-12-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-12-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2031-12-28",
+          "isPublicHoliday": true,
+          "name": null
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2031-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2031-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2031-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2031-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2032-01-02",
+          "time": "07:00",
+          "output": false
+        }
+      ]
+    },
+    {
+      "year": 2032,
+      "named": [
+        {
+          "date": "2032-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2032-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2032-03-26",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2032-03-28",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2032-03-29",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2032-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2032-05-06",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2032-05-16",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2032-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2032-06-26",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2032-11-06",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2032-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2032-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2032-01-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-01-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-01-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-01-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-02-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-02-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-02-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-02-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-02-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-03-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-03-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-03-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-03-28",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2032-04-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-04-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-04-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-04-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-05-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-05-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-05-16",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2032-05-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-05-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-06-06",
+          "isPublicHoliday": true,
+          "name": "National Day"
+        },
+        {
+          "date": "2032-06-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-06-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-06-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-07-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-07-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-07-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-07-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-08-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-08-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-08-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-08-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-08-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-09-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-09-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-09-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-09-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-10-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-10-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-10-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-10-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-10-31",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-11-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-11-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-11-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-11-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-12-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-12-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-12-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2032-12-26",
+          "isPublicHoliday": true,
+          "name": "Boxing Day"
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2032-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2032-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2032-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2032-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2033-01-02",
+          "time": "07:00",
+          "output": true
+        }
+      ]
+    },
+    {
+      "year": 2033,
+      "named": [
+        {
+          "date": "2033-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2033-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2033-04-15",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2033-04-17",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2033-04-18",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2033-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2033-05-26",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2033-06-05",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2033-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2033-06-25",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2033-11-05",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2033-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2033-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2033-01-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-01-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-01-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-01-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-01-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-02-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-02-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-02-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-02-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-03-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-03-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-03-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-03-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-04-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-04-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-04-17",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2033-04-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-05-01",
+          "isPublicHoliday": true,
+          "name": "May Day"
+        },
+        {
+          "date": "2033-05-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-05-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-05-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-05-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-06-05",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2033-06-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-06-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-06-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-07-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-07-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-07-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-07-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-07-31",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-08-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-08-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-08-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-08-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-09-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-09-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-09-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-09-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-10-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-10-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-10-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-10-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-10-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-11-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-11-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-11-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-11-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-12-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-12-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-12-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2033-12-25",
+          "isPublicHoliday": true,
+          "name": "Christmas Day"
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2033-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2033-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2033-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2033-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2034-01-02",
+          "time": "07:00",
+          "output": false
+        }
+      ]
+    },
+    {
+      "year": 2034,
+      "named": [
+        {
+          "date": "2034-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2034-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2034-04-07",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2034-04-09",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2034-04-10",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2034-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2034-05-18",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2034-05-28",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2034-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2034-06-24",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2034-11-04",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2034-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2034-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2034-01-01",
+          "isPublicHoliday": true,
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2034-01-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-01-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-01-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-01-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-02-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-02-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-02-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-02-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-03-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-03-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-03-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-03-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-04-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-04-09",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2034-04-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-04-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-04-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-05-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-05-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-05-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-05-28",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2034-06-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-06-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-06-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-06-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-07-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-07-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-07-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-07-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-07-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-08-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-08-13",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-08-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-08-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-09-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-09-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-09-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-09-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-10-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-10-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-10-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-10-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-10-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-11-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-11-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-11-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-11-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-12-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-12-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-12-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-12-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2034-12-31",
+          "isPublicHoliday": true,
+          "name": null
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2034-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2034-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2034-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2034-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2035-01-02",
+          "time": "07:00",
+          "output": false
+        }
+      ]
+    },
+    {
+      "year": 2035,
+      "named": [
+        {
+          "date": "2035-01-01",
+          "name": "New Year's Day"
+        },
+        {
+          "date": "2035-01-06",
+          "name": "Epiphany"
+        },
+        {
+          "date": "2035-03-23",
+          "name": "Good Friday"
+        },
+        {
+          "date": "2035-03-25",
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2035-03-26",
+          "name": "Easter Monday"
+        },
+        {
+          "date": "2035-05-01",
+          "name": "May Day"
+        },
+        {
+          "date": "2035-05-03",
+          "name": "Ascension Day"
+        },
+        {
+          "date": "2035-05-13",
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2035-06-06",
+          "name": "National Day"
+        },
+        {
+          "date": "2035-06-23",
+          "name": "Midsummer Day"
+        },
+        {
+          "date": "2035-11-03",
+          "name": "All Saints' Day"
+        },
+        {
+          "date": "2035-12-25",
+          "name": "Christmas Day"
+        },
+        {
+          "date": "2035-12-26",
+          "name": "Boxing Day"
+        }
+      ],
+      "sundays": [
+        {
+          "date": "2035-01-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-01-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-01-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-01-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-02-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-02-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-02-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-02-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-03-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-03-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-03-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-03-25",
+          "isPublicHoliday": true,
+          "name": "Easter Sunday"
+        },
+        {
+          "date": "2035-04-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-04-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-04-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-04-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-04-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-05-06",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-05-13",
+          "isPublicHoliday": true,
+          "name": "Whit Sunday"
+        },
+        {
+          "date": "2035-05-20",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-05-27",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-06-03",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-06-10",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-06-17",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-06-24",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-07-01",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-07-08",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-07-15",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-07-22",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-07-29",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-08-05",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-08-12",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-08-19",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-08-26",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-09-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-09-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-09-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-09-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-09-30",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-10-07",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-10-14",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-10-21",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-10-28",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-11-04",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-11-11",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-11-18",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-11-25",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-12-02",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-12-09",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-12-16",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-12-23",
+          "isPublicHoliday": true,
+          "name": null
+        },
+        {
+          "date": "2035-12-30",
+          "isPublicHoliday": true,
+          "name": null
+        }
+      ],
+      "majorBoundaries": [
+        {
+          "date": "2035-12-23",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2035-12-23",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2035-12-30",
+          "time": "18:59",
+          "output": false
+        },
+        {
+          "date": "2035-12-30",
+          "time": "19:00",
+          "output": true
+        },
+        {
+          "date": "2036-01-02",
+          "time": "07:00",
+          "output": false
+        }
+      ]
+    }
+  ]
+}

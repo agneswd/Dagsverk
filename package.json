@@ -18,7 +18,8 @@
     "verify": "npm run build:all && npm test -- --watch=false && node dist-electron/test-services.js",
     "package:linux": "bash scripts/package-linux-x64.sh",
     "package:windows": "bash scripts/package-win-x64.sh",
-    "visual:capture": "npx tsx scripts/capture-screens.ts"
+    "visual:capture": "npx tsx scripts/capture-screens.ts",
+    "gpui:fixtures": "npx tsx scripts/generate-gpui-parity-fixtures.ts"
   },
   "private": true,
   "build": {

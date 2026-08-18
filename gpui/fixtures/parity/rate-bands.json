@@ -1,0 +1,1407 @@
+{
+  "sourceCommit": "5ecce00f8161ea7d65951a6b48dfbe39923a5228",
+  "generatedAt": "2026-08-18T12:35:31+02:00",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 0,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 0,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 0,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 0,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 0,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 1,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 1,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 1,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 1,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 1,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 2,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 2,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 2,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 2,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 2,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 3,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 3,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 3,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 3,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 3,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 4,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 4,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 4,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 4,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 4,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 5,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 5,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 5,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 5,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 5,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 6,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 6,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 6,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 6,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 6,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 7,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 7,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 7,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 7,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 7,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 8,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 8,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 8,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 8,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 8,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 9,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 9,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 9,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 9,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 9,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 10,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 10,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 10,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 10,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 10,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 11,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 11,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 11,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 11,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 11,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 12,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 12,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 12,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 12,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 12,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": true
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 13,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "18:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 13,
+          "startTime": "18:00",
+          "endTime": "22:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "22:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 13,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "23:59",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 13,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "06:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    },
+    {
+      "input": {
+        "band": {
+          "name": "Fixture",
+          "dayCategory": 13,
+          "startTime": "00:00",
+          "endTime": "00:00",
+          "compensationType": 0,
+          "rateType": 1,
+          "rateValue": 100
+        },
+        "compensationType": 0,
+        "date": "2026-08-16",
+        "time": "12:00",
+        "isScheduledWorkday": false,
+        "isPublicHoliday": true,
+        "isMajorHoliday": false
+      },
+      "output": false
+    }
+  ]
+}

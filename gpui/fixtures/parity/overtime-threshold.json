@@ -1,0 +1,417 @@
+{
+  "sourceCommit": "5ecce00f8161ea7d65951a6b48dfbe39923a5228",
+  "generatedAt": "2026-08-18T12:35:31+02:00",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "input": {
+        "entry": {
+          "date": "2026-08-17",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "18:30",
+          "lunchMinutes": 30,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 480,
+        "split": {
+          "regularMinutes": 480,
+          "overtimeMinutes": 120
+        }
+      }
+    },
+    {
+      "input": {
+        "entry": {
+          "date": "2026-08-17",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "18:30",
+          "lunchMinutes": 30,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 0,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 480,
+        "split": {
+          "regularMinutes": 480,
+          "overtimeMinutes": 120
+        }
+      }
+    },
+    {
+      "input": {
+        "entry": {
+          "date": "2026-08-16",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "12:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 0,
+        "split": {
+          "regularMinutes": 0,
+          "overtimeMinutes": 240
+        }
+      }
+    },
+    {
+      "input": {
+        "entry": {
+          "date": "2026-08-16",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "12:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 0,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 480,
+        "split": {
+          "regularMinutes": 240,
+          "overtimeMinutes": 0
+        }
+      }
+    },
+    {
+      "input": {
+        "entry": {
+          "date": "2026-12-25",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "12:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 0,
+        "split": {
+          "regularMinutes": 0,
+          "overtimeMinutes": 240
+        }
+      }
+    },
+    {
+      "input": {
+        "entry": {
+          "date": "2026-12-25",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "12:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 0,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 480,
+        "split": {
+          "regularMinutes": 240,
+          "overtimeMinutes": 0
+        }
+      }
+    },
+    {
+      "input": {
+        "entry": {
+          "date": "2026-08-17",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "12:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": 0
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 0,
+        "split": {
+          "regularMinutes": 0,
+          "overtimeMinutes": 240
+        }
+      }
+    },
+    {
+      "input": {
+        "entry": {
+          "date": "2026-08-17",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "12:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": 0
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 0,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 0,
+        "split": {
+          "regularMinutes": 0,
+          "overtimeMinutes": 240
+        }
+      }
+    },
+    {
+      "input": {
+        "entry": {
+          "date": "2026-08-17",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "18:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": 360
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 360,
+        "split": {
+          "regularMinutes": 360,
+          "overtimeMinutes": 240
+        }
+      }
+    },
+    {
+      "input": {
+        "entry": {
+          "date": "2026-08-17",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "18:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": 360
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 0,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "thresholdMinutes": 360,
+        "split": {
+          "regularMinutes": 360,
+          "overtimeMinutes": 240
+        }
+      }
+    }
+  ]
+}

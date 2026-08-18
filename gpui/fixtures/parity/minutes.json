@@ -1,0 +1,79 @@
+{
+  "sourceCommit": "5ecce00f8161ea7d65951a6b48dfbe39923a5228",
+  "generatedAt": "2026-08-18T12:35:31+02:00",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "normal",
+      "input": {
+        "startTime": "08:00",
+        "endTime": "16:30",
+        "lunchMinutes": 30
+      },
+      "output": {
+        "elapsed": 510,
+        "worked": 480
+      }
+    },
+    {
+      "name": "equal",
+      "input": {
+        "startTime": "08:00",
+        "endTime": "08:00",
+        "lunchMinutes": 0
+      },
+      "output": {
+        "elapsed": 1440,
+        "worked": 0
+      }
+    },
+    {
+      "name": "lunch-longer-than-shift",
+      "input": {
+        "startTime": "08:00",
+        "endTime": "08:30",
+        "lunchMinutes": 45
+      },
+      "output": {
+        "elapsed": 30,
+        "worked": 0
+      }
+    },
+    {
+      "name": "overnight",
+      "input": {
+        "startTime": "22:00",
+        "endTime": "06:00",
+        "lunchMinutes": 0
+      },
+      "output": {
+        "elapsed": 480,
+        "worked": 480
+      }
+    },
+    {
+      "name": "cross-midnight-with-lunch",
+      "input": {
+        "startTime": "21:30",
+        "endTime": "06:15",
+        "lunchMinutes": 30
+      },
+      "output": {
+        "elapsed": 525,
+        "worked": 495
+      }
+    },
+    {
+      "name": "no-lunch",
+      "input": {
+        "startTime": "08:00",
+        "endTime": "17:00",
+        "lunchMinutes": 0
+      },
+      "output": {
+        "elapsed": 540,
+        "worked": 540
+      }
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "sourceCommit": "5ecce00f8161ea7d65951a6b48dfbe39923a5228",
+  "generatedAt": "2026-08-18T12:35:31+02:00",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "input": {
+        "name": "decimal-hourly",
+        "entry": {
+          "date": "2026-07-01",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "09:30",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 123.45,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "regularPay": 185.18,
+        "overtimePay": 0,
+        "obPay": 0,
+        "obMinutes": 0,
+        "total": 185.18
+      }
+    },
+    {
+      "input": {
+        "name": "paid-overtime",
+        "entry": {
+          "date": "2026-07-01",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "18:30",
+          "lunchMinutes": 30,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 1,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "regularPay": 1600,
+        "overtimePay": 600,
+        "obPay": 0,
+        "obMinutes": 0,
+        "total": 2200
+      }
+    },
+    {
+      "input": {
+        "name": "overnight-ob",
+        "entry": {
+          "date": "2026-07-01",
+          "status": 1,
+          "startTime": "22:00",
+          "endTime": "06:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [
+            {
+              "name": "Night OB",
+              "dayCategory": 0,
+              "startTime": "22:00",
+              "endTime": "06:00",
+              "compensationType": 1,
+              "rateType": 1,
+              "rateValue": 50
+            }
+          ],
+          "obOvertimeCombination": 1
+        }
+      },
+      "output": {
+        "regularPay": 1600,
+        "overtimePay": 0,
+        "obPay": 400,
+        "obMinutes": 480,
+        "total": 2000
+      }
+    },
+    {
+      "input": {
+        "name": "monthly-salary-divisor",
+        "entry": {
+          "date": "2026-07-01",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "18:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "salary": {
+          "type": 1,
+          "hourlyRate": 0,
+          "monthlySalary": 40000,
+          "employmentPercent": 80,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 1,
+          "defaultRateType": 2,
+          "defaultRateValue": 165,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "regularPay": 0,
+        "overtimePay": 606.06,
+        "obPay": 0,
+        "obMinutes": 0,
+        "total": 606.06
+      }
+    }
+  ]
+}
