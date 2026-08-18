@@ -1,5 +1,14 @@
 # Known gaps
 
+## Production shell controls
+
+- Current behavior: The preview loads a real database and renders the first shell, summary, and saved-entry list.
+- Expected parity: Header, navigation, editor, menu, dialog, and keyboard behavior must match Electron.
+- Reason incomplete: The shell is the current M5 vertical slice. Timesheet and administrative views follow in M6 and M7.
+- Files involved: `gpui/crates/dagsverk-app/src/shell.rs`, `gpui/crates/dagsverk-ui/src/`.
+- Proposed solution: Replace each temporary route body with its tested Material 3 view.
+- Test needed: GPUI focus, action, view navigation, and visual comparison tests.
+
 ## Phase 0 platform proof
 
 - Current behavior: The pinned preview builds, launches, sets its native title, resizes under Niri, and exits cleanly on Linux.

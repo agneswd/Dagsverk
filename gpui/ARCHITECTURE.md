@@ -43,3 +43,7 @@ The app bundles Material Symbols Outlined from the existing `@fontsource-variabl
 ## Application state
 
 `dagsverk-app::state::AppModel` owns global and workspace state. Repository writes complete before matching memory changes. Month loads use a generation, workspace, and month key. Stale results cannot replace the active state.
+
+## Preview data path
+
+Normal preview launches use a separate `Dagsverk GPUI Preview` directory. `--compatibility-mode` selects the stable Dagsverk path. `--database`, `--data-dir`, and `DAGSVERK_DATA_DIR` are higher-priority explicit overrides.

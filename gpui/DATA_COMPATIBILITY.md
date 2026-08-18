@@ -20,3 +20,5 @@ Deleting the active workspace changes `AppPreferences.ActiveWorkspaceId` and del
 Run `npm run gpui:db-compat` for the bidirectional compatibility suite. It creates all databases in a temporary directory. The suite performs Electron-to-Rust, Rust-to-Electron, and Electron-to-Rust round-trip writes.
 
 Do not run Electron Dagsverk and the GPUI preview against the same database during backup, restore, or import.
+
+Normal preview launches use a separate `Dagsverk GPUI Preview` directory. Pass `--compatibility-mode` only when you deliberately want the current Dagsverk data path.
