@@ -162,6 +162,7 @@ impl Focusable for M3Select {
 impl Render for M3Select {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focused = self.focus.is_focused(window);
+        let viewport = window.viewport_size();
         let colors = self.colors;
         let value = self.options.get(self.selected).cloned().unwrap_or_default();
         let options = self
@@ -258,26 +259,48 @@ impl Render for M3Select {
                 colors.on_surface_variant,
             ))
             .when(self.open, |field| {
-                field.child(deferred(
-                    anchored()
-                        .anchor(Corner::TopLeft)
-                        .offset(point(px(0.0), px(64.0)))
-                        .snap_to_window_with_margin(px(8.0))
-                        .child(
-                            div()
-                                .id("m3-select-panel")
-                                .w(px(368.0))
-                                .max_h(px(384.0))
-                                .overflow_y_scroll()
-                                .p(px(8.0))
-                                .flex()
-                                .flex_col()
-                                .rounded(px(12.0))
-                                .bg(colors.surface_container)
-                                .shadow(menu_elevation())
-                                .children(options),
-                        ),
-                ))
+                field
+                    .child(
+                        deferred(
+                            anchored()
+                                .position(point(px(0.0), px(0.0)))
+                                .anchor(Corner::TopLeft)
+                                .child(
+                                    div()
+                                        .id("m3-select-backdrop")
+                                        .w(viewport.width)
+                                        .h(viewport.height)
+                                        .on_click(cx.listener(|select, _, _, cx| {
+                                            select.open = false;
+                                            cx.notify();
+                                        })),
+                                ),
+                        )
+                        .priority(1),
+                    )
+                    .child(
+                        deferred(
+                            anchored()
+                                .anchor(Corner::TopLeft)
+                                .offset(point(px(0.0), px(64.0)))
+                                .snap_to_window_with_margin(px(8.0))
+                                .child(
+                                    div()
+                                        .id("m3-select-panel")
+                                        .w(px(368.0))
+                                        .max_h(px(384.0))
+                                        .overflow_y_scroll()
+                                        .p(px(8.0))
+                                        .flex()
+                                        .flex_col()
+                                        .rounded(px(12.0))
+                                        .bg(colors.surface_container)
+                                        .shadow(menu_elevation())
+                                        .children(options),
+                                ),
+                        )
+                        .priority(2),
+                    )
             })
     }
 }
