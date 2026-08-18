@@ -335,8 +335,10 @@ impl MonthView {
                         let date_for_key = date;
                         let date_for_click = date;
                         let selected = self.data.selected_date == Some(date);
+                        let hover_group = format!("calendar-cell-{index}");
                         div()
                             .id(("calendar-cell", index))
+                            .group(hover_group.clone())
                             .tab_index(if cell.current_month { 0 } else { -1 })
                             .min_h(scale.px(110.0))
                             .when(index == first_bottom_cell, |cell| {
@@ -378,28 +380,69 @@ impl MonthView {
                             })
                             .child(
                                 div()
-                                    .size(scale.px(24.0))
-                                    .rounded_full()
+                                    .h(scale.px(24.0))
                                     .flex()
                                     .items_center()
-                                    .justify_center()
-                                    .bg(if cell.is_today {
-                                        colors.primary
-                                    } else {
-                                        gpui::transparent_black()
-                                    })
-                                    .text_color(if cell.is_today {
-                                        colors.on_primary
-                                    } else {
-                                        colors.on_surface
-                                    })
-                                    .child(cell.day.to_string()),
+                                    .justify_between()
+                                    .child(
+                                        div()
+                                            .size(scale.px(24.0))
+                                            .rounded_full()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .bg(if cell.is_today {
+                                                colors.primary
+                                            } else {
+                                                gpui::transparent_black()
+                                            })
+                                            .text_color(if cell.is_today {
+                                                colors.on_primary
+                                            } else if cell.current_month {
+                                                colors.on_surface
+                                            } else {
+                                                colors.outline
+                                            })
+                                            .child(cell.day.to_string()),
+                                    )
+                                    .when(cell.current_month, |bar| {
+                                        bar.child(
+                                            div()
+                                                .size(scale.px(24.0))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_full()
+                                                .opacity(if selected { 1.0 } else { 0.0 })
+                                                .group_hover(hover_group, |style| {
+                                                    style
+                                                        .opacity(1.0)
+                                                        .bg(colors.surface_container_high)
+                                                })
+                                                .child(m3_icon_colored(
+                                                    "add",
+                                                    16.0 * scale.factor(),
+                                                    colors.on_surface_variant,
+                                                )),
+                                        )
+                                    }),
                             )
                             .when(cell.is_missing, |item| {
                                 item.child(
                                     div()
+                                        .flex()
+                                        .items_center()
+                                        .gap(scale.px(4.0))
+                                        .px(scale.px(6.0))
+                                        .py(scale.px(2.0))
                                         .m3_typography(TypographyRole::LabelSmall, scale)
                                         .text_color(colors.warning)
+                                        .child(
+                                            div()
+                                                .size(scale.px(6.0))
+                                                .rounded_full()
+                                                .bg(colors.warning),
+                                        )
                                         .child(localized(self.data.language, "Unlogged")),
                                 )
                             })
@@ -411,11 +454,25 @@ impl MonthView {
                                         .bg(colors.warning_container)
                                         .text_color(colors.on_warning_container)
                                         .m3_typography(TypographyRole::LabelSmall, scale)
+                                        .flex()
+                                        .items_center()
+                                        .gap(scale.px(4.0))
+                                        .child(m3_icon_colored(
+                                            "celebration",
+                                            14.0 * scale.factor(),
+                                            colors.on_warning_container,
+                                        ))
                                         .child(holiday),
                                 )
                             })
                             .when_some(cell.entry, |item, entry| {
-                                item.child(calendar_entry(entry, colors, self.data.language, scale))
+                                item.child(calendar_entry(
+                                    entry,
+                                    &self.data.projects,
+                                    colors,
+                                    self.data.language,
+                                    scale,
+                                ))
                             })
                     })),
             )
@@ -734,6 +791,7 @@ struct CalendarCell {
 
 fn calendar_entry(
     entry: WorkEntry,
+    projects: &[Project],
     colors: M3ColorScheme,
     language: LanguagePreference,
     scale: UiScale,
@@ -743,16 +801,24 @@ fn calendar_entry(
         WorkEntryStatus::Off => (colors.surface_container_high, colors.on_surface_variant),
         WorkEntryStatus::Incomplete => (colors.surface_container, colors.on_surface_variant),
     };
-    let label = match entry.status {
-        WorkEntryStatus::Worked => match (entry.start_time, entry.end_time) {
-            (Some(start), Some(end)) => format!("{start}-{end}"),
-            _ => localized(language, "Worked"),
-        },
-        WorkEntryStatus::Off => entry
-            .notes
-            .unwrap_or_else(|| localized(language, "Day Off")),
-        WorkEntryStatus::Incomplete => localized(language, "Unlogged"),
+    let interval = match (entry.start_time, entry.end_time) {
+        (Some(start), Some(end)) => format!("{start}-{end}"),
+        _ => localized(language, "Worked"),
     };
+    let hours = format_hours(worked_minutes(&entry).value(), false);
+    let off_label = entry
+        .notes
+        .clone()
+        .unwrap_or_else(|| localized(language, "Day Off"));
+    let project = entry.project_name.as_ref().map(|name| {
+        let color = projects
+            .iter()
+            .find(|project| project.name == *name)
+            .and_then(|project| project.color.as_deref())
+            .and_then(parse_hex)
+            .unwrap_or(colors.primary);
+        (name.clone(), color)
+    });
     div()
         .min_h(scale.px(32.0))
         .p(scale.px(6.0))
@@ -760,7 +826,49 @@ fn calendar_entry(
         .bg(background)
         .text_color(text)
         .m3_typography(TypographyRole::LabelSmall, scale)
-        .child(label)
+        .when_else(
+            entry.status == WorkEntryStatus::Worked,
+            |chip| {
+                chip.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .font_weight(gpui::FontWeight::SEMIBOLD)
+                        .child(interval)
+                        .child(hours),
+                )
+                .when_some(project, |chip, (name, color)| {
+                    chip.child(
+                        div()
+                            .mt(scale.px(4.0))
+                            .min_w_0()
+                            .flex()
+                            .items_center()
+                            .gap(scale.px(4.0))
+                            .child(div().size(scale.px(6.0)).rounded_full().bg(color))
+                            .child(div().min_w_0().truncate().child(name)),
+                    )
+                })
+            },
+            |chip| {
+                let (icon, label) = if entry.status == WorkEntryStatus::Off {
+                    (Some("beach_access"), off_label)
+                } else {
+                    (None, localized(language, "Unlogged"))
+                };
+                chip.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(scale.px(4.0))
+                        .when_some(icon, |row, icon| {
+                            row.child(m3_icon_colored(icon, 14.0 * scale.factor(), text))
+                        })
+                        .child(label),
+                )
+            },
+        )
 }
 
 fn localized(language: LanguagePreference, key: &str) -> String {
