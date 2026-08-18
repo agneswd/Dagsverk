@@ -1397,6 +1397,7 @@ impl AppShell {
         collapsed: bool,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
+        let scale = self.model.interface_scale.clamp(0.8, 1.5);
         let colors = self.colors();
         let selected = self.model.route == route;
         let foreground = if selected {
@@ -1405,21 +1406,30 @@ impl AppShell {
             colors.on_surface_variant
         };
         let icon = if selected {
-            m3_icon_filled(icon, 22.0, foreground)
+            m3_icon_filled(icon, 22.0 * scale, foreground)
         } else {
-            m3_icon_colored(icon, 22.0, foreground)
+            m3_icon_colored(icon, 22.0 * scale, foreground)
         };
         div()
             .id(id)
-            .h(px(if collapsed { 64.0 } else { 52.0 }))
+            .h(px(if collapsed { 64.0 } else { 52.0 } * scale))
             .when_else(
                 collapsed,
-                |item| item.w(px(80.0)).flex_col().justify_center().gap(px(2.0)),
-                |item| item.mx(px(12.0)).px(px(16.0)).gap(px(12.0)),
+                |item| {
+                    item.w(px(80.0 * scale))
+                        .flex_col()
+                        .justify_center()
+                        .gap(px(2.0 * scale))
+                },
+                |item| {
+                    item.mx(px(12.0 * scale))
+                        .px(px(16.0 * scale))
+                        .gap(px(12.0 * scale))
+                },
             )
             .flex()
             .items_center()
-            .rounded(px(26.0))
+            .rounded(px(26.0 * scale))
             .cursor_pointer()
             .bg(if selected && !collapsed {
                 colors.secondary_container
@@ -1433,12 +1443,12 @@ impl AppShell {
                 div()
                     .when(collapsed, |indicator| {
                         indicator
-                            .w(px(56.0))
-                            .h(px(32.0))
+                            .w(px(56.0 * scale))
+                            .h(px(32.0 * scale))
                             .flex()
                             .items_center()
                             .justify_center()
-                            .rounded(px(16.0))
+                            .rounded(px(16.0 * scale))
                             .bg(if selected {
                                 colors.secondary_container
                             } else {
@@ -1449,7 +1459,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .text_size(px(if collapsed { 12.0 } else { 14.0 }))
+                    .text_size(px(if collapsed { 12.0 } else { 14.0 } * scale))
                     .font_weight(if selected {
                         gpui::FontWeight::MEDIUM
                     } else {
