@@ -260,9 +260,11 @@ pub fn matching_weekday_occurrence(source: IsoDate, target: YearMonth) -> Option
     (result.month() == target.month).then(|| IsoDate::new(result))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum PasteMonthError {
+    #[error("source and target month are the same")]
     SameMonth,
+    #[error("source and target workspace differ")]
     DifferentWorkspace,
 }
 

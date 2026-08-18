@@ -272,9 +272,21 @@ fn settings_and_repositories_round_trip_with_workspace_isolation() {
             .is_empty()
     );
 
+    let mut preferences = database.load_preferences().expect("preferences");
+    preferences.active_workspace_id = second.clone();
+    database
+        .save_preferences(&preferences)
+        .expect("activate second workspace");
     database
         .delete_workspace(&second)
-        .expect("delete workspace");
+        .expect("delete active workspace");
+    assert_eq!(
+        database
+            .load_preferences()
+            .expect("replacement preference")
+            .active_workspace_id,
+        first
+    );
     assert!(matches!(
         database.delete_workspace(&first),
         Err(DataError::LastWorkspace)

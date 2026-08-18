@@ -107,12 +107,30 @@ impl<C: Clock> Database<C> {
 
     pub fn delete_workspace(&self, id: &WorkspaceId) -> Result<()> {
         let connection = self.connection()?;
+        let transaction = connection.unchecked_transaction()?;
         let count: i64 =
-            connection.query_row("SELECT COUNT(*) FROM Workspaces", [], |row| row.get(0))?;
+            transaction.query_row("SELECT COUNT(*) FROM Workspaces", [], |row| row.get(0))?;
         if count <= 1 {
             return Err(DataError::LastWorkspace);
         }
-        connection.execute("DELETE FROM Workspaces WHERE Id = ?1", [id.as_str()])?;
+        let active: String = transaction.query_row(
+            "SELECT ActiveWorkspaceId FROM AppPreferences WHERE Id = 1",
+            [],
+            |row| row.get(0),
+        )?;
+        if active == id.as_str() {
+            let replacement: String = transaction.query_row(
+                "SELECT Id FROM Workspaces WHERE Id <> ?1 ORDER BY CreatedAt ASC LIMIT 1",
+                [id.as_str()],
+                |row| row.get(0),
+            )?;
+            transaction.execute(
+                "UPDATE AppPreferences SET ActiveWorkspaceId = ?1 WHERE Id = 1",
+                [replacement],
+            )?;
+        }
+        transaction.execute("DELETE FROM Workspaces WHERE Id = ?1", [id.as_str()])?;
+        transaction.commit()?;
         Ok(())
     }
 

@@ -10,6 +10,7 @@ name = "dagsverk-gpui"
 path = "src/main.rs"
 
 [dependencies]
+chrono.workspace = true
 dagsverk-core.workspace = true
 dagsverk-data.workspace = true
 dagsverk-export.workspace = true
@@ -23,6 +24,7 @@ path = "src/lib.rs"
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }
+tempfile.workspace = true
 
 [lints]
 workspace = true

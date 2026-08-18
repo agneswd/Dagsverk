@@ -1364,12 +1364,14 @@ checksum = "e2931af7e13dc045d8e9d26afccc6fa115d64e115c9c84b1166288b46f6782c2"
 name = "dagsverk-app"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "dagsverk-core",
  "dagsverk-data",
  "dagsverk-export",
  "dagsverk-ui",
  "gpui",
  "rfd",
+ "tempfile",
  "thiserror 2.0.20",
 ]
 

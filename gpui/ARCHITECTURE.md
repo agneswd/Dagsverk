@@ -39,3 +39,7 @@ The application crate owns async file-dialog and update traits plus the shell bo
 `dagsverk-ui::m3` owns the shared color and typography tokens. Values come from `src/styles.scss` and the generated design metrics. Reusable controls own focus and interaction state. The text editor remains based on GPUI 0.2.2's official input example.
 
 The app bundles Material Symbols Outlined from the existing `@fontsource-variable/material-symbols-outlined` dependency. The committed TTF is a lossless conversion of its offline WOFF2 asset. A generated inventory records every icon used by Angular.
+
+## Application state
+
+`dagsverk-app::state::AppModel` owns global and workspace state. Repository writes complete before matching memory changes. Month loads use a generation, workspace, and month key. Stale results cannot replace the active state.

@@ -247,7 +247,7 @@ pub struct ReportExportRequest {
     pub threshold_minutes_by_date: BTreeMap<IsoDate, Minutes>,
 }
 
-pub fn default_workspace(clock: &impl Clock) -> Workspace {
+pub fn default_workspace(clock: &(impl Clock + ?Sized)) -> Workspace {
     let now = clock.now_utc();
     Workspace {
         id: WorkspaceId::new("ws-default").unwrap_or_else(|_| unreachable!()),
