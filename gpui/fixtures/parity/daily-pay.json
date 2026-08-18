@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "5ecce00f8161ea7d65951a6b48dfbe39923a5228",
-  "generatedAt": "2026-08-18T12:35:31+02:00",
+  "sourceCommit": "204d00873bfc02b8fc2c04e08b8cce8b8ce59885",
+  "generatedAt": "2026-08-18T12:43:24+02:00",
   "schemaVersion": 1,
   "cases": [
     {
@@ -163,6 +163,168 @@
         "obPay": 0,
         "obMinutes": 0,
         "total": 606.06
+      }
+    },
+    {
+      "input": {
+        "name": "lunch-between-regular-and-overtime",
+        "entry": {
+          "date": "2026-07-01",
+          "status": 1,
+          "startTime": "08:00",
+          "endTime": "19:00",
+          "lunchMinutes": 60,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [
+            {
+              "name": "Evening OB",
+              "dayCategory": 0,
+              "startTime": "18:00",
+              "endTime": "22:00",
+              "compensationType": 1,
+              "rateType": 1,
+              "rateValue": 40
+            }
+          ],
+          "obOvertimeCombination": 1
+        }
+      },
+      "output": {
+        "regularPay": 1600,
+        "overtimePay": 0,
+        "obPay": 40,
+        "obMinutes": 60,
+        "total": 1640
+      }
+    },
+    {
+      "input": {
+        "name": "ob-overtime-0",
+        "entry": {
+          "date": "2026-07-01",
+          "status": 1,
+          "startTime": "17:00",
+          "endTime": "20:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 1,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 1,
+          "thresholdMode": 0,
+          "rateBands": [
+            {
+              "name": "Evening OB lower",
+              "dayCategory": 0,
+              "startTime": "18:00",
+              "endTime": "22:00",
+              "compensationType": 1,
+              "rateType": 1,
+              "rateValue": 30
+            },
+            {
+              "name": "Evening OB highest",
+              "dayCategory": 0,
+              "startTime": "18:00",
+              "endTime": "22:00",
+              "compensationType": 1,
+              "rateType": 1,
+              "rateValue": 50
+            }
+          ],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "regularPay": 200,
+        "overtimePay": 600,
+        "obPay": 0,
+        "obMinutes": 0,
+        "total": 800
+      }
+    },
+    {
+      "input": {
+        "name": "ob-overtime-1",
+        "entry": {
+          "date": "2026-07-01",
+          "status": 1,
+          "startTime": "17:00",
+          "endTime": "20:00",
+          "lunchMinutes": 0,
+          "projectName": null,
+          "notes": null,
+          "scheduledMinutesOverride": null
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 1,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 1,
+          "thresholdMode": 0,
+          "rateBands": [
+            {
+              "name": "Evening OB lower",
+              "dayCategory": 0,
+              "startTime": "18:00",
+              "endTime": "22:00",
+              "compensationType": 1,
+              "rateType": 1,
+              "rateValue": 30
+            },
+            {
+              "name": "Evening OB highest",
+              "dayCategory": 0,
+              "startTime": "18:00",
+              "endTime": "22:00",
+              "compensationType": 1,
+              "rateType": 1,
+              "rateValue": 50
+            }
+          ],
+          "obOvertimeCombination": 1
+        }
+      },
+      "output": {
+        "regularPay": 200,
+        "overtimePay": 600,
+        "obPay": 100,
+        "obMinutes": 120,
+        "total": 900
       }
     }
   ]

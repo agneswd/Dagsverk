@@ -1,0 +1,47 @@
+{
+  "sourceCommit": "204d00873bfc02b8fc2c04e08b8cce8b8ce59885",
+  "generatedAt": "2026-08-18T12:43:24+02:00",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "input": {
+        "sourceDate": "2026-06-01",
+        "targetYear": 2026,
+        "targetMonth": 7
+      },
+      "output": "2026-07-06"
+    },
+    {
+      "input": {
+        "sourceDate": "2026-06-29",
+        "targetYear": 2026,
+        "targetMonth": 2
+      },
+      "output": null
+    },
+    {
+      "input": {
+        "sourceDate": "2026-06-30",
+        "targetYear": 2026,
+        "targetMonth": 9
+      },
+      "output": "2026-09-29"
+    },
+    {
+      "input": {
+        "sourceDate": "2026-07-05",
+        "targetYear": 2026,
+        "targetMonth": 8
+      },
+      "output": "2026-08-02"
+    },
+    {
+      "input": {
+        "sourceDate": "2026-12-31",
+        "targetYear": 2027,
+        "targetMonth": 1
+      },
+      "output": null
+    }
+  ]
+}

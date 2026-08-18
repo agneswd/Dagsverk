@@ -1,0 +1,1318 @@
+{
+  "sourceCommit": "204d00873bfc02b8fc2c04e08b8cce8b8ce59885",
+  "generatedAt": "2026-08-18T12:43:24+02:00",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "input": {
+        "grossPay": 10000,
+        "settings": {
+          "mode": 0,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 10000,
+        "preliminaryTax": 0,
+        "estimatedNetPay": 10000,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": -100,
+        "settings": {
+          "mode": 0,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 0,
+        "preliminaryTax": 0,
+        "estimatedNetPay": 0,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 1000.99,
+        "settings": {
+          "mode": 2,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 1000.99,
+        "preliminaryTax": 300,
+        "estimatedNetPay": 700.99,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 1000,
+        "settings": {
+          "mode": 3,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 1000,
+        "preliminaryTax": null,
+        "estimatedNetPay": null,
+        "unavailableReason": "ManualDeductionNotConfigured",
+        "isAvailable": false
+      }
+    },
+    {
+      "input": {
+        "grossPay": 1000,
+        "settings": {
+          "mode": 3,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": -100
+        }
+      },
+      "output": {
+        "grossPay": 1000,
+        "preliminaryTax": 0,
+        "estimatedNetPay": 1000,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 1000,
+        "settings": {
+          "mode": 3,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": 1500
+        }
+      },
+      "output": {
+        "grossPay": 1000,
+        "preliminaryTax": 1000,
+        "estimatedNetPay": 0,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 0,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 0,
+        "preliminaryTax": 0,
+        "estimatedNetPay": 0,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 10000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 1900,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 10000,
+        "preliminaryTax": null,
+        "estimatedNetPay": null,
+        "unavailableReason": "TaxYearNotBundled",
+        "isAvailable": false
+      }
+    },
+    {
+      "input": {
+        "grossPay": 10000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 999,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 10000,
+        "preliminaryTax": null,
+        "estimatedNetPay": null,
+        "unavailableReason": "TaxYearNotBundled",
+        "isAvailable": false
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3000,
+        "preliminaryTax": 227,
+        "estimatedNetPay": 2773,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3000,
+        "preliminaryTax": 0,
+        "estimatedNetPay": 3000,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3000,
+        "preliminaryTax": 208,
+        "estimatedNetPay": 2792,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3000,
+        "preliminaryTax": 19,
+        "estimatedNetPay": 2981,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3000,
+        "preliminaryTax": 281,
+        "estimatedNetPay": 2719,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3000,
+        "preliminaryTax": 281,
+        "estimatedNetPay": 2719,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001,
+        "preliminaryTax": 238,
+        "estimatedNetPay": 2763,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001,
+        "preliminaryTax": 0,
+        "estimatedNetPay": 3001,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001,
+        "preliminaryTax": 216,
+        "estimatedNetPay": 2785,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001,
+        "preliminaryTax": 21,
+        "estimatedNetPay": 2980,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001,
+        "preliminaryTax": 312,
+        "estimatedNetPay": 2689,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001,
+        "preliminaryTax": 312,
+        "estimatedNetPay": 2689,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3100,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3100,
+        "preliminaryTax": 238,
+        "estimatedNetPay": 2862,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3100,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3100,
+        "preliminaryTax": 0,
+        "estimatedNetPay": 3100,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3100,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3100,
+        "preliminaryTax": 216,
+        "estimatedNetPay": 2884,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3100,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3100,
+        "preliminaryTax": 21,
+        "estimatedNetPay": 3079,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3100,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3100,
+        "preliminaryTax": 312,
+        "estimatedNetPay": 2788,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3100,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3100,
+        "preliminaryTax": 312,
+        "estimatedNetPay": 2788,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3101,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3101,
+        "preliminaryTax": 248,
+        "estimatedNetPay": 2853,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3101,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3101,
+        "preliminaryTax": 0,
+        "estimatedNetPay": 3101,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3101,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3101,
+        "preliminaryTax": 225,
+        "estimatedNetPay": 2876,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3101,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3101,
+        "preliminaryTax": 23,
+        "estimatedNetPay": 3078,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3101,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3101,
+        "preliminaryTax": 343,
+        "estimatedNetPay": 2758,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3101,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3101,
+        "preliminaryTax": 343,
+        "estimatedNetPay": 2758,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001.75,
+        "preliminaryTax": 238,
+        "estimatedNetPay": 2763.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001.75,
+        "preliminaryTax": 0,
+        "estimatedNetPay": 3001.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001.75,
+        "preliminaryTax": 216,
+        "estimatedNetPay": 2785.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001.75,
+        "preliminaryTax": 21,
+        "estimatedNetPay": 2980.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001.75,
+        "preliminaryTax": 312,
+        "estimatedNetPay": 2689.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 3001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 3001.75,
+        "preliminaryTax": 312,
+        "estimatedNetPay": 2689.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80000,
+        "preliminaryTax": 24643,
+        "estimatedNetPay": 55357,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80000,
+        "preliminaryTax": 24361,
+        "estimatedNetPay": 55639,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80000,
+        "preliminaryTax": 21256,
+        "estimatedNetPay": 58744,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80000,
+        "preliminaryTax": 21736,
+        "estimatedNetPay": 58264,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80000,
+        "preliminaryTax": 28531,
+        "estimatedNetPay": 51469,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80000,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80000,
+        "preliminaryTax": 28531,
+        "estimatedNetPay": 51469,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001,
+        "preliminaryTax": 24800,
+        "estimatedNetPay": 55201,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001,
+        "preliminaryTax": 24800,
+        "estimatedNetPay": 55201,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001,
+        "preliminaryTax": 21600,
+        "estimatedNetPay": 58401,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001,
+        "preliminaryTax": 21600,
+        "estimatedNetPay": 58401,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001,
+        "preliminaryTax": 28800,
+        "estimatedNetPay": 51201,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001,
+        "preliminaryTax": 28800,
+        "estimatedNetPay": 51201,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81600,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81600,
+        "preliminaryTax": 25296,
+        "estimatedNetPay": 56304,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81600,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81600,
+        "preliminaryTax": 25296,
+        "estimatedNetPay": 56304,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81600,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81600,
+        "preliminaryTax": 22032,
+        "estimatedNetPay": 59568,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81600,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81600,
+        "preliminaryTax": 22032,
+        "estimatedNetPay": 59568,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81600,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81600,
+        "preliminaryTax": 29376,
+        "estimatedNetPay": 52224,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81600,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81600,
+        "preliminaryTax": 29376,
+        "estimatedNetPay": 52224,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81601,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81601,
+        "preliminaryTax": 25296,
+        "estimatedNetPay": 56305,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81601,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81601,
+        "preliminaryTax": 25296,
+        "estimatedNetPay": 56305,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81601,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81601,
+        "preliminaryTax": 22032,
+        "estimatedNetPay": 59569,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81601,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81601,
+        "preliminaryTax": 22848,
+        "estimatedNetPay": 58753,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81601,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81601,
+        "preliminaryTax": 29376,
+        "estimatedNetPay": 52225,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 81601,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 81601,
+        "preliminaryTax": 29376,
+        "estimatedNetPay": 52225,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 1,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001.75,
+        "preliminaryTax": 24800,
+        "estimatedNetPay": 55201.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 2,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001.75,
+        "preliminaryTax": 24800,
+        "estimatedNetPay": 55201.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 3,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001.75,
+        "preliminaryTax": 21600,
+        "estimatedNetPay": 58401.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 4,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001.75,
+        "preliminaryTax": 21600,
+        "estimatedNetPay": 58401.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 5,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001.75,
+        "preliminaryTax": 28800,
+        "estimatedNetPay": 51201.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    },
+    {
+      "input": {
+        "grossPay": 80001.75,
+        "settings": {
+          "mode": 1,
+          "taxYear": 2026,
+          "tableNumber": 30,
+          "column": 6,
+          "manualMonthlyDeduction": null
+        }
+      },
+      "output": {
+        "grossPay": 80001.75,
+        "preliminaryTax": 28800,
+        "estimatedNetPay": 51201.75,
+        "unavailableReason": "None",
+        "isAvailable": true
+      }
+    }
+  ]
+}
