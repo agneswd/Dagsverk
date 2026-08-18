@@ -1472,7 +1472,7 @@ impl AppShell {
 
     fn route_content(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
         match self.model.route {
-            Route::Timesheet => self.timesheet(colors),
+            Route::Timesheet => self.timesheet(colors, cx),
             Route::Projects => self.projects_page(colors, cx),
             Route::Settings => self.settings_page(colors, cx),
             Route::DataBackups => self.data_backups_page(colors, cx),
@@ -3574,10 +3574,11 @@ impl AppShell {
         }
     }
 
-    fn timesheet(&self, colors: M3ColorScheme) -> gpui::Div {
+    fn timesheet(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
         let scale = interface_scale(&self.model);
         let summary = self.model.summary();
         let tax = self.model.tax_estimate();
+        let unstarted = self.model.is_month_unstarted();
         let currency = match self.model.settings.currency_preference {
             CurrencyPreference::Sek => "SEK",
             CurrencyPreference::Eur => "EUR",
@@ -3608,6 +3609,76 @@ impl AppShell {
                 colors,
                 scale,
             ))
+            .when(unstarted, |page| {
+                page.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(scale.px(16.0))
+                        .px(scale.px(16.0))
+                        .py(scale.px(12.0))
+                        .rounded(scale.px(16.0))
+                        .bg(colors.surface_container_low)
+                        .child(
+                            div()
+                                .size(scale.px(40.0))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded(scale.px(12.0))
+                                .bg(colors.primary_container)
+                                .child(m3_icon_colored(
+                                    "calendar_add_on",
+                                    24.0 * scale.factor(),
+                                    colors.on_primary_container,
+                                )),
+                        )
+                        .child(
+                            div()
+                                .min_w_0()
+                                .flex_1()
+                                .flex()
+                                .flex_col()
+                                .gap(scale.px(4.0))
+                                .child(self.text("This month has not started"))
+                                .child(div().text_color(colors.on_surface_variant).child(
+                                    self.text("Add the first entry to begin tracking this month."),
+                                )),
+                        )
+                        .child(
+                            div()
+                                .id("start-month")
+                                .h(scale.px(40.0))
+                                .px(scale.px(16.0))
+                                .flex()
+                                .items_center()
+                                .rounded(scale.px(20.0))
+                                .cursor_pointer()
+                                .text_color(colors.primary)
+                                .hover(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.primary,
+                                        0.08,
+                                    ))
+                                })
+                                .active(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.primary,
+                                        0.12,
+                                    ))
+                                })
+                                .child(self.text("Add first entry"))
+                                .on_click(cx.listener(|shell, _, _, cx| {
+                                    shell.model.start_month();
+                                    shell.sync_editor_inputs(cx);
+                                    shell.refresh_month_view(cx);
+                                    cx.notify();
+                                })),
+                        ),
+                )
+            })
             .child(self.month_view.clone())
     }
 
