@@ -2651,7 +2651,7 @@ impl AppShell {
                                         setting_chip(
                                             self.ui_language(),
                                             ("cycle-band-day", index),
-                                            format!("{:?}", band.day_category),
+                                            overtime_day_category_label(band.day_category),
                                             false,
                                             colors,
                                         )
@@ -5076,6 +5076,25 @@ fn format_editor_date(
     )
 }
 
+fn overtime_day_category_label(category: OvertimeDayCategory) -> &'static str {
+    match category {
+        OvertimeDayCategory::AllDays => "All days",
+        OvertimeDayCategory::ScheduledWorkdays => "Scheduled workdays",
+        OvertimeDayCategory::NonWorkdays => "Non-workdays",
+        OvertimeDayCategory::Monday => "Monday",
+        OvertimeDayCategory::Tuesday => "Tuesday",
+        OvertimeDayCategory::Wednesday => "Wednesday",
+        OvertimeDayCategory::Thursday => "Thursday",
+        OvertimeDayCategory::Friday => "Friday",
+        OvertimeDayCategory::Saturday => "Saturday",
+        OvertimeDayCategory::Sunday => "Sunday",
+        OvertimeDayCategory::PublicHolidays => "Public holidays",
+        OvertimeDayCategory::ScheduledWeekdays => "Scheduled weekdays",
+        OvertimeDayCategory::Weekends => "Weekends",
+        OvertimeDayCategory::MajorHolidays => "Major holidays",
+    }
+}
+
 fn responsive_layout(width: gpui::Pixels, manual_sidebar_collapse: bool) -> (bool, bool) {
     (
         manual_sidebar_collapse || width < px(1200.0),
@@ -5243,8 +5262,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        AppShell, AppShellServices, format_editor_date, parse_non_negative_decimal,
-        parse_scheduled_minutes, responsive_layout,
+        AppShell, AppShellServices, format_editor_date, overtime_day_category_label,
+        parse_non_negative_decimal, parse_scheduled_minutes, responsive_layout,
     };
     use crate::{
         platform::{
@@ -5402,6 +5421,10 @@ mod tests {
         assert_eq!(
             format_editor_date(date, crate::state::Language::Swedish),
             "Tisdag, aug 18 2026"
+        );
+        assert_eq!(
+            overtime_day_category_label(dagsverk_core::models::OvertimeDayCategory::MajorHolidays),
+            "Major holidays"
         );
     }
 }
