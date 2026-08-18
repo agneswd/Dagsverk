@@ -4,7 +4,10 @@ use gpui::{
 };
 
 use crate::{
-    m3::{M3Button, M3ButtonVariant, M3ColorScheme, ResolvedTheme, m3_card},
+    m3::{
+        M3Button, M3ButtonVariant, M3Chip, M3ColorScheme, M3Status, M3Switch, ResolvedTheme,
+        m3_card, m3_icon, m3_status_chip,
+    },
     text_input::TextInput,
 };
 
@@ -13,6 +16,8 @@ actions!(component_gallery, [Tab, TabPrevious]);
 pub struct ComponentGallery {
     buttons: Vec<Entity<M3Button>>,
     input: Entity<TextInput>,
+    switch: Entity<M3Switch>,
+    chips: Vec<Entity<M3Chip>>,
     theme: ResolvedTheme,
     activations: usize,
 }
@@ -56,10 +61,17 @@ impl ComponentGallery {
         }
 
         let input = cx.new(|cx| TextInput::new(cx, "Text input"));
+        let switch = cx.new(|cx| M3Switch::new("gallery-switch", true, colors, cx));
+        let chips = vec![
+            cx.new(|cx| M3Chip::new("chip-selected", "Selected", true, colors, cx)),
+            cx.new(|cx| M3Chip::new("chip-unselected", "Filter chip", false, colors, cx)),
+        ];
         window.focus(&input.read(cx).focus_handle(cx));
         Self {
             buttons,
             input,
+            switch,
+            chips,
             theme: ResolvedTheme::Light,
             activations: 0,
         }
@@ -76,6 +88,11 @@ impl ComponentGallery {
         }
         self.input
             .update(cx, |input, cx| input.set_colors(colors, cx));
+        self.switch
+            .update(cx, |switch, cx| switch.set_colors(colors, cx));
+        for chip in &self.chips {
+            chip.update(cx, |chip, cx| chip.set_colors(colors, cx));
+        }
         cx.notify();
     }
 
@@ -140,6 +157,42 @@ impl Render for ComponentGallery {
                             .child(self.input.clone()),
                     )
                     .child(
+                        m3_card(colors)
+                            .p(px(24.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(16.0))
+                            .child("Selection and status")
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(12.0))
+                                    .child(self.switch.clone())
+                                    .children(self.chips.iter().cloned()),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .gap(px(8.0))
+                                    .child(m3_status_chip("Neutral", M3Status::Neutral, colors))
+                                    .child(m3_status_chip("Worked", M3Status::Success, colors))
+                                    .child(m3_status_chip("Warning", M3Status::Warning, colors))
+                                    .child(m3_status_chip("Error", M3Status::Error, colors)),
+                            ),
+                    )
+                    .child(
+                        m3_card(colors)
+                            .p(px(24.0))
+                            .flex()
+                            .items_center()
+                            .gap(px(16.0))
+                            .child("Material Symbols")
+                            .child(m3_icon("schedule", 24.0, colors))
+                            .child(m3_icon("calendar_month", 24.0, colors))
+                            .child(m3_icon("settings", 24.0, colors)),
+                    )
+                    .child(
                         div()
                             .text_size(px(12.0))
                             .text_color(colors.on_surface_variant)
@@ -161,6 +214,7 @@ mod tests {
         cx.update(ComponentGallery::register_key_bindings);
         let (gallery, cx) = cx.add_window_view(ComponentGallery::new);
         let buttons = gallery.read_with(cx, |gallery, _| gallery.buttons.clone());
+        let switch = gallery.read_with(cx, |gallery, _| gallery.switch.clone());
 
         cx.update(|window, app| window.focus(&buttons[1].read(app).focus_handle()));
         cx.refresh().expect("refresh focused button");
@@ -177,5 +231,13 @@ mod tests {
             keystroke: Keystroke::parse("space").expect("space keystroke"),
         });
         assert_eq!(gallery.read_with(cx, |gallery, _| gallery.activations), 1);
+
+        cx.update(|window, app| window.focus(&switch.read(app).focus_handle()));
+        cx.refresh().expect("refresh focused switch");
+        cx.run_until_parked();
+        cx.simulate_event(KeyUpEvent {
+            keystroke: Keystroke::parse("space").expect("space keystroke"),
+        });
+        assert!(!switch.read_with(cx, |switch, _| switch.checked()));
     }
 }

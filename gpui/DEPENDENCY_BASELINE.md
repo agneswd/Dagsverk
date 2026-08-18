@@ -19,3 +19,7 @@
 `cargo metadata --locked` resolved 703 packages across all target platforms. Every package declares a license expression. The graph includes MPL-2.0 tools or target dependencies and permissive alternatives in several compound expressions. A public artifact still requires `cargo deny`, generated notices, and a review of which target-specific packages ship in each artifact.
 
 Packages that need explicit review include `cbindgen`, `dwrote`, `option-ext`, `r-efi`, `self_cell`, and the NCSA-licensed portion of `libfuzzer-sys`. This list records review work. It does not state that distribution is approved or prohibited.
+
+## Bundled assets
+
+Roboto and Material Symbols Outlined use SIL Open Font License 1.1. Material Symbols comes from the existing `@fontsource-variable/material-symbols-outlined` package. The committed TTF is a lossless conversion of its offline WOFF2 file.

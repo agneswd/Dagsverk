@@ -6,11 +6,15 @@ use gpui::{
 };
 
 const ROBOTO: &[u8] = include_bytes!("../../../assets/fonts/Roboto-Variable.ttf");
+const MATERIAL_SYMBOLS: &[u8] = include_bytes!("../../../assets/fonts/MaterialSymbolsOutlined.ttf");
 
 fn main() {
     Application::new().run(|cx: &mut App| {
-        if let Err(error) = cx.text_system().add_fonts(vec![Cow::Borrowed(ROBOTO)]) {
-            eprintln!("failed to load bundled Roboto font: {error}");
+        if let Err(error) = cx
+            .text_system()
+            .add_fonts(vec![Cow::Borrowed(ROBOTO), Cow::Borrowed(MATERIAL_SYMBOLS)])
+        {
+            eprintln!("failed to load bundled fonts: {error}");
         }
 
         ComponentGallery::register_key_bindings(cx);
