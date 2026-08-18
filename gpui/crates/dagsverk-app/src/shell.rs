@@ -1498,24 +1498,35 @@ impl AppShell {
             .on_click(cx.listener(move |shell, _, _, cx| shell.set_route(route, cx)))
     }
 
-    fn route_content(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+    fn route_content(
+        &mut self,
+        colors: M3ColorScheme,
+        pane_width: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
         match self.model.route {
             Route::Timesheet => self.timesheet(colors, cx),
-            Route::Projects => self.projects_page(colors, cx),
-            Route::Settings => self.settings_page(colors, cx),
-            Route::DataBackups => self.data_backups_page(colors, cx),
+            Route::Projects => self.projects_page(colors, pane_width, cx),
+            Route::Settings => self.settings_page(colors, pane_width, cx),
+            Route::DataBackups => self.data_backups_page(colors, pane_width, cx),
         }
     }
 
-    fn data_backups_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+    fn data_backups_page(
+        &mut self,
+        colors: M3ColorScheme,
+        pane_width: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
         let scale = interface_scale(&self.model);
+        let (_, page_padding) = route_page_layout(pane_width);
         let database_path = self.services.data.database_path();
         let busy = self.maintenance_busy;
         div()
             .max_w(scale.px(1088.0))
             .mx_auto()
             .pt(scale.px(24.0))
-            .px(scale.px(32.0))
+            .px(scale.px(page_padding))
             .pb(scale.px(48.0))
             .flex()
             .flex_col()
@@ -1817,8 +1828,14 @@ impl AppShell {
         cx.notify();
     }
 
-    fn projects_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+    fn projects_page(
+        &mut self,
+        colors: M3ColorScheme,
+        pane_width: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
         let scale = interface_scale(&self.model);
+        let (stacked, page_padding) = route_page_layout(pane_width);
         let projects = self.model.projects.clone();
         let new_color = self.project_color_input.read(cx).text().to_owned();
         let new_color_swatch = color_from_hex(&new_color).unwrap_or(colors.primary);
@@ -1826,13 +1843,18 @@ impl AppShell {
             .max_w(scale.px(1088.0))
             .mx_auto()
             .pt(scale.px(24.0))
-            .px(scale.px(32.0))
+            .px(scale.px(page_padding))
             .pb(scale.px(48.0))
             .flex()
+            .when(stacked, |layout| layout.flex_col())
             .gap(scale.px(24.0))
             .child(
                 div()
-                    .w(scale.px(320.0))
+                    .when_else(
+                        stacked,
+                        |card| card.w_full(),
+                        |card| card.w(scale.px(320.0)),
+                    )
                     .p(scale.px(24.0))
                     .flex()
                     .flex_col()
@@ -2716,8 +2738,14 @@ impl AppShell {
             )
     }
 
-    fn settings_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+    fn settings_page(
+        &mut self,
+        colors: M3ColorScheme,
+        pane_width: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
         let scale = interface_scale(&self.model);
+        let (_, page_padding) = route_page_layout(pane_width);
         let dirty = self
             .parse_settings_inputs(cx)
             .map_or(true, |settings| settings != self.model.settings)
@@ -2733,7 +2761,7 @@ impl AppShell {
             .max_w(scale.px(1088.0))
             .mx_auto()
             .pt(scale.px(24.0))
-            .px(scale.px(32.0))
+            .px(scale.px(page_padding))
             .pb(scale.px(48.0))
             .flex()
             .flex_col()
@@ -4781,6 +4809,8 @@ impl Render for AppShell {
         } else {
             24.0
         };
+        let pane_width =
+            window_width / px(1.0) / scale - if sidebar_collapsed { 80.0 } else { 256.0 };
         self.snackbar.update(cx, |snackbar, cx| {
             snackbar.configure(
                 message.clone().map(Into::into),
@@ -5393,7 +5423,7 @@ impl Render for AppShell {
                                             .size_full()
                                             .overflow_y_scroll()
                                             .bg(colors.background)
-                                            .child(self.route_content(colors, cx)),
+                                            .child(self.route_content(colors, pane_width, cx)),
                                     ),
                             )
                             .when(self.model.editor.is_open && !editor_overlay, |content| {
@@ -5952,6 +5982,13 @@ fn responsive_layout(width: gpui::Pixels, manual_sidebar_collapse: bool) -> (boo
     )
 }
 
+fn route_page_layout(pane_width: f32) -> (bool, f32) {
+    (
+        pane_width <= 860.0,
+        if pane_width <= 720.0 { 20.0 } else { 32.0 },
+    )
+}
+
 fn parse_scheduled_minutes(value: &str) -> Result<Minutes, &'static str> {
     let hours = value
         .trim()
@@ -6150,7 +6187,7 @@ mod tests {
 
     use super::{
         AppShell, AppShellServices, format_editor_date, overtime_day_category_label,
-        parse_non_negative_decimal, parse_scheduled_minutes, responsive_layout,
+        parse_non_negative_decimal, parse_scheduled_minutes, responsive_layout, route_page_layout,
     };
     use crate::{
         platform::{
@@ -6319,6 +6356,9 @@ mod tests {
         assert_eq!(responsive_layout(gpui::px(1200.0), false), (false, true));
         assert_eq!(responsive_layout(gpui::px(1600.0), false), (false, false));
         assert_eq!(responsive_layout(gpui::px(1600.0), true), (true, false));
+        assert_eq!(route_page_layout(861.0), (false, 32.0));
+        assert_eq!(route_page_layout(860.0), (true, 32.0));
+        assert_eq!(route_page_layout(720.0), (true, 20.0));
         let date = "2026-08-18".parse().expect("editor date");
         assert_eq!(
             format_editor_date(date, crate::state::Language::English),
