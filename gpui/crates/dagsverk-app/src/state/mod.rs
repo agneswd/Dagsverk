@@ -555,6 +555,17 @@ impl AppModel {
         Ok(())
     }
 
+    pub fn set_default_project(&mut self, id: &ProjectId) -> Result<()> {
+        let mut projects = self.projects.clone();
+        for project in &mut projects {
+            project.is_default = &project.id == id;
+        }
+        self.repository
+            .save_projects(&self.active_workspace_id, &projects)?;
+        self.projects = projects;
+        Ok(())
+    }
+
     pub fn save_workspace(&mut self, workspace: Workspace) -> Result<()> {
         self.repository.save_workspace(&workspace)?;
         self.workspaces.retain(|current| current.id != workspace.id);
@@ -696,7 +707,7 @@ mod tests {
     use chrono::{DateTime, Utc};
     use dagsverk_core::{
         clock::FixedClock,
-        models::{IsoDate, Money, MonthViewPreference, WorkspaceId, YearMonth},
+        models::{IsoDate, Money, MonthViewPreference, Project, ProjectId, WorkspaceId, YearMonth},
         tax::TaxEngine,
     };
     use dagsverk_data::Database;
@@ -819,6 +830,47 @@ mod tests {
             .set_view(MonthViewPreference::Calendar)
             .expect("save view");
         assert_eq!(model.active_view, MonthViewPreference::Calendar);
+
+        let first_project = Project {
+            workspace_id: Some(workspace.id.clone()),
+            id: ProjectId::new("first").expect("project id"),
+            name: "First".to_owned(),
+            color: Some("#5F875F".to_owned()),
+            is_active: true,
+            is_default: true,
+        };
+        model
+            .save_project(first_project)
+            .expect("save first project");
+        let second_project = Project {
+            workspace_id: Some(workspace.id.clone()),
+            id: ProjectId::new("second").expect("project id"),
+            name: "Second".to_owned(),
+            color: Some("#5F875F".to_owned()),
+            is_active: true,
+            is_default: false,
+        };
+        model
+            .save_project(second_project.clone())
+            .expect("save project");
+        model
+            .set_default_project(&second_project.id)
+            .expect("set default project");
+        assert_eq!(
+            model
+                .projects
+                .iter()
+                .filter(|project| project.is_default)
+                .count(),
+            1
+        );
+        assert!(
+            model
+                .projects
+                .iter()
+                .find(|project| project.id == second_project.id)
+                .is_some_and(|project| project.is_default)
+        );
 
         model
             .delete_workspace(&workspace.id)

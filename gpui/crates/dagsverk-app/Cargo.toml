@@ -18,6 +18,7 @@ dagsverk-ui.workspace = true
 gpui.workspace = true
 rfd.workspace = true
 thiserror.workspace = true
+uuid.workspace = true
 
 [lib]
 path = "src/lib.rs"

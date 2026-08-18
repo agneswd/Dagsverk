@@ -452,11 +452,16 @@ impl<C: Clock> Database<C> {
     }
 
     pub fn save_project(&self, workspace: &WorkspaceId, project: &Project) -> Result<()> {
-        self.connection()?.execute(
-            r#"INSERT INTO Projects (WorkspaceId,Id,Name,Color,IsActive,IsDefault) VALUES (?1,?2,?3,?4,?5,?6)
-               ON CONFLICT(WorkspaceId,Id) DO UPDATE SET Name=excluded.Name,Color=excluded.Color,IsActive=excluded.IsActive,IsDefault=excluded.IsDefault"#,
-            params![workspace.as_str(), project.id.as_str(), project.name, project.color.as_deref().unwrap_or("#5F875F"), project.is_active, project.is_default],
-        )?;
+        save_project_on(&self.connection()?, workspace, project)
+    }
+
+    pub fn save_projects(&self, workspace: &WorkspaceId, projects: &[Project]) -> Result<()> {
+        let connection = self.connection()?;
+        let transaction = connection.unchecked_transaction()?;
+        for project in projects {
+            save_project_on(&transaction, workspace, project)?;
+        }
+        transaction.commit()?;
         Ok(())
     }
 
@@ -467,6 +472,19 @@ impl<C: Clock> Database<C> {
         )?;
         Ok(())
     }
+}
+
+fn save_project_on(
+    connection: &Connection,
+    workspace: &WorkspaceId,
+    project: &Project,
+) -> Result<()> {
+    connection.execute(
+            r#"INSERT INTO Projects (WorkspaceId,Id,Name,Color,IsActive,IsDefault) VALUES (?1,?2,?3,?4,?5,?6)
+               ON CONFLICT(WorkspaceId,Id) DO UPDATE SET Name=excluded.Name,Color=excluded.Color,IsActive=excluded.IsActive,IsDefault=excluded.IsDefault"#,
+            params![workspace.as_str(), project.id.as_str(), project.name, project.color.as_deref().unwrap_or("#5F875F"), project.is_active, project.is_default],
+        )?;
+    Ok(())
 }
 
 fn workspace_from_row(row: &Row<'_>) -> Result<Workspace> {

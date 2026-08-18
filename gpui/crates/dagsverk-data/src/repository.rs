@@ -35,6 +35,7 @@ pub trait DagsverkRepository: Send + Sync {
     ) -> Result<Vec<BalanceHistoryMonth>>;
     fn list_projects(&self, workspace: &WorkspaceId) -> Result<Vec<Project>>;
     fn save_project(&self, workspace: &WorkspaceId, project: &Project) -> Result<()>;
+    fn save_projects(&self, workspace: &WorkspaceId, projects: &[Project]) -> Result<()>;
     fn delete_project(&self, workspace: &WorkspaceId, id: &ProjectId) -> Result<()>;
 }
 
@@ -114,6 +115,10 @@ impl<C: Clock> DagsverkRepository for Database<C> {
 
     fn save_project(&self, workspace: &WorkspaceId, project: &Project) -> Result<()> {
         Database::save_project(self, workspace, project)
+    }
+
+    fn save_projects(&self, workspace: &WorkspaceId, projects: &[Project]) -> Result<()> {
+        Database::save_projects(self, workspace, projects)
     }
 
     fn delete_project(&self, workspace: &WorkspaceId, id: &ProjectId) -> Result<()> {

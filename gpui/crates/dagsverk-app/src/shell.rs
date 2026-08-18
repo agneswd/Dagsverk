@@ -1,7 +1,9 @@
 use chrono::Duration;
 use dagsverk_core::{
     calculations::{calculate_daily_pay, normalize_time},
-    models::{CurrencyPreference, Minutes, MonthViewPreference, WorkEntryStatus},
+    models::{
+        CurrencyPreference, Minutes, MonthViewPreference, Project, ProjectId, WorkEntryStatus,
+    },
 };
 use dagsverk_ui::{
     m3::{M3ColorScheme, ResolvedTheme as UiTheme, m3_icon},
@@ -36,9 +38,12 @@ pub struct AppShell {
     end_input: Entity<TextInput>,
     notes_input: Entity<TextInput>,
     scheduled_input: Entity<TextInput>,
+    project_name_input: Entity<TextInput>,
+    project_color_input: Entity<TextInput>,
     focus: FocusHandle,
     sidebar_collapsed: bool,
     confirm_reset: bool,
+    confirm_project_delete: Option<ProjectId>,
     notice: Option<String>,
 }
 
@@ -63,6 +68,9 @@ impl AppShell {
         let end_input = cx.new(|cx| TextInput::new(cx, "End time"));
         let notes_input = cx.new(|cx| TextInput::new(cx, "Notes"));
         let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
+        let project_name_input = cx.new(|cx| TextInput::new(cx, "Project name"));
+        let project_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
+        project_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
         let focus = cx.focus_handle();
         window.focus(&focus);
         cx.subscribe(&month_view, |shell, _, event: &MonthViewEvent, cx| {
@@ -78,9 +86,12 @@ impl AppShell {
             end_input,
             notes_input,
             scheduled_input,
+            project_name_input,
+            project_color_input,
             focus,
             sidebar_collapsed: false,
             confirm_reset: false,
+            confirm_project_delete: None,
             notice: None,
         }
     }
@@ -292,6 +303,10 @@ impl AppShell {
             cx.notify();
             return;
         }
+        if self.confirm_project_delete.take().is_some() {
+            cx.notify();
+            return;
+        }
         self.model.close_catch_up();
         cx.notify();
     }
@@ -330,6 +345,105 @@ impl AppShell {
         cx.notify();
     }
 
+    fn add_project(&mut self, cx: &mut Context<Self>) {
+        let name = self.project_name_input.read(cx).text().trim().to_owned();
+        let color = self.project_color_input.read(cx).text().trim().to_owned();
+        if name.is_empty() || !is_hex_color(&color) {
+            self.model.transient_error =
+                Some("Enter a project name and a six-digit hex color.".to_owned());
+            cx.notify();
+            return;
+        }
+        let id = match ProjectId::new(uuid::Uuid::new_v4().to_string()) {
+            Ok(id) => id,
+            Err(error) => {
+                self.model.transient_error = Some(error.to_string());
+                cx.notify();
+                return;
+            }
+        };
+        let project = Project {
+            workspace_id: Some(self.model.active_workspace_id.clone()),
+            id,
+            name,
+            color: Some(color),
+            is_active: true,
+            is_default: self.model.projects.is_empty(),
+        };
+        match self.model.save_project(project) {
+            Ok(()) => {
+                self.project_name_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.notice = Some("Project added.".to_owned());
+            }
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn set_default_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
+        match self.model.set_default_project(id) {
+            Ok(()) => self.notice = Some("Default project changed.".to_owned()),
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        cx.notify();
+    }
+
+    fn toggle_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
+        let Some(mut project) = self
+            .model
+            .projects
+            .iter()
+            .find(|project| &project.id == id)
+            .cloned()
+        else {
+            return;
+        };
+        project.is_active = !project.is_active;
+        match self.model.save_project(project) {
+            Ok(()) => self.notice = Some("Project updated.".to_owned()),
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn update_project_color(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
+        let color = self.project_color_input.read(cx).text().trim().to_owned();
+        if !is_hex_color(&color) {
+            self.model.transient_error = Some("Enter a six-digit hex color.".to_owned());
+            cx.notify();
+            return;
+        }
+        let Some(mut project) = self
+            .model
+            .projects
+            .iter()
+            .find(|project| &project.id == id)
+            .cloned()
+        else {
+            return;
+        };
+        project.color = Some(color);
+        match self.model.save_project(project) {
+            Ok(()) => self.notice = Some("Project color updated.".to_owned()),
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn delete_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
+        match self.model.delete_project(id) {
+            Ok(()) => self.notice = Some("Project deleted.".to_owned()),
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        self.confirm_project_delete = None;
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
     fn navigation_item(
         &self,
         id: &'static str,
@@ -360,14 +474,10 @@ impl AppShell {
             .on_click(cx.listener(move |shell, _, _, cx| shell.set_route(route, cx)))
     }
 
-    fn route_content(&self, colors: M3ColorScheme) -> gpui::Div {
+    fn route_content(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
         match self.model.route {
             Route::Timesheet => self.timesheet(colors),
-            Route::Projects => self.placeholder_page(
-                "Projects",
-                format!("{} projects", self.model.projects.len()),
-                colors,
-            ),
+            Route::Projects => self.projects_page(colors, cx),
             Route::Settings => self.placeholder_page(
                 "Settings",
                 "Workspace and application settings are connected to the state model.",
@@ -397,6 +507,148 @@ impl AppShell {
                 div()
                     .text_color(colors.on_surface_variant)
                     .child(detail.into()),
+            )
+    }
+
+    fn projects_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let projects = self.model.projects.clone();
+        div()
+            .max_w(px(1088.0))
+            .mx_auto()
+            .p(px(32.0))
+            .flex()
+            .gap(px(24.0))
+            .child(
+                div()
+                    .w(px(340.0))
+                    .p(px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(14.0))
+                    .rounded(px(16.0))
+                    .bg(colors.surface_container_low)
+                    .child(div().text_size(px(20.0)).child("Add project"))
+                    .child("Name")
+                    .child(self.project_name_input.clone())
+                    .child("Color")
+                    .child(self.project_color_input.clone())
+                    .child(
+                        div()
+                            .id("add-project")
+                            .h(px(40.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(20.0))
+                            .cursor_pointer()
+                            .bg(colors.primary)
+                            .text_color(colors.on_primary)
+                            .child("Add project")
+                            .on_click(cx.listener(|shell, _, _, cx| shell.add_project(cx))),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .p(px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(12.0))
+                    .rounded(px(16.0))
+                    .bg(colors.surface_container_low)
+                    .child(
+                        div()
+                            .text_size(px(20.0))
+                            .child(format!("Projects ({})", projects.len())),
+                    )
+                    .children(projects.into_iter().enumerate().map(|(index, project)| {
+                        let default_id = project.id.clone();
+                        let toggle_id = project.id.clone();
+                        let color_id = project.id.clone();
+                        let delete_id = project.id.clone();
+                        let color = project
+                            .color
+                            .as_deref()
+                            .and_then(color_from_hex)
+                            .unwrap_or(colors.primary);
+                        div()
+                            .h(px(64.0))
+                            .px(px(16.0))
+                            .flex()
+                            .items_center()
+                            .gap(px(12.0))
+                            .rounded(px(12.0))
+                            .bg(colors.surface_container)
+                            .child(div().size(px(12.0)).rounded_full().bg(color))
+                            .child(
+                                div().flex_1().flex().flex_col().child(project.name).child(
+                                    div()
+                                        .text_size(px(12.0))
+                                        .text_color(colors.on_surface_variant)
+                                        .child(if project.is_active {
+                                            "Active"
+                                        } else {
+                                            "Archived"
+                                        }),
+                                ),
+                            )
+                            .when(project.is_default, |row| {
+                                row.child(
+                                    div()
+                                        .px(px(10.0))
+                                        .py(px(4.0))
+                                        .rounded(px(12.0))
+                                        .bg(colors.primary_container)
+                                        .child("Default"),
+                                )
+                            })
+                            .when(!project.is_default, |row| {
+                                row.child(
+                                    div()
+                                        .id(("default-project", index))
+                                        .cursor_pointer()
+                                        .child("Set default")
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            shell.set_default_project(&default_id, cx)
+                                        })),
+                                )
+                            })
+                            .child(
+                                div()
+                                    .id(("color-project", index))
+                                    .cursor_pointer()
+                                    .child("Apply color")
+                                    .on_click(cx.listener(move |shell, _, _, cx| {
+                                        shell.update_project_color(&color_id, cx)
+                                    })),
+                            )
+                            .child(
+                                div()
+                                    .id(("toggle-project", index))
+                                    .cursor_pointer()
+                                    .child(if project.is_active {
+                                        "Archive"
+                                    } else {
+                                        "Unarchive"
+                                    })
+                                    .on_click(cx.listener(move |shell, _, _, cx| {
+                                        shell.toggle_project(&toggle_id, cx)
+                                    })),
+                            )
+                            .when(!project.is_default, |row| {
+                                row.child(
+                                    div()
+                                        .id(("delete-project", index))
+                                        .cursor_pointer()
+                                        .text_color(colors.error)
+                                        .child("Delete")
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            shell.confirm_project_delete = Some(delete_id.clone());
+                                            cx.notify();
+                                        })),
+                                )
+                            })
+                    })),
             )
     }
 
@@ -882,6 +1134,7 @@ impl Render for AppShell {
             .transient_error
             .clone()
             .or_else(|| self.notice.clone());
+        let project_delete = self.confirm_project_delete.clone();
 
         div()
             .track_focus(&self.focus)
@@ -1180,7 +1433,7 @@ impl Render for AppShell {
                                     .overflow_y_scroll()
                                     .rounded_tl(px(24.0))
                                     .bg(colors.background)
-                                    .child(self.route_content(colors)),
+                                    .child(self.route_content(colors, cx)),
                             )
                             .when(self.model.editor.is_open, |content| {
                                 content.child(self.editor_panel(colors, cx))
@@ -1256,6 +1509,55 @@ impl Render for AppShell {
                         ),
                 )
             })
+            .when_some(project_delete, |root, project_id| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.45))
+                        .child(
+                            div()
+                                .w(px(420.0))
+                                .p(px(24.0))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0))
+                                .rounded(px(24.0))
+                                .bg(colors.surface_container_high)
+                                .child(div().text_size(px(20.0)).child("Delete project?"))
+                                .child("Existing entries keep the stored project name.")
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0))
+                                        .child(
+                                            div()
+                                                .id("cancel-project-delete")
+                                                .cursor_pointer()
+                                                .child("Cancel")
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_project_delete = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            div()
+                                                .id("confirm-project-delete")
+                                                .cursor_pointer()
+                                                .text_color(colors.error)
+                                                .child("Delete")
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.delete_project(&project_id, cx)
+                                                })),
+                                        ),
+                                ),
+                        ),
+                )
+            })
     }
 }
 
@@ -1295,6 +1597,19 @@ fn parse_scheduled_minutes(value: &str) -> Result<Minutes, &'static str> {
         return Err("Scheduled hours must be a non-negative number.");
     }
     Ok(Minutes::new((hours * 60.0).round() as i64))
+}
+
+fn is_hex_color(value: &str) -> bool {
+    let value = value.strip_prefix('#').unwrap_or(value);
+    value.len() == 6 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn color_from_hex(value: &str) -> Option<gpui::Hsla> {
+    let value = value.strip_prefix('#').unwrap_or(value);
+    is_hex_color(value)
+        .then(|| u32::from_str_radix(value, 16).ok())
+        .flatten()
+        .map(|value| gpui::rgb(value).into())
 }
 
 #[cfg(test)]
