@@ -10,10 +10,19 @@ name = "dagsverk-gpui"
 path = "src/main.rs"
 
 [dependencies]
+dagsverk-core.workspace = true
 dagsverk-data.workspace = true
 dagsverk-export.workspace = true
 dagsverk-ui.workspace = true
 gpui.workspace = true
+rfd.workspace = true
+thiserror.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
 
 [lints]
 workspace = true

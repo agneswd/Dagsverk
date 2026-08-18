@@ -29,3 +29,7 @@ The TypeScript engine generates committed parity fixtures. Rust tests read those
 ## Report generation
 
 `dagsverk-export` validates typed report requests before it writes files. `rust_xlsxwriter` creates XLSX workbooks. The ODS writer uses ZIP and escaped XML directly. File dialogs remain outside this crate.
+
+## Native services
+
+The application crate owns async file-dialog and update traits plus the shell boundary. Native dialogs use `rfd` behind the private service. Development builds use an explicit unavailable updater.

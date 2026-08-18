@@ -24,6 +24,7 @@ dagsverk-ui = { path = "crates/dagsverk-ui" }
 gpui = { version = "=0.2.2" }
 rust_decimal = { version = "=1.42.1", features = ["serde-str"] }
 quick-xml = "=0.41.0"
+rfd = "=0.17.2"
 rusqlite = { version = "=0.40.2", features = ["backup", "bundled"] }
 rust_xlsxwriter = { version = "=0.98.2", features = ["rust_decimal"] }
 serde = { version = "=1.0.229", features = ["derive"] }
