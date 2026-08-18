@@ -60,6 +60,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - The component gallery applies `--interface-scale` to its layout and every reusable control, including overlays.
 - Production notices use the shared snackbar host and avoid the sidebar and open day editor at every interface scale.
 - Projects stack below an 860 px content pane. Route pages reduce horizontal padding below 720 px.
+- The timesheet header hides labels and secondary actions from the measured available pane width, including the docked editor width.
 
 ## Comparison tolerances
 

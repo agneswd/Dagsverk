@@ -4809,8 +4809,14 @@ impl Render for AppShell {
         } else {
             24.0
         };
-        let pane_width =
-            window_width / px(1.0) / scale - if sidebar_collapsed { 80.0 } else { 256.0 };
+        let pane_width = window_width / px(1.0) / scale
+            - if sidebar_collapsed { 80.0 } else { 256.0 }
+            - if self.model.editor.is_open && !editor_overlay {
+                416.0
+            } else {
+                0.0
+            };
+        let header_layout = header_layout(pane_width);
         self.snackbar.update(cx, |snackbar, cx| {
             snackbar.configure(
                 message.clone().map(Into::into),
@@ -5020,7 +5026,7 @@ impl Render for AppShell {
                         div()
                             .relative()
                             .h(px(64.0 * scale))
-                            .px(px(24.0 * scale))
+                            .px(px(header_layout.padding * scale))
                             .flex()
                             .items_center()
                             .justify_between()
@@ -5034,6 +5040,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("previous-month")
+                                            .when(!header_layout.show_arrows, |button| button.hidden())
                                             .p(px(8.0 * scale))
                                             .rounded_full()
                                             .cursor_pointer()
@@ -5050,7 +5057,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("month-selector")
-                                            .w(px(164.0 * scale))
+                                            .w(px(header_layout.month_width * scale))
                                             .h(px(40.0 * scale))
                                             .px(px(12.0 * scale))
                                             .flex()
@@ -5086,6 +5093,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("next-month")
+                                            .when(!header_layout.show_arrows, |button| button.hidden())
                                             .p(px(8.0 * scale))
                                             .rounded_full()
                                             .cursor_pointer()
@@ -5102,6 +5110,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("today")
+                                            .when(!header_layout.show_today, |button| button.hidden())
                                             .h(px(40.0 * scale))
                                             .ml(px(8.0 * scale))
                                             .px(px(16.0 * scale))
@@ -5126,6 +5135,9 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("month-actions")
+                                            .when(!header_layout.show_month_actions, |button| {
+                                                button.hidden()
+                                            })
                                             .p(px(8.0 * scale))
                                             .rounded_full()
                                             .cursor_pointer()
@@ -5159,6 +5171,9 @@ impl Render for AppShell {
                             })
                             .when(self.model.route == Route::Timesheet, |header| header.child(
                                         div()
+                                            .when(!header_layout.show_view_toggle, |toggle| {
+                                                toggle.hidden()
+                                            })
                                             .h(px(40.0 * scale))
                                             .flex()
                                             .items_center()
@@ -5199,7 +5214,9 @@ impl Render for AppShell {
                                                             colors.on_surface_variant
                                                         },
                                                     ))
-                                                    .child(self.text("Ledger"))
+                                                    .when(header_layout.show_view_labels, |item| {
+                                                        item.child(self.text("Ledger"))
+                                                    })
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.set_view(MonthViewPreference::Ledger, cx)
                                             })),
@@ -5239,7 +5256,9 @@ impl Render for AppShell {
                                                             colors.on_surface_variant
                                                         },
                                                     ))
-                                                    .child(self.text("Calendar"))
+                                                    .when(header_layout.show_view_labels, |item| {
+                                                        item.child(self.text("Calendar"))
+                                                    })
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.set_view(MonthViewPreference::Calendar, cx)
                                             })),
@@ -5250,7 +5269,10 @@ impl Render for AppShell {
                                     .flex()
                                     .items_center()
                                     .gap(px(8.0 * scale))
-                                    .when(self.model.missing_days_count() > 0, |actions| {
+                                    .when(
+                                        self.model.missing_days_count() > 0
+                                            && header_layout.show_catch_up,
+                                        |actions| {
                                         actions.child(
                                             div()
                                                 .id("catch-up")
@@ -5270,10 +5292,15 @@ impl Render for AppShell {
                                                     18.0 * scale,
                                                     colors.on_primary,
                                                 ))
-                                                .child(format!(
-                                                    "Catch Up ({})",
-                                                    self.model.missing_days_count()
-                                                ))
+                                                .when(
+                                                    header_layout.show_view_labels,
+                                                    |button| {
+                                                        button.child(format!(
+                                                            "Catch Up ({})",
+                                                            self.model.missing_days_count()
+                                                        ))
+                                                    },
+                                                )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.model.start_catch_up();
                                                     shell.sync_editor_inputs(cx);
@@ -5281,10 +5308,14 @@ impl Render for AppShell {
                                                     cx.notify();
                                                 })),
                                         )
-                                    })
+                                    },
+                                    )
                                     .child(
                                         div()
                                             .id("export-report")
+                                            .when(!header_layout.show_export, |button| {
+                                                button.hidden()
+                                            })
                                             .p(px(8.0 * scale))
                                             .rounded_full()
                                             .opacity(if can_export { 1.0 } else { 0.38 })
@@ -5982,6 +6013,33 @@ fn responsive_layout(width: gpui::Pixels, manual_sidebar_collapse: bool) -> (boo
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct HeaderLayout {
+    padding: f32,
+    month_width: f32,
+    show_view_labels: bool,
+    show_today: bool,
+    show_catch_up: bool,
+    show_month_actions: bool,
+    show_arrows: bool,
+    show_export: bool,
+    show_view_toggle: bool,
+}
+
+fn header_layout(pane_width: f32) -> HeaderLayout {
+    HeaderLayout {
+        padding: if pane_width <= 880.0 { 16.0 } else { 24.0 },
+        month_width: if pane_width <= 880.0 { 132.0 } else { 164.0 },
+        show_view_labels: pane_width > 1240.0,
+        show_today: pane_width > 1080.0,
+        show_catch_up: pane_width > 740.0,
+        show_month_actions: pane_width > 680.0,
+        show_arrows: pane_width > 560.0,
+        show_export: pane_width > 560.0,
+        show_view_toggle: pane_width > 420.0,
+    }
+}
+
 fn route_page_layout(pane_width: f32) -> (bool, f32) {
     (
         pane_width <= 860.0,
@@ -6186,7 +6244,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        AppShell, AppShellServices, format_editor_date, overtime_day_category_label,
+        AppShell, AppShellServices, format_editor_date, header_layout, overtime_day_category_label,
         parse_non_negative_decimal, parse_scheduled_minutes, responsive_layout, route_page_layout,
     };
     use crate::{
@@ -6359,6 +6417,19 @@ mod tests {
         assert_eq!(route_page_layout(861.0), (false, 32.0));
         assert_eq!(route_page_layout(860.0), (true, 32.0));
         assert_eq!(route_page_layout(720.0), (true, 20.0));
+        let wide_header = header_layout(1241.0);
+        assert!(wide_header.show_view_labels && wide_header.show_today);
+        assert_eq!(
+            (wide_header.padding, wide_header.month_width),
+            (24.0, 164.0)
+        );
+        let narrow_header = header_layout(700.0);
+        assert!(!narrow_header.show_view_labels && !narrow_header.show_catch_up);
+        assert!(narrow_header.show_month_actions && narrow_header.show_export);
+        assert_eq!(
+            (narrow_header.padding, narrow_header.month_width),
+            (16.0, 132.0)
+        );
         let date = "2026-08-18".parse().expect("editor date");
         assert_eq!(
             format_editor_date(date, crate::state::Language::English),
