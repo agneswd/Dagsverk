@@ -36,6 +36,7 @@ pub struct MonthViewData {
     pub mode: MonthViewPreference,
     pub language: LanguagePreference,
     pub colors: M3ColorScheme,
+    pub scale: UiScale,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,22 +77,24 @@ impl MonthView {
 
     fn ledger(&mut self, cx: &mut Context<Self>) -> gpui::Div {
         let colors = self.data.colors;
+        let scale = self.data.scale;
         let rows = self.rows();
         let last_row = rows.len().saturating_sub(1);
         m3_card(colors)
             .border_0()
+            .rounded(scale.px(16.0))
             .bg(colors.surface_container_low)
             .overflow_hidden()
             .child(
                 div()
-                    .h(px(52.0))
-                    .rounded_t(px(16.0))
+                    .h(scale.px(52.0))
+                    .rounded_t(scale.px(16.0))
                     .flex()
                     .items_center()
                     .bg(colors.surface_container)
                     .border_b_1()
                     .border_color(colors.grid_line)
-                    .m3_typography(TypographyRole::LabelMedium, UiScale::default())
+                    .m3_typography(TypographyRole::LabelMedium, scale)
                     .text_color(colors.on_surface_variant)
                     .children(
                         [
@@ -107,7 +110,7 @@ impl MonthView {
                         .into_iter()
                         .enumerate()
                         .map(|(index, key)| {
-                            ledger_cell(index)
+                            ledger_cell(index, scale)
                                 .child(localized(self.data.language, key).to_uppercase())
                         }),
                     ),
@@ -139,16 +142,16 @@ impl MonthView {
                 div()
                     .id(("ledger-row", index))
                     .tab_index(0)
-                    .h(px(52.0))
-                    .when(index == last_row, |row| row.rounded_b(px(16.0)))
+                    .h(scale.px(52.0))
+                    .when(index == last_row, |row| row.rounded_b(scale.px(16.0)))
                     .flex()
                     .items_center()
                     .border_b_1()
                     .border_color(colors.grid_line)
                     .bg(row_background)
-                    .m3_typography(TypographyRole::BodyMedium, UiScale::default())
+                    .m3_typography(TypographyRole::BodyMedium, scale)
                     .cursor_pointer()
-                    .focus(move |style| style.shadow(focus_shadow(colors.primary)))
+                    .focus(move |style| style.shadow(focus_shadow(colors.primary, scale)))
                     .hover(move |style| {
                         style.bg(m3_state_layer(
                             row_background,
@@ -165,16 +168,16 @@ impl MonthView {
                         }),
                     )
                     .child(
-                        ledger_cell(0).child(
+                        ledger_cell(0, scale).child(
                             div()
-                                .w(px(62.0))
-                                .h(px(26.0))
-                                .px(px(6.0))
+                                .w(scale.px(62.0))
+                                .h(scale.px(26.0))
+                                .px(scale.px(6.0))
                                 .grid()
                                 .grid_cols(2)
-                                .gap(px(4.0))
+                                .gap(scale.px(4.0))
                                 .items_center()
-                                .rounded(px(8.0))
+                                .rounded(scale.px(8.0))
                                 .bg(if row.is_today {
                                     colors.primary
                                 } else if row.date.as_naive_date().weekday().number_from_monday()
@@ -197,7 +200,7 @@ impl MonthView {
                                 )
                                 .child(
                                     div()
-                                        .text_size(px(11.0))
+                                        .text_size(scale.px(11.0))
                                         .font_weight(gpui::FontWeight::SEMIBOLD)
                                         .text_color(if row.is_today {
                                             colors.on_primary
@@ -209,35 +212,39 @@ impl MonthView {
                         ),
                     )
                     .child(
-                        ledger_cell(1).child(
+                        ledger_cell(1, scale).child(
                             div()
-                                .w(px(90.0))
-                                .h(px(26.0))
-                                .px(px(10.0))
-                                .rounded(px(13.0))
+                                .w(scale.px(90.0))
+                                .h(scale.px(26.0))
+                                .px(scale.px(10.0))
+                                .rounded(scale.px(13.0))
                                 .flex()
                                 .items_center()
                                 .justify_center()
-                                .gap(px(8.0))
+                                .gap(scale.px(8.0))
                                 .bg(status_color)
                                 .text_color(status_foreground)
-                                .text_size(px(12.0))
+                                .text_size(scale.px(12.0))
                                 .when_some(row.status_icon(), |chip, icon| {
-                                    chip.child(m3_icon_colored(icon, 14.0, status_foreground))
+                                    chip.child(m3_icon_colored(
+                                        icon,
+                                        14.0 * scale.factor(),
+                                        status_foreground,
+                                    ))
                                 })
                                 .when(row.is_missing && row.holiday.is_none(), |chip| {
                                     chip.child(
-                                        div().size(px(6.0)).rounded_full().bg(colors.warning),
+                                        div().size(scale.px(6.0)).rounded_full().bg(colors.warning),
                                     )
                                 })
                                 .child(status),
                         ),
                     )
-                    .child(ledger_cell(2).child(numeric_value(row.interval(), colors)))
-                    .child(ledger_cell(3).child(numeric_value(row.lunch(), colors)))
-                    .child(ledger_cell(4).child(numeric_value(row.hours(), colors)))
+                    .child(ledger_cell(2, scale).child(numeric_value(row.interval(), colors)))
+                    .child(ledger_cell(3, scale).child(numeric_value(row.lunch(), colors)))
+                    .child(ledger_cell(4, scale).child(numeric_value(row.hours(), colors)))
                     .child(
-                        ledger_cell(5).child(
+                        ledger_cell(5, scale).child(
                             div()
                                 .font_weight(gpui::FontWeight::SEMIBOLD)
                                 .text_color(if row.overtime_minutes > 0 {
@@ -249,23 +256,23 @@ impl MonthView {
                         ),
                     )
                     .child(
-                        ledger_cell(6).child(match row.project_name {
+                        ledger_cell(6, scale).child(match row.project_name {
                             Some(project) => div()
-                                .max_w(px(180.0))
-                                .px(px(10.0))
-                                .py(px(4.0))
+                                .max_w(scale.px(180.0))
+                                .px(scale.px(10.0))
+                                .py(scale.px(4.0))
                                 .flex()
                                 .items_center()
-                                .gap(px(8.0))
-                                .rounded(px(12.0))
+                                .gap(scale.px(8.0))
+                                .rounded(scale.px(12.0))
                                 .bg(colors.surface_container)
-                                .child(div().size(px(8.0)).rounded_full().bg(project_color))
+                                .child(div().size(scale.px(8.0)).rounded_full().bg(project_color))
                                 .child(div().min_w_0().truncate().child(project)),
                             None => empty_value(colors),
                         }),
                     )
                     .child(
-                        ledger_cell(7).child(match row.notes {
+                        ledger_cell(7, scale).child(match row.notes {
                             Some(notes) => div()
                                 .min_w_0()
                                 .truncate()
@@ -279,22 +286,24 @@ impl MonthView {
 
     fn calendar(&mut self, cx: &mut Context<Self>) -> gpui::Div {
         let colors = self.data.colors;
+        let scale = self.data.scale;
         let cells = self.calendar_cells();
         let last_cell = cells.len().saturating_sub(1);
         let first_bottom_cell = last_cell.saturating_sub(6);
         m3_card(colors)
             .border_0()
+            .rounded(scale.px(16.0))
             .bg(colors.surface_container_low)
             .overflow_hidden()
             .child(
                 div()
-                    .h(px(40.0))
-                    .rounded_t(px(16.0))
+                    .h(scale.px(40.0))
+                    .rounded_t(scale.px(16.0))
                     .grid()
                     .grid_cols(7)
                     .items_center()
                     .bg(colors.surface_container)
-                    .text_size(px(12.0))
+                    .m3_typography(TypographyRole::LabelMedium, scale)
                     .text_color(colors.on_surface_variant)
                     .children(
                         [
@@ -319,7 +328,7 @@ impl MonthView {
                 div()
                     .grid()
                     .grid_cols(7)
-                    .gap(px(1.0))
+                    .gap(scale.px(1.0))
                     .bg(colors.grid_line)
                     .children(cells.into_iter().enumerate().map(|(index, cell)| {
                         let date = cell.date;
@@ -329,13 +338,16 @@ impl MonthView {
                         div()
                             .id(("calendar-cell", index))
                             .tab_index(if cell.current_month { 0 } else { -1 })
-                            .min_h(px(110.0))
-                            .when(index == first_bottom_cell, |cell| cell.rounded_bl(px(16.0)))
-                            .when(index == last_cell, |cell| cell.rounded_br(px(16.0)))
-                            .p(px(12.0))
+                            .min_h(scale.px(110.0))
+                            .when(index == first_bottom_cell, |cell| {
+                                cell.rounded_bl(scale.px(16.0))
+                            })
+                            .when(index == last_cell, |cell| cell.rounded_br(scale.px(16.0)))
+                            .p(scale.px(12.0))
                             .flex()
                             .flex_col()
-                            .gap(px(6.0))
+                            .gap(scale.px(6.0))
+                            .m3_typography(TypographyRole::BodyMedium, scale)
                             .bg(if selected {
                                 colors
                                     .surface_container_low
@@ -347,7 +359,9 @@ impl MonthView {
                             })
                             .when(cell.current_month, |item| {
                                 item.cursor_pointer()
-                                    .focus(move |style| style.shadow(focus_shadow(colors.primary)))
+                                    .focus(move |style| {
+                                        style.shadow(focus_shadow(colors.primary, scale))
+                                    })
                                     .hover(move |style| {
                                         style.bg(m3_state_layer(
                                             colors.surface_container_low,
@@ -364,7 +378,7 @@ impl MonthView {
                             })
                             .child(
                                 div()
-                                    .size(px(24.0))
+                                    .size(scale.px(24.0))
                                     .rounded_full()
                                     .flex()
                                     .items_center()
@@ -384,7 +398,7 @@ impl MonthView {
                             .when(cell.is_missing, |item| {
                                 item.child(
                                     div()
-                                        .text_size(px(11.0))
+                                        .m3_typography(TypographyRole::LabelSmall, scale)
                                         .text_color(colors.warning)
                                         .child(localized(self.data.language, "Unlogged")),
                                 )
@@ -392,16 +406,16 @@ impl MonthView {
                             .when_some(cell.holiday, |item, holiday| {
                                 item.child(
                                     div()
-                                        .rounded(px(6.0))
-                                        .p(px(6.0))
+                                        .rounded(scale.px(6.0))
+                                        .p(scale.px(6.0))
                                         .bg(colors.warning_container)
                                         .text_color(colors.on_warning_container)
-                                        .text_size(px(11.0))
+                                        .m3_typography(TypographyRole::LabelSmall, scale)
                                         .child(holiday),
                                 )
                             })
                             .when_some(cell.entry, |item, entry| {
-                                item.child(calendar_entry(entry, colors, self.data.language))
+                                item.child(calendar_entry(entry, colors, self.data.language, scale))
                             })
                     })),
             )
@@ -523,6 +537,7 @@ pub fn summary_banner(
     unstarted: bool,
     language: LanguagePreference,
     colors: M3ColorScheme,
+    scale: UiScale,
 ) -> gpui::Div {
     let net = tax
         .estimated_net_pay
@@ -579,10 +594,10 @@ pub fn summary_banner(
     div()
         .grid()
         .grid_cols(4)
-        .gap(px(24.0))
-        .py(px(16.0))
-        .px(px(20.0))
-        .rounded(px(16.0))
+        .gap(scale.px(24.0))
+        .py(scale.px(16.0))
+        .px(scale.px(20.0))
+        .rounded(scale.px(16.0))
         .bg(colors.surface_container_low)
         .children(
             metrics
@@ -591,16 +606,20 @@ pub fn summary_banner(
                     div()
                         .flex()
                         .items_center()
-                        .gap(px(12.0))
+                        .gap(scale.px(12.0))
                         .child(
                             div()
-                                .size(px(36.0))
-                                .rounded(px(12.0))
+                                .size(scale.px(36.0))
+                                .rounded(scale.px(12.0))
                                 .flex()
                                 .items_center()
                                 .justify_center()
                                 .bg(colors.primary_container)
-                                .child(m3_icon_colored(icon, 20.0, colors.on_primary_container)),
+                                .child(m3_icon_colored(
+                                    icon,
+                                    20.0 * scale.factor(),
+                                    colors.on_primary_container,
+                                )),
                         )
                         .child(
                             div()
@@ -609,10 +628,7 @@ pub fn summary_banner(
                                 .flex_col()
                                 .child(
                                     div()
-                                        .m3_typography(
-                                            TypographyRole::LabelSmall,
-                                            UiScale::default(),
-                                        )
+                                        .m3_typography(TypographyRole::LabelSmall, scale)
                                         .text_color(colors.on_surface_variant)
                                         .child(label),
                                 )
@@ -620,22 +636,16 @@ pub fn summary_banner(
                                     div()
                                         .flex()
                                         .items_baseline()
-                                        .gap(px(8.0))
+                                        .gap(scale.px(8.0))
                                         .child(
                                             div()
-                                                .m3_typography(
-                                                    TypographyRole::TitleMedium,
-                                                    UiScale::default(),
-                                                )
+                                                .m3_typography(TypographyRole::TitleMedium, scale)
                                                 .text_color(value_color)
                                                 .child(value),
                                         )
                                         .child(
                                             div()
-                                                .m3_typography(
-                                                    TypographyRole::BodySmall,
-                                                    UiScale::default(),
-                                                )
+                                                .m3_typography(TypographyRole::BodySmall, scale)
                                                 .text_color(colors.on_surface_variant)
                                                 .child(qualifier),
                                         ),
@@ -726,6 +736,7 @@ fn calendar_entry(
     entry: WorkEntry,
     colors: M3ColorScheme,
     language: LanguagePreference,
+    scale: UiScale,
 ) -> gpui::Div {
     let (background, text) = match entry.status {
         WorkEntryStatus::Worked => (colors.primary_container, colors.on_primary_container),
@@ -743,12 +754,12 @@ fn calendar_entry(
         WorkEntryStatus::Incomplete => localized(language, "Unlogged"),
     };
     div()
-        .min_h(px(32.0))
-        .p(px(6.0))
-        .rounded(px(6.0))
+        .min_h(scale.px(32.0))
+        .p(scale.px(6.0))
+        .rounded(scale.px(6.0))
         .bg(background)
         .text_color(text)
-        .text_size(px(11.0))
+        .m3_typography(TypographyRole::LabelSmall, scale)
         .child(label)
 }
 
@@ -780,11 +791,11 @@ fn parse_hex(value: &str) -> Option<Hsla> {
         .map(|value| rgb(value).into())
 }
 
-fn ledger_cell(index: usize) -> gpui::Div {
+fn ledger_cell(index: usize, scale: UiScale) -> gpui::Div {
     div()
         .w(relative(LEDGER_COLUMN_RATIOS[index]))
         .min_w_0()
-        .px(px(16.0))
+        .px(scale.px(16.0))
 }
 
 fn empty_value(colors: M3ColorScheme) -> gpui::Div {
@@ -801,12 +812,12 @@ fn numeric_value(value: String, colors: M3ColorScheme) -> gpui::Div {
     }
 }
 
-fn focus_shadow(color: Hsla) -> Vec<BoxShadow> {
+fn focus_shadow(color: Hsla, scale: UiScale) -> Vec<BoxShadow> {
     vec![BoxShadow {
         color: color.opacity(FOCUS_OPACITY),
         offset: point(px(0.0), px(0.0)),
         blur_radius: px(0.0),
-        spread_radius: px(3.0),
+        spread_radius: scale.px(3.0),
     }]
 }
 
@@ -842,6 +853,7 @@ mod tests {
             mode: MonthViewPreference::Ledger,
             language: dagsverk_core::models::LanguagePreference::English,
             colors: M3ColorScheme::light(),
+            scale: crate::m3::UiScale::default(),
         });
         assert_eq!(view.rows().len(), 31);
         let cells = view.calendar_cells();

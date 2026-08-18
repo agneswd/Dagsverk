@@ -18,7 +18,7 @@ use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
     m3::{
         M3ColorScheme, M3Select, M3SelectEvent, M3Switch, M3SwitchEvent, ResolvedTheme as UiTheme,
-        m3_icon, m3_icon_colored, m3_icon_filled, m3_state_layer, menu_elevation,
+        UiScale, m3_icon, m3_icon_colored, m3_icon_filled, m3_state_layer, menu_elevation,
         side_sheet_elevation, workspace_menu_elevation,
     },
     text_input::{TextInput, TextInputEvent},
@@ -3406,6 +3406,7 @@ impl AppShell {
     }
 
     fn timesheet(&self, colors: M3ColorScheme) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let summary = self.model.summary();
         let tax = self.model.tax_estimate();
         let currency = match self.model.settings.currency_preference {
@@ -3418,14 +3419,14 @@ impl AppShell {
         };
         div()
             .w_full()
-            .max_w(px(1280.0))
+            .max_w(scale.px(1280.0))
             .mx_auto()
-            .pt(px(24.0))
-            .px(px(32.0))
-            .pb(px(40.0))
+            .pt(scale.px(24.0))
+            .px(scale.px(32.0))
+            .pb(scale.px(40.0))
             .flex()
             .flex_col()
-            .gap(px(16.0))
+            .gap(scale.px(16.0))
             .child(summary_banner(
                 &summary,
                 &tax,
@@ -3436,6 +3437,7 @@ impl AppShell {
                     crate::state::Language::Swedish => LanguagePreference::Swedish,
                 },
                 colors,
+                scale,
             ))
             .child(self.month_view.clone())
     }
@@ -5452,7 +5454,15 @@ fn month_view_data(model: &AppModel) -> MonthViewData {
             ResolvedTheme::Light => UiTheme::Light,
             ResolvedTheme::Dark => UiTheme::Dark,
         }),
+        scale: interface_scale(model),
     }
+}
+
+fn interface_scale(model: &AppModel) -> UiScale {
+    u16::try_from(model.preferences.interface_scale_percent)
+        .ok()
+        .and_then(UiScale::from_percent)
+        .unwrap_or_default()
 }
 
 const DAY_OFF_REASONS: [&str; 6] = [
