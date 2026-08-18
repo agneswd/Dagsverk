@@ -1,5 +1,14 @@
 # Data compatibility
 
-The GPUI preview will use the current six-table SQLite schema without changes. Tests must use copied fixture databases or temporary directories. No test may open the production data path.
+The GPUI preview uses the current six-table SQLite schema without changes. Tests use copied fixture databases or temporary directories. No test opens the production data path.
+
+The compatible production paths are:
+
+- Windows: `%APPDATA%\Dagsverk\dagsverk.db`
+- Linux: `${XDG_CONFIG_HOME:-$HOME/.config}/Dagsverk/dagsverk.db`
+
+`--database` has highest precedence. `--data-dir` follows it. `DAGSVERK_DATA_DIR` follows both.
+
+The Rust schema keeps all current table and column names. It does not add a schema-version table.
 
 Do not run Electron Dagsverk and the GPUI preview against the same database during backup, restore, or import.

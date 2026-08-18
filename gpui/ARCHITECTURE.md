@@ -21,3 +21,7 @@ The core crate uses `rust_decimal::Decimal` for money, rates, percentages, and h
 Calculation code receives a `Clock`. Production uses `SystemClock`, while tests and visual fixtures use `FixedClock`.
 
 The TypeScript engine generates committed parity fixtures. Rust tests read those fixtures directly. The canonical tax source remains `public/tax-data/tax-2026.json`. Its test SHA-256 is `f660a261b4f4abb44b3595f69d1e93bd2895faad19847ff45b50865919ebc0b6`.
+
+## Database connections
+
+`dagsverk-data` owns the database path. It opens one SQLite connection per operation. Each connection enables WAL, foreign keys, and a five-second busy timeout. Multi-row writes use transactions. The UI never receives a SQLite connection.
