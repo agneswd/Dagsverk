@@ -2515,6 +2515,7 @@ impl AppShell {
                                                         label,
                                                         self.new_workspace_type == value,
                                                         colors,
+                                                        scale,
                                                     )
                                                     .on_click(cx.listener(
                                                         move |shell, _, _, cx| {
@@ -2544,6 +2545,7 @@ impl AppShell {
                                                         label,
                                                         language == value,
                                                         colors,
+                                                        scale,
                                                     )
                                                     .on_click(cx.listener(
                                                         move |shell, _, _, cx| {
@@ -2574,6 +2576,7 @@ impl AppShell {
                                                         label,
                                                         salary_type == value,
                                                         colors,
+                                                        scale,
                                                     )
                                                     .on_click(cx.listener(
                                                         move |shell, _, _, cx| {
@@ -2616,6 +2619,7 @@ impl AppShell {
     }
 
     fn settings_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let dirty = self
             .parse_settings_inputs(cx)
             .map_or(true, |settings| settings != self.model.settings)
@@ -2628,19 +2632,19 @@ impl AppShell {
             _ => self.application_settings(colors, cx),
         };
         div()
-            .max_w(px(1088.0))
+            .max_w(scale.px(1088.0))
             .mx_auto()
-            .pt(px(24.0))
-            .px(px(32.0))
-            .pb(px(48.0))
+            .pt(scale.px(24.0))
+            .px(scale.px(32.0))
+            .pb(scale.px(48.0))
             .flex()
             .flex_col()
-            .gap(px(20.0))
+            .gap(scale.px(20.0))
             .child(
                 div()
-                    .h(px(44.0))
+                    .h(scale.px(44.0))
                     .flex()
-                    .gap(px(4.0))
+                    .gap(scale.px(4.0))
                     .border_b_1()
                     .border_color(colors.outline_variant)
                     .children(
@@ -2657,7 +2661,7 @@ impl AppShell {
                             div()
                                 .id(("settings-tab", index))
                                 .h_full()
-                                .px(px(16.0))
+                                .px(scale.px(16.0))
                                 .flex()
                                 .items_center()
                                 .cursor_pointer()
@@ -2691,11 +2695,11 @@ impl AppShell {
             )
             .child(
                 div()
-                    .p(px(24.0))
+                    .p(scale.px(24.0))
                     .flex()
                     .flex_col()
-                    .gap(px(18.0))
-                    .rounded(px(16.0))
+                    .gap(scale.px(18.0))
+                    .rounded(scale.px(16.0))
                     .bg(colors.surface_container_low)
                     .child(content),
             )
@@ -2703,15 +2707,15 @@ impl AppShell {
                 div()
                     .flex()
                     .justify_end()
-                    .gap(px(16.0))
+                    .gap(scale.px(16.0))
                     .child(
                         div()
                             .id("discard-settings")
-                            .h(px(40.0))
-                            .px(px(18.0))
+                            .h(scale.px(40.0))
+                            .px(scale.px(18.0))
                             .flex()
                             .items_center()
-                            .rounded(px(20.0))
+                            .rounded(scale.px(20.0))
                             .opacity(if dirty { 1.0 } else { 0.38 })
                             .child(self.text("Discard"))
                             .when(dirty, |button| {
@@ -2739,11 +2743,11 @@ impl AppShell {
                     .child(
                         div()
                             .id("save-settings")
-                            .h(px(40.0))
-                            .px(px(20.0))
+                            .h(scale.px(40.0))
+                            .px(scale.px(20.0))
                             .flex()
                             .items_center()
-                            .rounded(px(20.0))
+                            .rounded(scale.px(20.0))
                             .opacity(if dirty { 1.0 } else { 0.38 })
                             .bg(colors.primary)
                             .text_color(colors.on_primary)
@@ -2774,16 +2778,17 @@ impl AppShell {
     }
 
     fn general_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let projects = self.model.projects.clone();
         let current_currency = self.settings_draft.currency_preference;
         div()
             .flex()
             .flex_col()
-            .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child(self.text("General")))
+            .gap(scale.px(14.0))
+            .child(div().text_size(scale.px(18.0)).child(self.text("General")))
             .child(self.text("Default Project"))
             .child(
-                div().flex().flex_wrap().gap(px(8.0)).children(
+                div().flex().flex_wrap().gap(scale.px(8.0)).children(
                     projects
                         .into_iter()
                         .filter(|project| project.is_active)
@@ -2797,6 +2802,7 @@ impl AppShell {
                                 project.name,
                                 selected,
                                 colors,
+                                scale,
                             )
                             .on_click(cx.listener(
                                 move |shell, _, _, cx| {
@@ -2809,7 +2815,7 @@ impl AppShell {
             )
             .child(self.text("Currency"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("SEK", CurrencyPreference::Sek),
                         ("EUR", CurrencyPreference::Eur),
@@ -2827,6 +2833,7 @@ impl AppShell {
                             label,
                             current_currency == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             if shell.settings_draft.currency_preference != value {
@@ -2842,17 +2849,18 @@ impl AppShell {
     }
 
     fn schedule_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let weekdays = self.settings_draft.expected_hours.working_weekdays.clone();
         div()
             .flex()
             .flex_col()
-            .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child(self.text("Schedule")))
+            .gap(scale.px(14.0))
+            .child(div().text_size(scale.px(18.0)).child(self.text("Schedule")))
             .child(self.text("Hours per workday"))
             .child(self.settings_inputs.expected_hours.clone())
             .child(self.text("Scheduled Weekdays"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("Mon", 1_u32),
                         ("Tue", 2),
@@ -2871,6 +2879,7 @@ impl AppShell {
                             label,
                             weekdays.contains(&day),
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             let days = &mut shell.settings_draft.expected_hours.working_weekdays;
@@ -2889,7 +2898,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .min_h(px(48.0))
+                    .min_h(scale.px(48.0))
                     .flex()
                     .items_center()
                     .justify_between()
@@ -2905,15 +2914,20 @@ impl AppShell {
     }
 
     fn overtime_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let overtime = self.settings_draft.overtime_compensation.clone();
         div()
             .flex()
             .flex_col()
-            .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child(self.text("Overtime & OB")))
+            .gap(scale.px(14.0))
+            .child(
+                div()
+                    .text_size(scale.px(18.0))
+                    .child(self.text("Overtime & OB")),
+            )
             .child(self.text("Compensation Mode"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("Comp time", OvertimeCompensationMode::CompTime),
                         ("Direct salary", OvertimeCompensationMode::Paid),
@@ -2927,6 +2941,7 @@ impl AppShell {
                             label,
                             overtime.mode == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell.settings_draft.overtime_compensation.mode = value;
@@ -2937,7 +2952,7 @@ impl AppShell {
             )
             .child(self.text("Overtime threshold"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("Fixed daily hours", OvertimeThresholdMode::FixedDailyHours),
                         ("Scheduled hours", OvertimeThresholdMode::ScheduledHours),
@@ -2951,6 +2966,7 @@ impl AppShell {
                             label,
                             overtime.threshold_mode == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell.settings_draft.overtime_compensation.threshold_mode = value;
@@ -2963,7 +2979,7 @@ impl AppShell {
             .child(self.settings_inputs.overtime_threshold.clone())
             .child(self.text("OB During Overtime"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("Exclude", ObOvertimeCombinationMode::ExcludeOb),
                         ("Include", ObOvertimeCombinationMode::IncludeOb),
@@ -2977,6 +2993,7 @@ impl AppShell {
                             label,
                             overtime.ob_overtime_combination == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell
@@ -2990,7 +3007,7 @@ impl AppShell {
             )
             .child(self.text("Default paid-overtime rate"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         (
                             "Premium percent",
@@ -3011,6 +3028,7 @@ impl AppShell {
                             label,
                             overtime.default_rate_type == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell.settings_draft.overtime_compensation.default_rate_type = value;
@@ -3023,11 +3041,11 @@ impl AppShell {
             .child(
                 div()
                     .id("add-overtime-rule")
-                    .h(px(38.0))
-                    .px(px(14.0))
+                    .h(scale.px(38.0))
+                    .px(scale.px(14.0))
                     .flex()
                     .items_center()
-                    .rounded(px(19.0))
+                    .rounded(scale.px(19.0))
                     .cursor_pointer()
                     .bg(colors.secondary_container)
                     .hover(move |style| {
@@ -3053,11 +3071,11 @@ impl AppShell {
             .child(
                 div()
                     .id("add-ob-rule")
-                    .h(px(38.0))
-                    .px(px(14.0))
+                    .h(scale.px(38.0))
+                    .px(scale.px(14.0))
                     .flex()
                     .items_center()
-                    .rounded(px(19.0))
+                    .rounded(scale.px(19.0))
                     .cursor_pointer()
                     .bg(colors.secondary_container)
                     .hover(move |style| {
@@ -3088,16 +3106,16 @@ impl AppShell {
                     .map(|(index, band)| {
                         let inputs = &self.rate_band_inputs[index];
                         div()
-                            .p(px(16.0))
+                            .p(scale.px(16.0))
                             .flex()
                             .flex_col()
-                            .gap(px(10.0))
-                            .rounded(px(12.0))
+                            .gap(scale.px(10.0))
+                            .rounded(scale.px(12.0))
                             .bg(colors.surface_container)
                             .child(
                                 div()
                                     .flex()
-                                    .gap(px(10.0))
+                                    .gap(scale.px(10.0))
                                     .child(div().flex_1().child(inputs.name.clone()))
                                     .child(
                                         setting_chip(
@@ -3112,6 +3130,7 @@ impl AppShell {
                                             },
                                             true,
                                             colors,
+                                            scale,
                                         )
                                         .on_click(cx.listener(move |shell, _, _, cx| {
                                             if let Some(band) = shell
@@ -3136,7 +3155,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .flex()
-                                    .gap(px(10.0))
+                                    .gap(scale.px(10.0))
                                     .child(div().flex_1().child(inputs.start.clone()))
                                     .child(div().flex_1().child(inputs.end.clone()))
                                     .child(div().flex_1().child(inputs.value.clone())),
@@ -3145,7 +3164,7 @@ impl AppShell {
                                 div()
                                     .flex()
                                     .items_center()
-                                    .gap(px(10.0))
+                                    .gap(scale.px(10.0))
                                     .child(
                                         setting_chip(
                                             self.ui_language(),
@@ -3153,6 +3172,7 @@ impl AppShell {
                                             overtime_day_category_label(band.day_category),
                                             false,
                                             colors,
+                                            scale,
                                         )
                                         .on_click(cx.listener(move |shell, _, _, cx| {
                                             shell.cycle_band_day(index);
@@ -3176,6 +3196,7 @@ impl AppShell {
                                             },
                                             false,
                                             colors,
+                                            scale,
                                         )
                                         .on_click(cx.listener(move |shell, _, _, cx| {
                                             if let Some(band) = shell
@@ -3203,11 +3224,11 @@ impl AppShell {
                                     .child(
                                         div()
                                             .id(("remove-band", index))
-                                            .h(px(40.0))
-                                            .px(px(10.0))
+                                            .h(scale.px(40.0))
+                                            .px(scale.px(10.0))
                                             .flex()
                                             .items_center()
-                                            .rounded(px(20.0))
+                                            .rounded(scale.px(20.0))
                                             .cursor_pointer()
                                             .text_color(colors.error)
                                             .hover(move |style| {
@@ -3249,16 +3270,21 @@ impl AppShell {
     }
 
     fn salary_tax_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let salary = self.settings_draft.salary.clone();
         let tax = self.settings_draft.tax_settings.clone();
         div()
             .flex()
             .flex_col()
-            .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child(self.text("Salary & Tax")))
+            .gap(scale.px(14.0))
+            .child(
+                div()
+                    .text_size(scale.px(18.0))
+                    .child(self.text("Salary & Tax")),
+            )
             .child(self.text("Salary Model"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("Hourly", SalaryType::Hourly),
                         ("Monthly", SalaryType::Monthly),
@@ -3272,6 +3298,7 @@ impl AppShell {
                             label,
                             salary.salary_type == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell.settings_draft.salary.salary_type = value;
@@ -3288,7 +3315,7 @@ impl AppShell {
             .child(self.settings_inputs.employment_percent.clone())
             .child(self.text("Hourly Pay Basis"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("Regular hours per day", HourlyPayBasis::DailyRegularHours),
                         (
@@ -3305,6 +3332,7 @@ impl AppShell {
                             label,
                             salary.hourly_pay_basis == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell.settings_draft.salary.hourly_pay_basis = value;
@@ -3315,7 +3343,7 @@ impl AppShell {
             )
             .child(self.text("Tax Engine Mode"))
             .child(
-                div().flex().flex_wrap().gap(px(8.0)).children(
+                div().flex().flex_wrap().gap(scale.px(8.0)).children(
                     [
                         ("Disabled", TaxMode::Disabled),
                         ("Primary table", TaxMode::PrimaryIncomeTaxTable),
@@ -3331,6 +3359,7 @@ impl AppShell {
                             label,
                             tax.mode == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell.settings_draft.tax_settings.mode = value;
@@ -3350,16 +3379,21 @@ impl AppShell {
     }
 
     fn application_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let preferences = self.preferences_draft.clone();
         let export_language = self.settings_draft.export_language_preference;
         div()
             .flex()
             .flex_col()
-            .gap(px(14.0))
-            .child(div().text_size(px(18.0)).child(self.text("Application")))
+            .gap(scale.px(14.0))
+            .child(
+                div()
+                    .text_size(scale.px(18.0))
+                    .child(self.text("Application")),
+            )
             .child(self.text("Theme"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("System", ThemePreference::System),
                         ("Light", ThemePreference::Light),
@@ -3374,6 +3408,7 @@ impl AppShell {
                             label,
                             preferences.theme_preference == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell.preferences_draft.theme_preference = value;
@@ -3384,7 +3419,7 @@ impl AppShell {
             )
             .child(self.text("Language"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("System", LanguagePreference::System),
                         ("English", LanguagePreference::English),
@@ -3399,6 +3434,7 @@ impl AppShell {
                             label,
                             preferences.language_preference == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell.preferences_draft.language_preference = value;
@@ -3409,7 +3445,7 @@ impl AppShell {
             )
             .child(self.text("Interface scale"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [80, 90, 100, 110, 125, 150]
                         .into_iter()
                         .enumerate()
@@ -3420,6 +3456,7 @@ impl AppShell {
                                 format!("{value}%"),
                                 preferences.interface_scale_percent == value,
                                 colors,
+                                scale,
                             )
                             .on_click(cx.listener(
                                 move |shell, _, _, cx| {
@@ -3432,7 +3469,7 @@ impl AppShell {
             )
             .child(self.text("Export language"))
             .child(
-                div().flex().gap(px(8.0)).children(
+                div().flex().gap(scale.px(8.0)).children(
                     [
                         ("System", ExportLanguagePreference::System),
                         ("English", ExportLanguagePreference::English),
@@ -3447,6 +3484,7 @@ impl AppShell {
                             label,
                             export_language == value,
                             colors,
+                            scale,
                         )
                         .on_click(cx.listener(move |shell, _, _, cx| {
                             shell.settings_draft.export_language_preference = value;
@@ -3459,13 +3497,13 @@ impl AppShell {
             .child(
                 div()
                     .id("open-data-backups")
-                    .h(px(40.0))
+                    .h(scale.px(40.0))
                     .flex()
                     .items_center()
                     .cursor_pointer()
                     .text_color(colors.primary)
-                    .px(px(12.0))
-                    .rounded(px(20.0))
+                    .px(scale.px(12.0))
+                    .rounded(scale.px(20.0))
                     .hover(move |style| {
                         style.bg(m3_state_layer(
                             colors.surface_container_low,
@@ -5746,6 +5784,7 @@ fn setting_chip(
     label: impl Into<SharedString>,
     selected: bool,
     colors: M3ColorScheme,
+    scale: UiScale,
 ) -> Stateful<gpui::Div> {
     let background = if selected {
         colors.secondary_container
@@ -5759,11 +5798,11 @@ fn setting_chip(
     };
     div()
         .id(id)
-        .h(px(36.0))
-        .px(px(12.0))
+        .h(scale.px(36.0))
+        .px(scale.px(12.0))
         .flex()
         .items_center()
-        .rounded(px(18.0))
+        .rounded(scale.px(18.0))
         .cursor_pointer()
         .bg(background)
         .hover(move |style| style.bg(m3_state_layer(background, foreground, 0.08)))
