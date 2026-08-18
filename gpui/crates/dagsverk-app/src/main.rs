@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use dagsverk_app::{
+    logging,
     platform::{NativeFileDialogService, NativeShellService},
     shell::{AppShell, AppShellServices},
     startup::StartupOptions,
@@ -25,16 +26,32 @@ fn main() {
             std::process::exit(2);
         }
     };
-    let mut runtime = if options.component_gallery {
+    let database_path = if options.component_gallery {
         None
     } else {
-        match create_runtime(&options) {
+        match options.database_path() {
+            Ok(path) => {
+                logging::initialize(&path);
+                Some(path)
+            }
+            Err(error) => {
+                eprintln!("failed to resolve the Dagsverk data path: {error}");
+                std::process::exit(1);
+            }
+        }
+    };
+    logging::info("Dagsverk GPUI Preview starting.");
+    let mut runtime = if let Some(database_path) = database_path {
+        match create_runtime(database_path) {
             Ok(runtime) => Some(runtime),
             Err(error) => {
+                logging::error("Dagsverk initialization failed.", error.as_ref());
                 eprintln!("failed to initialize Dagsverk: {error}");
                 std::process::exit(1);
             }
         }
+    } else {
+        None
     };
 
     Application::new().run(move |cx: &mut App| {
@@ -42,6 +59,7 @@ fn main() {
             .text_system()
             .add_fonts(vec![Cow::Borrowed(ROBOTO), Cow::Borrowed(MATERIAL_SYMBOLS)])
         {
+            logging::error("Bundled font loading failed.", &error);
             eprintln!("failed to load bundled fonts: {error}");
         }
 
@@ -78,6 +96,7 @@ fn main() {
         };
 
         if let Err(error) = result {
+            logging::error("The preview window failed to open.", &error);
             eprintln!("failed to open Dagsverk GPUI Preview: {error}");
             cx.quit();
             return;
@@ -87,10 +106,10 @@ fn main() {
 }
 
 fn create_runtime(
-    options: &StartupOptions,
+    database_path: std::path::PathBuf,
 ) -> Result<(AppModel, AppShellServices), Box<dyn std::error::Error>> {
     let clock = Arc::new(SystemClock);
-    let repository = Arc::new(Database::open(options.database_path()?, SystemClock)?);
+    let repository = Arc::new(Database::open(database_path, SystemClock)?);
     let mut tax = TaxEngine::default();
     tax.register_json(include_str!("../../../../public/tax-data/tax-2026.json"))?;
     let mut model = AppModel::new_with_system_language(

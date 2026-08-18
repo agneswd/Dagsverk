@@ -9,15 +9,6 @@
 - Proposed solution: Apply the shared Material state-layer helper to all remaining clickable surfaces.
 - Test needed: Component interaction tests and light/dark visual review.
 
-## Production shell controls
-
-- Current behavior: The preview loads a real database and renders the first shell, summary, and saved-entry list.
-- Expected parity: Header, navigation, editor, menu, dialog, and keyboard behavior must match Electron.
-- Reason incomplete: The shell is the current M5 vertical slice. Timesheet and administrative views follow in M6 and M7.
-- Files involved: `gpui/crates/dagsverk-app/src/shell.rs`, `gpui/crates/dagsverk-ui/src/`.
-- Proposed solution: Replace each temporary route body with its tested Material 3 view.
-- Test needed: GPUI focus, action, view navigation, and visual comparison tests.
-
 ## Day editor parity
 
 - Current behavior: Status, time, lunch, presets, copy actions, scheduled override, project, day-off reason, notes, reset, pay details, catch-up controls, and Ctrl+S are connected.
