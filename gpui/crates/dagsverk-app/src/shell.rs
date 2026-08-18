@@ -21,7 +21,7 @@ use dagsverk_ui::{
 };
 use gpui::{
     App, AppContext, Context, ElementId, Entity, FocusHandle, Focusable, KeyBinding, Render,
-    SharedString, Stateful, Window, actions, div, prelude::*, px,
+    SharedString, Stateful, Window, WindowAppearance, actions, div, prelude::*, px,
 };
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 
@@ -248,12 +248,16 @@ impl AppShell {
     }
 
     pub fn new(
-        model: AppModel,
+        mut model: AppModel,
         services: AppShellServices,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
         window.set_window_title("Dagsverk GPUI Preview");
+        model.set_system_dark(matches!(
+            window.appearance(),
+            WindowAppearance::Dark | WindowAppearance::VibrantDark
+        ));
         let month_view = cx.new(|_| MonthView::new(month_view_data(&model)));
         let start_input = cx.new(|cx| TextInput::new(cx, "Start time"));
         let end_input = cx.new(|cx| TextInput::new(cx, "End time"));
@@ -293,6 +297,14 @@ impl AppShell {
         cx.subscribe(&month_view, |shell, _, event: &MonthViewEvent, cx| {
             shell.model.open_editor(event.0);
             shell.sync_editor_inputs(cx);
+            shell.refresh_month_view(cx);
+        })
+        .detach();
+        cx.observe_window_appearance(window, |shell, window, cx| {
+            shell.model.set_system_dark(matches!(
+                window.appearance(),
+                WindowAppearance::Dark | WindowAppearance::VibrantDark
+            ));
             shell.refresh_month_view(cx);
         })
         .detach();

@@ -553,6 +553,11 @@ impl AppModel {
         self.update_preferences(preferences)
     }
 
+    pub fn set_system_dark(&mut self, dark: bool) {
+        self.system_dark = dark;
+        self.apply_preferences();
+    }
+
     pub fn save_project(&mut self, mut project: Project) -> Result<()> {
         project.workspace_id = Some(self.active_workspace_id.clone());
         self.repository
@@ -797,14 +802,15 @@ mod tests {
     use dagsverk_core::{
         clock::FixedClock,
         models::{
-            IsoDate, Money, MonthViewPreference, Project, ProjectId, WorkspaceType, YearMonth,
+            IsoDate, Money, MonthViewPreference, Project, ProjectId, ThemePreference,
+            WorkspaceType, YearMonth,
         },
         tax::TaxEngine,
     };
     use dagsverk_data::Database;
     use tempfile::TempDir;
 
-    use super::{AppModel, InitializationState, Language};
+    use super::{AppModel, InitializationState, Language, ResolvedTheme};
 
     const TAX_DATA: &str = include_str!("../../../../../public/tax-data/tax-2026.json");
 
@@ -934,6 +940,11 @@ mod tests {
         let original_theme = model.resolved_theme;
         model.toggle_theme().expect("toggle theme");
         assert_ne!(model.resolved_theme, original_theme);
+        model.preferences.theme_preference = ThemePreference::System;
+        model.set_system_dark(true);
+        assert_eq!(model.resolved_theme, ResolvedTheme::Dark);
+        model.set_system_dark(false);
+        assert_eq!(model.resolved_theme, ResolvedTheme::Light);
         model
             .set_view(MonthViewPreference::Calendar)
             .expect("save view");
