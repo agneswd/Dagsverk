@@ -17,9 +17,9 @@ use dagsverk_data::DataMaintenance;
 use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
     m3::{
-        M3ColorScheme, M3Select, M3SelectEvent, M3Switch, M3SwitchEvent, ResolvedTheme as UiTheme,
-        UiScale, m3_icon, m3_icon_colored, m3_icon_filled, m3_state_layer, menu_elevation,
-        side_sheet_elevation, workspace_menu_elevation,
+        M3ColorScheme, M3Select, M3SelectEvent, M3SnackbarEvent, M3SnackbarHost, M3Switch,
+        M3SwitchEvent, ResolvedTheme as UiTheme, UiScale, m3_icon, m3_icon_colored, m3_icon_filled,
+        m3_state_layer, menu_elevation, side_sheet_elevation, workspace_menu_elevation,
     },
     text_input::{TextInput, TextInputEvent},
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
@@ -238,6 +238,7 @@ pub struct AppShell {
     scheduled_input: Entity<TextInput>,
     scheduled_override_switch: Entity<M3Switch>,
     exclude_holidays_switch: Entity<M3Switch>,
+    snackbar: Entity<M3SnackbarHost>,
     project_name_input: Entity<TextInput>,
     project_color_input: Entity<TextInput>,
     workspace_name_input: Entity<TextInput>,
@@ -421,6 +422,7 @@ impl AppShell {
                 cx,
             )
         });
+        let snackbar = cx.new(|cx| M3SnackbarHost::new(M3ColorScheme::light(), cx));
         let project_name_input = cx.new(|cx| TextInput::new(cx, "Project name"));
         let project_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
         project_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
@@ -520,6 +522,12 @@ impl AppShell {
             },
         )
         .detach();
+        cx.subscribe(&snackbar, |shell, _, _: &M3SnackbarEvent, cx| {
+            shell.notice = None;
+            shell.model.transient_error = None;
+            cx.notify();
+        })
+        .detach();
         cx.subscribe(&notes_input, |shell, _, event: &TextInputEvent, cx| {
             let TextInputEvent::Changed(value) = event;
             if let Some(draft) = shell.model.editor.draft.as_mut() {
@@ -572,6 +580,7 @@ impl AppShell {
             scheduled_input,
             scheduled_override_switch,
             exclude_holidays_switch,
+            snackbar,
             project_name_input,
             project_color_input,
             workspace_name_input,
@@ -4772,6 +4781,20 @@ impl Render for AppShell {
         } else {
             24.0
         };
+        self.snackbar.update(cx, |snackbar, cx| {
+            snackbar.configure(
+                message.clone().map(Into::into),
+                colors,
+                interface_scale(&self.model),
+                [
+                    px(sidebar_width + 24.0 * scale),
+                    px(snackbar_right),
+                    px(24.0 * scale),
+                ],
+                px(560.0 * scale),
+                cx,
+            )
+        });
 
         div()
             .track_focus(&self.focus)
@@ -5412,25 +5435,7 @@ impl Render for AppShell {
                         })),
                 )
             })
-            .when_some(message, |root, message| {
-                root.child(
-                    div()
-                        .absolute()
-                        .bottom(px(24.0 * scale))
-                        .left(px(sidebar_width + 24.0 * scale))
-                        .right(px(snackbar_right))
-                        .max_w(px(560.0 * scale))
-                        .px(px(16.0 * scale))
-                        .min_h(px(48.0 * scale))
-                        .flex()
-                        .items_center()
-                        .rounded(px(4.0 * scale))
-                        .bg(colors.surface_container_highest)
-                        .text_color(colors.on_surface)
-                        .shadow(menu_elevation())
-                        .child(message),
-                )
-            })
+            .child(self.snackbar.clone())
             .when(self.confirm_reset, |root| {
                 root.child(
                     div()

@@ -1,6 +1,6 @@
 use gpui::{
-    App, Context, EventEmitter, FocusHandle, KeyBinding, MouseButton, Render, SharedString, Window,
-    actions, div, prelude::*,
+    App, Context, EventEmitter, FocusHandle, KeyBinding, MouseButton, Pixels, Render, SharedString,
+    Window, actions, div, prelude::*, px,
 };
 
 use super::{M3ColorScheme, ROBOTO_FAMILY, UiScale, m3_focus_shadow};
@@ -198,6 +198,10 @@ pub struct M3SnackbarHost {
     colors: M3ColorScheme,
     dismiss_focus: FocusHandle,
     scale: UiScale,
+    left: Pixels,
+    right: Pixels,
+    bottom: Pixels,
+    max_width: Pixels,
 }
 
 impl M3SnackbarHost {
@@ -207,12 +211,15 @@ impl M3SnackbarHost {
             colors,
             dismiss_focus: cx.focus_handle().tab_index(0),
             scale: UiScale::default(),
+            left: px(24.0),
+            right: px(24.0),
+            bottom: px(24.0),
+            max_width: px(560.0),
         }
     }
 
     pub fn show(&mut self, message: impl Into<SharedString>, cx: &mut Context<Self>) {
-        self.message = Some(message.into());
-        cx.notify();
+        self.set_message(Some(message.into()), cx);
     }
 
     pub fn is_visible(&self) -> bool {
@@ -227,6 +234,37 @@ impl M3SnackbarHost {
     pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
         self.scale = scale;
         cx.notify();
+    }
+
+    pub fn configure(
+        &mut self,
+        message: Option<SharedString>,
+        colors: M3ColorScheme,
+        scale: UiScale,
+        insets: [Pixels; 3],
+        max_width: Pixels,
+        cx: &mut Context<Self>,
+    ) {
+        let changed = self.message != message
+            || self.colors != colors
+            || self.scale != scale
+            || [self.left, self.right, self.bottom] != insets
+            || self.max_width != max_width;
+        self.message = message;
+        self.colors = colors;
+        self.scale = scale;
+        [self.left, self.right, self.bottom] = insets;
+        self.max_width = max_width;
+        if changed {
+            cx.notify();
+        }
+    }
+
+    fn set_message(&mut self, message: Option<SharedString>, cx: &mut Context<Self>) {
+        if self.message != message {
+            self.message = message;
+            cx.notify();
+        }
     }
 
     fn dismiss(&mut self, cx: &mut Context<Self>) {
@@ -249,8 +287,10 @@ impl Render for M3SnackbarHost {
                 root.child(
                     div()
                         .absolute()
-                        .left(scale.px(24.0))
-                        .bottom(scale.px(24.0))
+                        .left(self.left)
+                        .right(self.right)
+                        .bottom(self.bottom)
+                        .max_w(self.max_width)
                         .min_w(scale.px(320.0))
                         .h(scale.px(48.0))
                         .px(scale.px(16.0))
