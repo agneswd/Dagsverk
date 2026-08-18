@@ -65,11 +65,13 @@ impl MonthView {
     fn ledger(&mut self, cx: &mut Context<Self>) -> gpui::Div {
         let colors = self.data.colors;
         let rows = self.rows();
+        let last_row = rows.len().saturating_sub(1);
         m3_card(colors)
             .overflow_hidden()
             .child(
                 div()
                     .h(px(56.0))
+                    .rounded_t(px(15.0))
                     .px(px(16.0))
                     .grid()
                     .grid_cols(8)
@@ -104,6 +106,7 @@ impl MonthView {
                     .id(("ledger-row", index))
                     .tab_index(0)
                     .h(px(52.0))
+                    .when(index == last_row, |row| row.rounded_b(px(15.0)))
                     .px(px(16.0))
                     .grid()
                     .grid_cols(8)
@@ -162,11 +165,14 @@ impl MonthView {
     fn calendar(&mut self, cx: &mut Context<Self>) -> gpui::Div {
         let colors = self.data.colors;
         let cells = self.calendar_cells();
+        let last_cell = cells.len().saturating_sub(1);
+        let first_bottom_cell = last_cell.saturating_sub(6);
         m3_card(colors)
             .overflow_hidden()
             .child(
                 div()
                     .h(px(40.0))
+                    .rounded_t(px(15.0))
                     .grid()
                     .grid_cols(7)
                     .items_center()
@@ -190,6 +196,8 @@ impl MonthView {
                             .id(("calendar-cell", index))
                             .tab_index(if cell.current_month { 0 } else { -1 })
                             .min_h(px(110.0))
+                            .when(index == first_bottom_cell, |cell| cell.rounded_bl(px(15.0)))
+                            .when(index == last_cell, |cell| cell.rounded_br(px(15.0)))
                             .p(px(12.0))
                             .flex()
                             .flex_col()
