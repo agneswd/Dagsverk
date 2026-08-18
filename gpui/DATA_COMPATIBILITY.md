@@ -13,4 +13,6 @@ The Rust schema keeps all current table and column names. It does not add a sche
 
 Legacy migration creates an online SQLite safety backup before it changes tables. Restore validates a temporary candidate, creates a current-data safety backup, removes WAL sidecars, and rolls back after replacement failures.
 
+Tidverk import validates and snapshots the source first. It creates a Dagsverk safety backup before one import transaction. A pristine target uses `ws-default`. A populated target gets a new workspace. The source file remains unchanged.
+
 Do not run Electron Dagsverk and the GPUI preview against the same database during backup, restore, or import.

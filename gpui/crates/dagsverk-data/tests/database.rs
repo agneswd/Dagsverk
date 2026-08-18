@@ -428,3 +428,124 @@ fn legacy_database_migrates_transactionally_with_a_safety_backup() {
                 .contains("before-migration"))
     );
 }
+
+fn create_tidverk(path: &Path, include_project: bool) {
+    let connection = rusqlite::Connection::open(path).expect("Tidverk database");
+    connection
+        .execute_batch(
+            r#"
+            CREATE TABLE Settings (
+              Id INTEGER PRIMARY KEY, EmployeeName TEXT, EmployerName TEXT,
+              DefaultProject TEXT, HourlyRate DECIMAL, ThemePreference INTEGER
+            );
+            CREATE TABLE WorkEntries (
+              Date TEXT PRIMARY KEY, Status INTEGER, StartTime TEXT, EndTime TEXT,
+              LunchMinutes INTEGER, ProjectName TEXT, Notes TEXT,
+              ScheduledMinutesOverride INTEGER, CreatedAt TEXT, UpdatedAt TEXT
+            );
+            CREATE TABLE Months (
+              Year INTEGER, Month INTEGER, OpeningBalanceMinutes INTEGER,
+              ExpectedMinutesOverride INTEGER, OpeningBalanceWasEdited INTEGER,
+              PRIMARY KEY (Year, Month)
+            );
+            CREATE TABLE Projects (
+              Id TEXT PRIMARY KEY, Name TEXT, IsActive INTEGER, IsDefault INTEGER
+            );
+            INSERT INTO Settings VALUES (1,'Tidverk Worker','Tidverk Employer','Imported',275.5,2);
+            INSERT INTO WorkEntries VALUES (
+              '2026-08-17',1,'08:00:00','17:00:00',30,'Imported','note',0,
+              '2026-08-17T10:00:00Z','2026-08-17T10:00:00Z'
+            );
+            INSERT INTO Months VALUES (2026,8,30,6000,1);
+            "#,
+        )
+        .expect("Tidverk schema");
+    if include_project {
+        connection
+            .execute(
+                "INSERT INTO Projects VALUES ('tidverk-project','Imported',1,1)",
+                [],
+            )
+            .expect("Tidverk project");
+    }
+}
+
+#[test]
+fn tidverk_import_uses_pristine_workspace_and_preserves_source() {
+    let (directory, database) = database();
+    let source = directory.path().join("tidverk.db");
+    create_tidverk(&source, true);
+    let source_before = fs::read(&source).expect("source bytes");
+
+    let result = database.import_tidverk(&source).expect("Tidverk import");
+    assert_eq!(result.workspace_id, "ws-default");
+    assert_eq!(result.workspace_name, "Tidverk Employer");
+    assert_eq!(
+        (result.entry_count, result.month_count, result.project_count),
+        (1, 1, 1)
+    );
+    assert!(result.source_backup_path.exists());
+    assert!(result.safety_backup_path.exists());
+    assert_eq!(fs::read(&source).expect("source bytes"), source_before);
+
+    let workspace = WorkspaceId::new("ws-default").expect("workspace");
+    assert_eq!(
+        database
+            .load_settings(&workspace)
+            .expect("settings")
+            .employee_name,
+        "Tidverk Worker"
+    );
+    assert_eq!(
+        database
+            .load_settings(&workspace)
+            .expect("settings")
+            .salary
+            .hourly_rate
+            .decimal(),
+        Decimal::new(2755, 1)
+    );
+    assert_eq!(
+        database.list_projects(&workspace).expect("projects").len(),
+        1
+    );
+    assert_eq!(
+        database
+            .load_entries(&workspace, YearMonth::new(2026, 8).expect("month"))
+            .expect("entries")[0]
+            .scheduled_minutes_override,
+        Some(Minutes::ZERO)
+    );
+    assert!(
+        database
+            .load_preferences()
+            .expect("preferences")
+            .has_completed_setup
+    );
+}
+
+#[test]
+fn tidverk_import_creates_workspace_and_default_project_when_target_is_not_pristine() {
+    let (directory, database) = database();
+    let default_workspace = WorkspaceId::new("ws-default").expect("workspace");
+    database
+        .save_entry(&default_workspace, &entry("2026-08-01", None))
+        .expect("make target non-pristine");
+    let source = directory.path().join("tidverk-empty-projects.db");
+    create_tidverk(&source, false);
+
+    let result = database.import_tidverk(&source).expect("Tidverk import");
+    assert_ne!(result.workspace_id, "ws-default");
+    assert_eq!(database.list_workspaces().expect("workspaces").len(), 2);
+    let imported = WorkspaceId::new(result.workspace_id).expect("workspace");
+    let projects = database.list_projects(&imported).expect("projects");
+    assert_eq!(projects.len(), 1);
+    assert!(projects[0].is_default);
+    assert_eq!(
+        database
+            .load_entries(&default_workspace, YearMonth::new(2026, 8).expect("month"))
+            .expect("entries")
+            .len(),
+        1
+    );
+}

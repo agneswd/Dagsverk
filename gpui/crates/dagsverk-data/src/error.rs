@@ -33,6 +33,12 @@ pub enum DataError {
     Integrity(String),
     #[error("the selected file is not a Dagsverk database")]
     NotDagsverkDatabase,
+    #[error("the selected file is not a supported Tidverk database")]
+    NotTidverkDatabase,
+    #[error("select the Tidverk database, not the current Dagsverk database")]
+    SameDatabase,
+    #[error("the Tidverk database does not contain settings")]
+    MissingTidverkSettings,
 }
 
 pub type Result<T> = std::result::Result<T, DataError>;
