@@ -216,6 +216,17 @@ impl AppShell {
         let workspace_organization_input = cx.new(|cx| TextInput::new(cx, "Organization"));
         let workspace_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
         workspace_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
+        if !model.preferences.has_completed_setup
+            && let Some(workspace) = model.active_workspace()
+        {
+            workspace_name_input.update(cx, |input, cx| input.set_text(workspace.name.clone(), cx));
+            workspace_worker_input.update(cx, |input, cx| {
+                input.set_text(workspace.worker_name.clone().unwrap_or_default(), cx)
+            });
+            workspace_organization_input.update(cx, |input, cx| {
+                input.set_text(workspace.organization_name.clone().unwrap_or_default(), cx)
+            });
+        }
         let settings_inputs = SettingsInputs::new(&model.settings, cx);
         let settings_draft = model.settings.clone();
         let preferences_draft = model.preferences.clone();
@@ -661,6 +672,73 @@ impl AppShell {
                 self.workspace_name_input
                     .update(cx, |input, cx| input.set_text("", cx));
                 self.notice = Some("Workspace created.".to_owned());
+            }
+            Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        cx.notify();
+    }
+
+    fn save_setup(&mut self, cx: &mut Context<Self>) {
+        let name = self.workspace_name_input.read(cx).text().trim().to_owned();
+        if name.is_empty() {
+            self.model.transient_error = Some("Enter a workspace name.".to_owned());
+            cx.notify();
+            return;
+        }
+        let hours = parse_non_negative_decimal(self.settings_inputs.expected_hours.read(cx).text());
+        let salary_input = if self.settings_draft.salary.salary_type == SalaryType::Hourly {
+            &self.settings_inputs.hourly_rate
+        } else {
+            &self.settings_inputs.monthly_salary
+        };
+        let salary = parse_non_negative_decimal(salary_input.read(cx).text());
+        let (Ok(hours), Ok(salary)) = (hours, salary) else {
+            self.model.transient_error = Some("Enter valid non-negative hours and pay.".to_owned());
+            cx.notify();
+            return;
+        };
+        let Some(mut workspace) = self.model.active_workspace().cloned() else {
+            self.model.transient_error = Some("The active workspace is unavailable.".to_owned());
+            cx.notify();
+            return;
+        };
+        workspace.name = name;
+        workspace.workspace_type = self.new_workspace_type;
+        workspace.worker_name = nonempty(self.workspace_worker_input.read(cx).text());
+        workspace.organization_name = if self.new_workspace_type == WorkspaceType::Personal {
+            None
+        } else {
+            nonempty(self.workspace_organization_input.read(cx).text())
+        };
+        let mut settings = self.model.settings.clone();
+        settings.expected_hours.hours_per_workday = hours;
+        settings.salary.salary_type = self.settings_draft.salary.salary_type;
+        if settings.salary.salary_type == SalaryType::Hourly {
+            settings.salary.hourly_rate = Money::new(salary);
+        } else {
+            settings.salary.monthly_salary = Money::new(salary);
+        }
+        let mut preferences = self.model.preferences.clone();
+        preferences.language_preference = self.preferences_draft.language_preference;
+        preferences.has_completed_setup = true;
+
+        let result = self
+            .model
+            .save_workspace(workspace)
+            .and_then(|()| self.model.update_settings(settings))
+            .and_then(|()| self.model.update_preferences(preferences));
+        match result {
+            Ok(()) => {
+                self.settings_draft = self.model.settings.clone();
+                self.preferences_draft = self.model.preferences.clone();
+                self.workspace_name_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.workspace_worker_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.workspace_organization_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.notice = Some("Setup complete.".to_owned());
+                self.refresh_month_view(cx);
             }
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
@@ -1390,6 +1468,165 @@ impl AppShell {
                                         )
                                 },
                             )),
+                    ),
+            )
+    }
+
+    fn setup_dialog(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let salary_type = self.settings_draft.salary.salary_type;
+        let language = self.preferences_draft.language_preference;
+        div()
+            .absolute()
+            .inset_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(gpui::black().opacity(0.55))
+            .child(
+                div()
+                    .w(px(760.0))
+                    .p(px(28.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(18.0))
+                    .rounded(px(28.0))
+                    .bg(colors.surface_container_high)
+                    .child(div().text_size(px(24.0)).child("Set up Dagsverk"))
+                    .child("Set the identity, schedule, and pay defaults for your first workspace.")
+                    .child(
+                        div()
+                            .grid()
+                            .grid_cols(2)
+                            .gap(px(16.0))
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(10.0))
+                                    .child("Workspace name")
+                                    .child(self.workspace_name_input.clone())
+                                    .child("Worker name")
+                                    .child(self.workspace_worker_input.clone())
+                                    .when(
+                                        self.new_workspace_type != WorkspaceType::Personal,
+                                        |form| {
+                                            form.child("Organization or client")
+                                                .child(self.workspace_organization_input.clone())
+                                        },
+                                    )
+                                    .child("Hours per workday")
+                                    .child(self.settings_inputs.expected_hours.clone()),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(10.0))
+                                    .child("Workspace type")
+                                    .child(
+                                        div().flex().gap(px(6.0)).children(
+                                            [
+                                                ("Employment", WorkspaceType::Employment),
+                                                ("Contract", WorkspaceType::Contract),
+                                                ("Personal", WorkspaceType::Personal),
+                                            ]
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(
+                                                |(index, (label, value))| {
+                                                    setting_chip(
+                                                        ("setup-workspace-type", index),
+                                                        label,
+                                                        self.new_workspace_type == value,
+                                                        colors,
+                                                    )
+                                                    .on_click(cx.listener(
+                                                        move |shell, _, _, cx| {
+                                                            shell.new_workspace_type = value;
+                                                            cx.notify();
+                                                        },
+                                                    ))
+                                                },
+                                            ),
+                                        ),
+                                    )
+                                    .child("Interface language")
+                                    .child(
+                                        div().flex().gap(px(6.0)).children(
+                                            [
+                                                ("System", LanguagePreference::System),
+                                                ("English", LanguagePreference::English),
+                                                ("Swedish", LanguagePreference::Swedish),
+                                            ]
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(
+                                                |(index, (label, value))| {
+                                                    setting_chip(
+                                                        ("setup-language", index),
+                                                        label,
+                                                        language == value,
+                                                        colors,
+                                                    )
+                                                    .on_click(cx.listener(
+                                                        move |shell, _, _, cx| {
+                                                            shell
+                                                                .preferences_draft
+                                                                .language_preference = value;
+                                                            cx.notify();
+                                                        },
+                                                    ))
+                                                },
+                                            ),
+                                        ),
+                                    )
+                                    .child("Salary model")
+                                    .child(
+                                        div().flex().gap(px(6.0)).children(
+                                            [
+                                                ("Hourly rate", SalaryType::Hourly),
+                                                ("Monthly salary", SalaryType::Monthly),
+                                            ]
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(
+                                                |(index, (label, value))| {
+                                                    setting_chip(
+                                                        ("setup-salary-type", index),
+                                                        label,
+                                                        salary_type == value,
+                                                        colors,
+                                                    )
+                                                    .on_click(cx.listener(
+                                                        move |shell, _, _, cx| {
+                                                            shell
+                                                                .settings_draft
+                                                                .salary
+                                                                .salary_type = value;
+                                                            cx.notify();
+                                                        },
+                                                    ))
+                                                },
+                                            ),
+                                        ),
+                                    )
+                                    .child(if salary_type == SalaryType::Hourly {
+                                        "Hourly rate"
+                                    } else {
+                                        "Monthly salary"
+                                    })
+                                    .child(if salary_type == SalaryType::Hourly {
+                                        self.settings_inputs.hourly_rate.clone()
+                                    } else {
+                                        self.settings_inputs.monthly_salary.clone()
+                                    }),
+                            ),
+                    )
+                    .child(
+                        div().flex().justify_end().child(
+                            maintenance_button("complete-setup", "Save and continue", true, colors)
+                                .on_click(cx.listener(|shell, _, _, cx| shell.save_setup(cx))),
+                        ),
                     ),
             )
     }
@@ -2571,6 +2808,7 @@ impl Render for AppShell {
         let pending_currency = self.pending_currency;
         let restore = self.confirm_restore.clone();
         let tidverk_import = self.confirm_import.clone();
+        let setup_required = !self.model.preferences.has_completed_setup;
 
         div()
             .track_focus(&self.focus)
@@ -3267,8 +3505,11 @@ impl Render for AppShell {
                                                 })),
                                         ),
                                 ),
-                        ),
+                    ),
                 )
+            })
+            .when(setup_required, |root| {
+                root.child(self.setup_dialog(colors, cx))
             })
     }
 }
@@ -3462,6 +3703,11 @@ mod tests {
         cx.run_until_parked();
         assert!(shell.read_with(cx, |shell, _| {
             !shell.maintenance_busy && shell.last_backup.as_ref().is_some_and(|path| path.exists())
+        }));
+
+        shell.update(cx, |shell, cx| shell.save_setup(cx));
+        assert!(shell.read_with(cx, |shell, _| {
+            shell.model.preferences.has_completed_setup
         }));
     }
 
