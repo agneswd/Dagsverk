@@ -39,6 +39,13 @@ impl M3Switch {
         self.checked
     }
 
+    pub fn set_checked(&mut self, checked: bool, cx: &mut Context<Self>) {
+        if self.checked != checked {
+            self.checked = checked;
+            cx.notify();
+        }
+    }
+
     pub fn set_enabled(&mut self, enabled: bool, cx: &mut Context<Self>) {
         self.enabled = enabled;
         cx.notify();

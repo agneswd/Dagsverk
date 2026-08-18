@@ -1,8 +1,8 @@
 use std::{path::PathBuf, sync::Arc};
 
-use chrono::Duration;
+use chrono::{Datelike, Duration};
 use dagsverk_core::{
-    calculations::{calculate_daily_pay, normalize_time},
+    calculations::{calculate_daily_pay, normalize_time, worked_minutes},
     i18n::translate,
     models::{
         AppPreferences, AppSettings, CompensationRateType, CompensationRuleType,
@@ -17,10 +17,11 @@ use dagsverk_data::DataMaintenance;
 use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
     m3::{
-        M3ColorScheme, ResolvedTheme as UiTheme, m3_icon, m3_icon_colored, m3_icon_filled,
-        m3_state_layer, menu_elevation, workspace_menu_elevation,
+        M3ColorScheme, M3Switch, M3SwitchEvent, ResolvedTheme as UiTheme, m3_icon, m3_icon_colored,
+        m3_icon_filled, m3_state_layer, menu_elevation, side_sheet_elevation,
+        workspace_menu_elevation,
     },
-    text_input::TextInput,
+    text_input::{TextInput, TextInputEvent},
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
 };
 use gpui::{
@@ -205,6 +206,7 @@ pub struct AppShell {
     end_input: Entity<TextInput>,
     notes_input: Entity<TextInput>,
     scheduled_input: Entity<TextInput>,
+    scheduled_override_switch: Entity<M3Switch>,
     project_name_input: Entity<TextInput>,
     project_color_input: Entity<TextInput>,
     workspace_name_input: Entity<TextInput>,
@@ -272,6 +274,14 @@ impl AppShell {
         let end_input = cx.new(|cx| TextInput::new(cx, "End time"));
         let notes_input = cx.new(|cx| TextInput::new(cx, "Notes"));
         let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
+        let scheduled_override_switch = cx.new(|cx| {
+            M3Switch::new(
+                "scheduled-override-switch",
+                false,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
         let project_name_input = cx.new(|cx| TextInput::new(cx, "Project name"));
         let project_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
         project_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
@@ -309,6 +319,60 @@ impl AppShell {
             shell.refresh_month_view(cx);
         })
         .detach();
+        cx.subscribe(&start_input, |shell, _, event: &TextInputEvent, cx| {
+            let TextInputEvent::Changed(value) = event;
+            if let Some(time) = normalize_time(value)
+                && let Some(draft) = shell.model.editor.draft.as_mut()
+            {
+                draft.start_time = Some(time);
+                shell.model.editor.validation_error = None;
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&end_input, |shell, _, event: &TextInputEvent, cx| {
+            let TextInputEvent::Changed(value) = event;
+            if let Some(time) = normalize_time(value)
+                && let Some(draft) = shell.model.editor.draft.as_mut()
+            {
+                draft.end_time = Some(time);
+                shell.model.editor.validation_error = None;
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&scheduled_input, |shell, _, event: &TextInputEvent, cx| {
+            let TextInputEvent::Changed(value) = event;
+            if let Ok(minutes) = parse_scheduled_minutes(value)
+                && let Some(draft) = shell.model.editor.draft.as_mut()
+                && draft.scheduled_minutes_override.is_some()
+            {
+                draft.scheduled_minutes_override = Some(minutes);
+                shell.model.editor.validation_error = None;
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(
+            &scheduled_override_switch,
+            |shell, _, event: &M3SwitchEvent, cx| {
+                if let Some(draft) = shell.model.editor.draft.as_mut() {
+                    draft.scheduled_minutes_override =
+                        if event.0 { Some(Minutes::ZERO) } else { None };
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(&notes_input, |shell, _, event: &TextInputEvent, cx| {
+            let TextInputEvent::Changed(value) = event;
+            if let Some(draft) = shell.model.editor.draft.as_mut() {
+                let value = value.trim();
+                draft.notes = (!value.is_empty()).then(|| value.to_owned());
+            }
+            cx.notify();
+        })
+        .detach();
         cx.observe_window_appearance(window, |shell, window, cx| {
             shell.model.set_system_dark(matches!(
                 window.appearance(),
@@ -325,6 +389,7 @@ impl AppShell {
             end_input,
             notes_input,
             scheduled_input,
+            scheduled_override_switch,
             project_name_input,
             project_color_input,
             workspace_name_input,
@@ -444,6 +509,10 @@ impl AppShell {
         );
         self.scheduled_input
             .update(cx, |input, cx| input.set_text(scheduled, cx));
+        self.scheduled_override_switch.update(cx, |switch, cx| {
+            switch.set_checked(draft.scheduled_minutes_override.is_some(), cx);
+            switch.set_colors(colors, cx);
+        });
     }
 
     fn save_editor(&mut self, cx: &mut Context<Self>) {
@@ -2759,6 +2828,14 @@ impl AppShell {
         let lunch = draft.lunch_minutes.value();
         let scheduled_override = draft.scheduled_minutes_override.is_some();
         let projects = self.model.projects.clone();
+        let currency = match self.model.settings.currency_preference {
+            CurrencyPreference::Sek => "SEK",
+            CurrencyPreference::Eur => "EUR",
+            CurrencyPreference::Usd => "USD",
+            CurrencyPreference::Gbp => "GBP",
+            CurrencyPreference::Nok => "NOK",
+            CurrencyPreference::Dkk => "DKK",
+        };
         let daily_pay = calculate_daily_pay(
             draft,
             &self.model.settings.expected_hours,
@@ -2767,30 +2844,69 @@ impl AppShell {
             dagsverk_core::holidays::SwedishHolidayCalendar,
         );
         let error = self.model.editor.validation_error.clone();
+        let date_title = format_editor_date(date, self.model.language);
+        let holiday = dagsverk_core::holidays::SwedishHolidayCalendar.holiday_name(date);
+        let effective_hours = Decimal::new(worked_minutes(draft).value(), 0) / Decimal::new(60, 0);
+        let premium_pay = daily_pay.overtime_pay.decimal() + daily_pay.ob_pay.decimal();
         div()
-            .w(px(400.0))
+            .w(px(416.0))
             .h_full()
             .flex_none()
             .flex()
             .flex_col()
-            .border_l_1()
-            .border_color(colors.outline_variant)
-            .bg(colors.surface_container_lowest)
+            .bg(colors.surface_container_low)
+            .shadow(side_sheet_elevation())
             .child(
                 div()
                     .h(px(64.0))
-                    .px(px(24.0))
+                    .min_h(px(64.0))
+                    .pl(px(24.0))
+                    .pr(px(16.0))
                     .flex()
                     .items_center()
                     .justify_between()
                     .border_b_1()
                     .border_color(colors.grid_line)
-                    .child(div().text_size(px(18.0)).child(date.to_string()))
+                    .bg(colors.surface_container)
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .text_size(px(18.0))
+                                    .font_weight(gpui::FontWeight::MEDIUM)
+                                    .truncate()
+                                    .child(date_title),
+                            )
+                            .when_some(holiday, |header, holiday| {
+                                header.child(
+                                    div()
+                                        .px(px(8.0))
+                                        .py(px(2.0))
+                                        .rounded(px(12.0))
+                                        .bg(colors.warning_container)
+                                        .text_color(colors.on_warning_container)
+                                        .text_size(px(12.0))
+                                        .child(holiday),
+                                )
+                            }),
+                    )
                     .child(
                         div()
                             .id("close-editor")
+                            .size(px(40.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_full()
                             .cursor_pointer()
-                            .child(m3_icon("close", 24.0, colors))
+                            .hover(|style| style.bg(colors.surface_container_high))
+                            .active(|style| style.bg(colors.surface_container_highest))
+                            .child(m3_icon("close", 20.0, colors))
                             .on_click(cx.listener(|shell, _, _, cx| {
                                 shell.model.close_catch_up();
                                 shell.refresh_month_view(cx);
@@ -2807,7 +2923,7 @@ impl AppShell {
                     .p(px(24.0))
                     .flex()
                     .flex_col()
-                    .gap(px(18.0))
+                    .gap(px(24.0))
                     .child(self.text("Status"))
                     .child(
                         div()
@@ -2817,35 +2933,64 @@ impl AppShell {
                             .border_color(colors.outline_variant)
                             .children(
                                 [
-                                    ("status-worked", "Worked", WorkEntryStatus::Worked),
-                                    ("status-off", "Day Off", WorkEntryStatus::Off),
-                                    ("status-incomplete", "Unlogged", WorkEntryStatus::Incomplete),
+                                    ("status-worked", "check", "Worked", WorkEntryStatus::Worked),
+                                    (
+                                        "status-off",
+                                        "beach_access",
+                                        "Day Off",
+                                        WorkEntryStatus::Off,
+                                    ),
+                                    (
+                                        "status-incomplete",
+                                        "remove",
+                                        "Unlogged",
+                                        WorkEntryStatus::Incomplete,
+                                    ),
                                 ]
                                 .into_iter()
-                                .map(|(id, label, value)| {
-                                    div()
-                                        .id(id)
-                                        .h(px(40.0))
-                                        .px(px(12.0))
-                                        .flex_1()
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .cursor_pointer()
-                                        .rounded(px(18.0))
-                                        .bg(if status == value {
-                                            colors.secondary_container
+                                .enumerate()
+                                .map(
+                                    |(index, (id, icon, label, value))| {
+                                        let selected = status == value;
+                                        let foreground = if selected {
+                                            colors.on_secondary_container
                                         } else {
-                                            colors.surface_container_lowest
-                                        })
-                                        .child(label)
-                                        .on_click(cx.listener(move |shell, _, _, cx| {
-                                            if let Some(draft) = shell.model.editor.draft.as_mut() {
-                                                draft.status = value;
-                                            }
-                                            cx.notify();
-                                        }))
-                                }),
+                                            colors.on_surface_variant
+                                        };
+                                        div()
+                                            .id(id)
+                                            .h(px(40.0))
+                                            .px(px(12.0))
+                                            .flex_1()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .gap(px(8.0))
+                                            .cursor_pointer()
+                                            .when(index > 0, |segment| {
+                                                segment
+                                                    .border_l_1()
+                                                    .border_color(colors.outline_variant)
+                                            })
+                                            .bg(if selected {
+                                                colors.secondary_container
+                                            } else {
+                                                colors.surface_container_low
+                                            })
+                                            .text_color(foreground)
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .child(m3_icon_colored(icon, 18.0, foreground))
+                                            .child(label)
+                                            .on_click(cx.listener(move |shell, _, _, cx| {
+                                                if let Some(draft) =
+                                                    shell.model.editor.draft.as_mut()
+                                                {
+                                                    draft.status = value;
+                                                }
+                                                cx.notify();
+                                            }))
+                                    },
+                                ),
                             ),
                     )
                     .child(self.text("Reuse"))
@@ -2943,10 +3088,31 @@ impl AppShell {
                                     ),
                                 ),
                             )
-                            .child(self.text("Start Time"))
-                            .child(self.start_input.clone())
-                            .child(self.text("End Time"))
-                            .child(self.end_input.clone())
+                            .child(
+                                div()
+                                    .flex()
+                                    .gap(px(12.0))
+                                    .child(
+                                        div()
+                                            .min_w_0()
+                                            .flex_1()
+                                            .flex()
+                                            .flex_col()
+                                            .gap(px(8.0))
+                                            .child(self.text("Start Time"))
+                                            .child(self.start_input.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .min_w_0()
+                                            .flex_1()
+                                            .flex()
+                                            .flex_col()
+                                            .gap(px(8.0))
+                                            .child(self.text("End Time"))
+                                            .child(self.end_input.clone()),
+                                    ),
+                            )
                             .child(self.text("Lunch Break"))
                             .child(div().flex().gap(px(8.0)).children(
                                 [0_i64, 30, 45, 60].into_iter().map(|minutes| {
@@ -2974,25 +3140,12 @@ impl AppShell {
                             ))
                             .child(
                                 div()
-                                    .id("scheduled-override")
-                                    .h(px(40.0))
+                                    .min_h(px(48.0))
                                     .flex()
                                     .items_center()
                                     .justify_between()
-                                    .cursor_pointer()
                                     .child(self.text("Override scheduled hours"))
-                                    .child(if scheduled_override { "On" } else { "Off" })
-                                    .on_click(cx.listener(|shell, _, _, cx| {
-                                        if let Some(draft) = shell.model.editor.draft.as_mut() {
-                                            draft.scheduled_minutes_override =
-                                                if draft.scheduled_minutes_override.is_some() {
-                                                    None
-                                                } else {
-                                                    Some(Minutes::ZERO)
-                                                };
-                                        }
-                                        cx.notify();
-                                    })),
+                                    .child(self.scheduled_override_switch.clone()),
                             )
                             .when(scheduled_override, |panel| {
                                 panel.child(self.scheduled_input.clone())
@@ -3071,13 +3224,42 @@ impl AppShell {
                     })
                     .child(
                         div()
-                            .p(px(14.0))
+                            .p(px(16.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(8.0))
                             .rounded(px(12.0))
                             .bg(colors.surface_container)
-                            .child(format!(
-                                "Estimated day pay: {}",
-                                daily_pay.total.decimal().round_dp(2)
-                            )),
+                            .child(
+                                div()
+                                    .flex()
+                                    .justify_between()
+                                    .child(self.text("Effective Hours"))
+                                    .child(format!("{}h", effective_hours.round_dp(2))),
+                            )
+                            .when(premium_pay > Decimal::ZERO, |card| {
+                                card.child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .child(self.text("Overtime & OB"))
+                                        .child(format!("+{} {currency}", premium_pay.round_dp(2))),
+                                )
+                            })
+                            .child(div().h(px(1.0)).bg(colors.grid_line))
+                            .child(
+                                div()
+                                    .flex()
+                                    .justify_between()
+                                    .text_color(colors.primary)
+                                    .text_size(px(16.0))
+                                    .font_weight(gpui::FontWeight::MEDIUM)
+                                    .child(self.text("Estimated Day Pay"))
+                                    .child(format!(
+                                        "{} {currency}",
+                                        daily_pay.total.decimal().round_dp(2)
+                                    )),
+                            ),
                     )
                     .child(self.text("Notes (Optional)"))
                     .child(self.notes_input.clone())
@@ -3087,18 +3269,26 @@ impl AppShell {
             )
             .child(
                 div()
-                    .h(px(72.0))
-                    .px(px(24.0))
+                    .h(px(64.0))
+                    .px(px(16.0))
                     .flex()
                     .items_center()
-                    .justify_between()
+                    .justify_end()
+                    .gap(px(8.0))
                     .border_t_1()
                     .border_color(colors.grid_line)
+                    .bg(colors.surface_container)
                     .child(
                         div()
                             .id("reset-entry")
+                            .h(px(40.0))
+                            .px(px(12.0))
+                            .flex()
+                            .items_center()
+                            .rounded(px(20.0))
                             .cursor_pointer()
                             .text_color(colors.error)
+                            .hover(|style| style.bg(colors.error_container))
                             .child(self.text("Reset"))
                             .on_click(cx.listener(move |shell, _, _, cx| {
                                 if let Err(error) = shell.model.delete_entry(date) {
@@ -3113,7 +3303,13 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("catch-up-back")
+                                    .h(px(40.0))
+                                    .px(px(12.0))
+                                    .flex()
+                                    .items_center()
+                                    .rounded(px(20.0))
                                     .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_high))
                                     .child(self.text("Back"))
                                     .on_click(cx.listener(|shell, _, _, cx| {
                                         shell.model.move_catch_up(-1);
@@ -3125,7 +3321,13 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("catch-up-skip")
+                                    .h(px(40.0))
+                                    .px(px(12.0))
+                                    .flex()
+                                    .items_center()
+                                    .rounded(px(20.0))
                                     .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_high))
                                     .child(self.text("Skip"))
                                     .on_click(cx.listener(|shell, _, _, cx| {
                                         shell.model.move_catch_up(1);
@@ -3138,7 +3340,13 @@ impl AppShell {
                     .child(
                         div()
                             .id("cancel-editor")
+                            .h(px(40.0))
+                            .px(px(12.0))
+                            .flex()
+                            .items_center()
+                            .rounded(px(20.0))
                             .cursor_pointer()
+                            .hover(|style| style.bg(colors.surface_container_high))
                             .child(self.text("Cancel"))
                             .on_click(cx.listener(|shell, _, _, cx| {
                                 shell.model.close_catch_up();
@@ -3150,13 +3358,18 @@ impl AppShell {
                         div()
                             .id("save-entry")
                             .h(px(40.0))
+                            .min_w(px(128.0))
                             .px(px(20.0))
                             .flex()
                             .items_center()
+                            .justify_center()
                             .rounded(px(20.0))
                             .cursor_pointer()
                             .bg(colors.primary)
                             .text_color(colors.on_primary)
+                            .hover(move |style| {
+                                style.bg(m3_state_layer(colors.primary, colors.on_primary, 0.08))
+                            })
                             .child(if self.model.catch_up.is_some() {
                                 self.text("Save and next")
                             } else {
@@ -4554,6 +4767,44 @@ fn format_hours_input(minutes: i64) -> String {
     }
 }
 
+fn format_editor_date(
+    date: dagsverk_core::models::IsoDate,
+    language: crate::state::Language,
+) -> String {
+    let value = date.as_naive_date();
+    let (weekdays, months) = match language {
+        crate::state::Language::English => (
+            [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ],
+            [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+            ],
+        ),
+        crate::state::Language::Swedish => (
+            [
+                "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag", "Söndag",
+            ],
+            [
+                "jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec",
+            ],
+        ),
+    };
+    format!(
+        "{}, {} {} {}",
+        weekdays[value.weekday().num_days_from_monday() as usize],
+        months[value.month0() as usize],
+        value.day(),
+        value.year()
+    )
+}
+
 fn responsive_layout(width: gpui::Pixels, manual_sidebar_collapse: bool) -> (bool, bool) {
     (
         manual_sidebar_collapse || width < px(1200.0),
@@ -4721,8 +4972,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        AppShell, AppShellServices, parse_non_negative_decimal, parse_scheduled_minutes,
-        responsive_layout,
+        AppShell, AppShellServices, format_editor_date, parse_non_negative_decimal,
+        parse_scheduled_minutes, responsive_layout,
     };
     use crate::{
         platform::{
@@ -4872,5 +5123,14 @@ mod tests {
         assert_eq!(responsive_layout(gpui::px(1200.0), false), (false, true));
         assert_eq!(responsive_layout(gpui::px(1600.0), false), (false, false));
         assert_eq!(responsive_layout(gpui::px(1600.0), true), (true, false));
+        let date = "2026-08-18".parse().expect("editor date");
+        assert_eq!(
+            format_editor_date(date, crate::state::Language::English),
+            "Tuesday, Aug 18 2026"
+        );
+        assert_eq!(
+            format_editor_date(date, crate::state::Language::Swedish),
+            "Tisdag, aug 18 2026"
+        );
     }
 }

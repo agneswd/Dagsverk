@@ -9,7 +9,7 @@ use crate::{
         M3ExpansionPanel, M3IconButton, M3Menu, M3SnackbarHost, M3Status, M3Switch, ResolvedTheme,
         m3_card, m3_divider, m3_icon, m3_progress_bar, m3_status_chip,
     },
-    text_input::TextInput,
+    text_input::{TextInput, TextInputEvent},
 };
 
 actions!(component_gallery, [Tab, TabPrevious]);
@@ -28,6 +28,7 @@ pub struct ComponentGallery {
     snackbar: Entity<M3SnackbarHost>,
     theme: ResolvedTheme,
     activations: usize,
+    input_changes: usize,
 }
 
 impl ComponentGallery {
@@ -107,6 +108,12 @@ impl ComponentGallery {
         }
 
         let input = cx.new(|cx| TextInput::new(cx, "Text input"));
+        cx.subscribe(&input, |gallery, _, event: &TextInputEvent, cx| {
+            let TextInputEvent::Changed(_) = event;
+            gallery.input_changes += 1;
+            cx.notify();
+        })
+        .detach();
         let switch = cx.new(|cx| M3Switch::new("gallery-switch", true, colors, cx));
         let chips = vec![
             cx.new(|cx| M3Chip::new("chip-selected", "Selected", true, colors, cx)),
@@ -156,6 +163,7 @@ impl ComponentGallery {
             snackbar,
             theme: ResolvedTheme::Light,
             activations: 0,
+            input_changes: 0,
         }
     }
 
@@ -319,7 +327,7 @@ impl Render for ComponentGallery {
 #[cfg(test)]
 mod tests {
     use super::ComponentGallery;
-    use gpui::{KeyUpEvent, Keystroke, TestAppContext};
+    use gpui::{Focusable, KeyUpEvent, Keystroke, TestAppContext};
 
     #[gpui::test]
     fn gallery_controls_handle_keyboard_focus_and_disabled_state(cx: &mut TestAppContext) {
@@ -332,6 +340,12 @@ mod tests {
         let dialog = gallery.read_with(cx, |gallery, _| gallery.dialog.clone());
         let menu = gallery.read_with(cx, |gallery, _| gallery.menu.clone());
         let snackbar = gallery.read_with(cx, |gallery, _| gallery.snackbar.clone());
+        let input = gallery.read_with(cx, |gallery, _| gallery.input.clone());
+
+        cx.update(|window, app| window.focus(&input.read(app).focus_handle(app)));
+        cx.refresh().expect("refresh focused text input");
+        cx.simulate_keystrokes("a");
+        assert_eq!(gallery.read_with(cx, |gallery, _| gallery.input_changes), 1);
 
         cx.update(|window, app| window.focus(&buttons[1].read(app).focus_handle()));
         cx.refresh().expect("refresh focused button");

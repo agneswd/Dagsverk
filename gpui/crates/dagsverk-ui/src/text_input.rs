@@ -3,11 +3,11 @@
 use std::ops::Range;
 
 use gpui::{
-    App, Bounds, ClipboardItem, Context, CursorStyle, ElementId, ElementInputHandler, Entity,
-    EntityInputHandler, FocusHandle, Focusable, GlobalElementId, InspectorElementId, LayoutId,
-    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point,
-    ShapedLine, SharedString, Style, TextRun, UTF16Selection, UnderlineStyle, Window, actions, div,
-    fill, point, prelude::*, px, relative, size,
+    App, Bounds, BoxShadow, ClipboardItem, Context, CursorStyle, ElementId, ElementInputHandler,
+    Entity, EntityInputHandler, EventEmitter, FocusHandle, Focusable, GlobalElementId,
+    InspectorElementId, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    PaintQuad, Pixels, Point, ShapedLine, SharedString, Style, TextRun, UTF16Selection,
+    UnderlineStyle, Window, actions, div, fill, point, prelude::*, px, relative, size,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -31,6 +31,11 @@ actions!(
         Copy,
     ]
 );
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TextInputEvent {
+    Changed(String),
+}
 
 pub struct TextInput {
     focus_handle: FocusHandle,
@@ -94,6 +99,10 @@ impl TextInput {
             KeyBinding::new("cmd-v", Paste, Some("TextInput")),
             KeyBinding::new("cmd-c", Copy, Some("TextInput")),
             KeyBinding::new("cmd-x", Cut, Some("TextInput")),
+            KeyBinding::new("ctrl-a", SelectAll, Some("TextInput")),
+            KeyBinding::new("ctrl-v", Paste, Some("TextInput")),
+            KeyBinding::new("ctrl-c", Copy, Some("TextInput")),
+            KeyBinding::new("ctrl-x", Cut, Some("TextInput")),
             KeyBinding::new("home", Home, Some("TextInput")),
             KeyBinding::new("end", End, Some("TextInput")),
             KeyBinding::new("ctrl-cmd-space", ShowCharacterPalette, Some("TextInput")),
@@ -350,6 +359,7 @@ impl EntityInputHandler for TextInput {
         let cursor = range.start + new_text.len();
         self.selected_range = cursor..cursor;
         self.marked_range = None;
+        cx.emit(TextInputEvent::Changed(self.content.to_string()));
         cx.notify();
     }
 
@@ -414,6 +424,8 @@ impl EntityInputHandler for TextInput {
         Some(self.offset_to_utf16(index))
     }
 }
+
+impl EventEmitter<TextInputEvent> for TextInput {}
 
 struct TextElement {
     input: Entity<TextInput>,
@@ -588,6 +600,7 @@ impl Element for TextElement {
 impl Render for TextInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focused = self.focus_handle.is_focused(window);
+        let hover_outline = self.colors.on_surface;
         div()
             .key_context("TextInput")
             .track_focus(&self.focus_handle)
@@ -609,18 +622,29 @@ impl Render for TextInput {
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
-            .h(px(52.))
+            .h(px(56.))
             .w_full()
             .px(px(16.))
             .flex()
             .items_center()
             .rounded(px(4.))
-            .border_2()
+            .border_1()
             .border_color(if focused {
                 self.colors.primary
             } else {
                 self.colors.outline
             })
+            .shadow(if focused {
+                vec![BoxShadow {
+                    color: self.colors.primary,
+                    offset: point(px(0.0), px(0.0)),
+                    blur_radius: px(0.0),
+                    spread_radius: px(1.0),
+                }]
+            } else {
+                Vec::new()
+            })
+            .hover(move |style| style.border_color(hover_outline))
             .bg(self.colors.surface_container_lowest)
             .text_color(self.colors.on_surface)
             .text_size(px(16.))
