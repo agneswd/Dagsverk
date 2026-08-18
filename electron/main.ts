@@ -6,7 +6,8 @@ import { DatabaseService } from './database.service';
 import { ExcelExportService } from './excel-export.service';
 import { OdsExportService } from './ods-export.service';
 
-VelopackApp.build().run();
+const benchmarkMode = process.env['DAGSVERK_BENCHMARK'] === '1';
+if (!benchmarkMode) VelopackApp.build().run();
 app.setName('Dagsverk');
 
 let mainWindow: BrowserWindow | null = null;
@@ -90,6 +91,7 @@ async function checkForUpdates(manual: boolean): Promise<void> {
 }
 
 function configureUpdates(): void {
+  if (benchmarkMode) return;
   setTimeout(() => void checkForUpdates(false), 3000);
 }
 
@@ -111,7 +113,8 @@ function createWindow() {
     },
   });
 
-  const isDev = process.env['NODE_ENV'] === 'development' || !app.isPackaged;
+  const isDev =
+    !benchmarkMode && (process.env['NODE_ENV'] === 'development' || !app.isPackaged);
   if (isDev) {
     mainWindow.loadURL('http://localhost:4200');
   } else {
