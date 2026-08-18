@@ -286,6 +286,9 @@ impl AppShell {
         let start_input = cx.new(|cx| TextInput::new(cx, "Start time"));
         let end_input = cx.new(|cx| TextInput::new(cx, "End time"));
         let notes_input = cx.new(|cx| TextInput::new_multiline(cx, "Notes (Optional)"));
+        start_input.update(cx, |input, cx| input.set_leading_icon("schedule", cx));
+        end_input.update(cx, |input, cx| input.set_leading_icon("update", cx));
+        notes_input.update(cx, |input, cx| input.set_leading_icon("edit_note", cx));
         let project_options = editor_project_options(&model);
         let selected_project = model
             .editor
@@ -313,6 +316,7 @@ impl AppShell {
             )
         });
         let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
+        scheduled_input.update(cx, |input, cx| input.set_suffix("hours", cx));
         let scheduled_override_switch = cx.new(|cx| {
             M3Switch::new(
                 "scheduled-override-switch",
@@ -3407,7 +3411,6 @@ impl AppShell {
                                             .flex()
                                             .flex_col()
                                             .gap(px(8.0))
-                                            .child(self.text("Start Time"))
                                             .child(self.start_input.clone()),
                                     )
                                     .child(
@@ -3417,7 +3420,6 @@ impl AppShell {
                                             .flex()
                                             .flex_col()
                                             .gap(px(8.0))
-                                            .child(self.text("End Time"))
                                             .child(self.end_input.clone()),
                                     ),
                             )

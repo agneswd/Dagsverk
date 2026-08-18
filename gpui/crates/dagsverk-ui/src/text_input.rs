@@ -11,7 +11,7 @@ use gpui::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::m3::M3ColorScheme;
+use crate::m3::{M3ColorScheme, m3_icon_colored};
 
 actions!(
     text_input,
@@ -50,6 +50,8 @@ pub struct TextInput {
     is_selecting: bool,
     colors: M3ColorScheme,
     multiline: bool,
+    leading_icon: Option<&'static str>,
+    suffix: Option<SharedString>,
 }
 
 #[derive(Clone)]
@@ -72,6 +74,8 @@ impl TextInput {
             is_selecting: false,
             colors: M3ColorScheme::light(),
             multiline: false,
+            leading_icon: None,
+            suffix: None,
         }
     }
 
@@ -86,6 +90,16 @@ impl TextInput {
             self.colors = colors;
             cx.notify();
         }
+    }
+
+    pub fn set_leading_icon(&mut self, icon: &'static str, cx: &mut Context<Self>) {
+        self.leading_icon = Some(icon);
+        cx.notify();
+    }
+
+    pub fn set_suffix(&mut self, suffix: impl Into<SharedString>, cx: &mut Context<Self>) {
+        self.suffix = Some(suffix.into());
+        cx.notify();
     }
 
     pub fn text(&self) -> &str {
@@ -715,7 +729,8 @@ impl Render for TextInput {
             .w_full()
             .px(px(16.))
             .flex()
-            .flex_col()
+            .items_center()
+            .gap(px(8.0))
             .justify_center()
             .overflow_hidden()
             .rounded(px(4.))
@@ -740,19 +755,37 @@ impl Render for TextInput {
             .text_color(self.colors.on_surface)
             .text_size(px(16.))
             .line_height(px(24.))
+            .when_some(self.leading_icon, |field, icon| {
+                field.child(m3_icon_colored(icon, 20.0, self.colors.on_surface_variant))
+            })
             .child(
                 div()
-                    .text_size(px(12.0))
-                    .line_height(px(16.0))
-                    .text_color(self.colors.on_surface_variant)
-                    .child(self.placeholder.clone()),
+                    .min_w_0()
+                    .flex_1()
+                    .flex()
+                    .flex_col()
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .line_height(px(16.0))
+                            .text_color(self.colors.on_surface_variant)
+                            .child(self.placeholder.clone()),
+                    )
+                    .child(
+                        div()
+                            .h(if self.multiline { px(48.0) } else { px(24.0) })
+                            .w_full()
+                            .child(TextElement { input: cx.entity() }),
+                    ),
             )
-            .child(
-                div()
-                    .h(if self.multiline { px(48.0) } else { px(24.0) })
-                    .w_full()
-                    .child(TextElement { input: cx.entity() }),
-            )
+            .when_some(self.suffix.clone(), |field, suffix| {
+                field.child(
+                    div()
+                        .text_size(px(14.0))
+                        .text_color(self.colors.on_surface_variant)
+                        .child(suffix),
+                )
+            })
     }
 }
 
