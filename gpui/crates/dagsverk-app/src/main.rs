@@ -131,15 +131,9 @@ fn create_runtime(
 }
 
 fn system_language() -> Language {
-    ["LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"]
-        .into_iter()
-        .filter_map(|name| std::env::var(name).ok())
-        .find(|value| !value.trim().is_empty())
-        .map_or(Language::English, |value| {
-            if value.to_ascii_lowercase().starts_with("sv") {
-                Language::Swedish
-            } else {
-                Language::English
-            }
-        })
+    if sys_locale::get_locale().is_some_and(|value| value.to_ascii_lowercase().starts_with("sv")) {
+        Language::Swedish
+    } else {
+        Language::English
+    }
 }
