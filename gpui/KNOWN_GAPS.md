@@ -27,15 +27,6 @@
 - Proposed solution: Use the committed unfocused Niri capture tool and GPUI structural checks now. Add an isolated GPU-backed virtual compositor when available.
 - Test needed: Repeat the capture in an isolated GPU-backed compositor when one is available in CI.
 
-## Day editor parity
-
-- Current behavior: The editor uses a 416px tonal side sheet, multiline notes, floating field labels, anchored project and day-off selects with leading icons, scrollable panels, and full-window outside-click dismissal. It also has a connected status control, a shared switch, live draft/pay updates, and a 64px footer.
-- Expected parity: Fields must show supporting error text within the Material field anatomy.
-- Reason incomplete: Validation messages still appear at the form level instead of beneath their related fields.
-- Files involved: `gpui/crates/dagsverk-app/src/shell.rs`, `gpui/crates/dagsverk-ui/src/text_input.rs`, `gpui/crates/dagsverk-ui/src/m3/select.rs`.
-- Proposed solution: Add field-level error content to the shared outlined field wrapper.
-- Test needed: GPUI editor focus, outside dismissal, validation, save, reset, and catch-up tests.
-
 ## Phase 0 platform proof
 
 - Current behavior: The pinned preview builds, launches, sets its native title, resizes under Niri, and exits cleanly on Linux.

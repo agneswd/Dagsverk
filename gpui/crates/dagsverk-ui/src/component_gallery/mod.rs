@@ -112,6 +112,12 @@ impl ComponentGallery {
 
         let input = cx.new(|cx| TextInput::new(cx, "Text input"));
         let textarea = cx.new(|cx| TextInput::new_multiline(cx, "Notes (Optional)"));
+        input.update(cx, |input, cx| {
+            input.set_error(Some("Example validation error".into()), cx)
+        });
+        textarea.update(cx, |input, cx| {
+            input.set_supporting_text(Some("New lines are preserved.".into()), cx)
+        });
         let select = cx.new(|cx| {
             M3Select::new(
                 "Project",
@@ -364,6 +370,11 @@ mod tests {
         let input = gallery.read_with(cx, |gallery, _| gallery.input.clone());
         let textarea = gallery.read_with(cx, |gallery, _| gallery.textarea.clone());
         let select = gallery.read_with(cx, |gallery, _| gallery.select.clone());
+
+        assert_eq!(
+            input.read_with(cx, |input, _| input.error_text().map(str::to_owned)),
+            Some("Example validation error".to_owned())
+        );
 
         cx.update(|window, app| window.focus(&input.read(app).focus_handle(app)));
         cx.refresh().expect("refresh focused text input");

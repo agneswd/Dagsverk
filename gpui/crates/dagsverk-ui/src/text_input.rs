@@ -52,6 +52,8 @@ pub struct TextInput {
     multiline: bool,
     leading_icon: Option<&'static str>,
     suffix: Option<SharedString>,
+    supporting_text: Option<SharedString>,
+    error_text: Option<SharedString>,
     scale: UiScale,
 }
 
@@ -77,6 +79,8 @@ impl TextInput {
             multiline: false,
             leading_icon: None,
             suffix: None,
+            supporting_text: None,
+            error_text: None,
             scale: UiScale::default(),
         }
     }
@@ -104,6 +108,24 @@ impl TextInput {
         cx.notify();
     }
 
+    pub fn set_supporting_text(
+        &mut self,
+        supporting_text: Option<SharedString>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.supporting_text != supporting_text {
+            self.supporting_text = supporting_text;
+            cx.notify();
+        }
+    }
+
+    pub fn set_error(&mut self, error_text: Option<SharedString>, cx: &mut Context<Self>) {
+        if self.error_text != error_text {
+            self.error_text = error_text;
+            cx.notify();
+        }
+    }
+
     pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
         if self.scale != scale {
             self.scale = scale;
@@ -113,6 +135,10 @@ impl TextInput {
 
     pub fn text(&self) -> &str {
         &self.content
+    }
+
+    pub fn error_text(&self) -> Option<&str> {
+        self.error_text.as_deref().map(|value| &**value)
     }
 
     pub fn set_text(&mut self, text: impl Into<SharedString>, cx: &mut Context<Self>) {
@@ -711,8 +737,20 @@ impl Element for TextElement {
 impl Render for TextInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focused = self.focus_handle.is_focused(window);
-        let hover_outline = self.colors.on_surface;
-        div()
+        let has_error = self.error_text.is_some();
+        let outline = if has_error {
+            self.colors.error
+        } else if focused {
+            self.colors.primary
+        } else {
+            self.colors.outline
+        };
+        let hover_outline = if has_error {
+            self.colors.error
+        } else {
+            self.colors.on_surface
+        };
+        let field = div()
             .key_context("TextInput")
             .track_focus(&self.focus_handle)
             .cursor(CursorStyle::IBeam)
@@ -748,14 +786,10 @@ impl Render for TextInput {
             .overflow_hidden()
             .rounded(self.scale.px(4.0))
             .border_1()
-            .border_color(if focused {
-                self.colors.primary
-            } else {
-                self.colors.outline
-            })
-            .shadow(if focused {
+            .border_color(outline)
+            .shadow(if focused || has_error {
                 vec![BoxShadow {
-                    color: self.colors.primary,
+                    color: outline,
                     offset: point(px(0.0), px(0.0)),
                     blur_radius: px(0.0),
                     spread_radius: self.scale.px(1.0),
@@ -805,6 +839,27 @@ impl Render for TextInput {
                         .text_size(self.scale.px(14.0))
                         .text_color(self.colors.on_surface_variant)
                         .child(suffix),
+                )
+            });
+        let supporting = self.error_text.clone().or(self.supporting_text.clone());
+        div()
+            .w_full()
+            .flex()
+            .flex_col()
+            .gap(self.scale.px(4.0))
+            .child(field)
+            .when_some(supporting, |wrapper, message| {
+                wrapper.child(
+                    div()
+                        .px(self.scale.px(16.0))
+                        .text_size(self.scale.px(12.0))
+                        .line_height(self.scale.px(16.0))
+                        .text_color(if has_error {
+                            self.colors.error
+                        } else {
+                            self.colors.on_surface_variant
+                        })
+                        .child(message),
                 )
             })
     }

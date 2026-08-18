@@ -465,6 +465,9 @@ impl AppShell {
             {
                 draft.start_time = Some(time);
                 shell.model.editor.validation_error = None;
+                shell
+                    .start_input
+                    .update(cx, |input, cx| input.set_error(None, cx));
             }
             cx.notify();
         })
@@ -476,6 +479,9 @@ impl AppShell {
             {
                 draft.end_time = Some(time);
                 shell.model.editor.validation_error = None;
+                shell
+                    .end_input
+                    .update(cx, |input, cx| input.set_error(None, cx));
             }
             cx.notify();
         })
@@ -488,6 +494,9 @@ impl AppShell {
             {
                 draft.scheduled_minutes_override = Some(minutes);
                 shell.model.editor.validation_error = None;
+                shell
+                    .scheduled_input
+                    .update(cx, |input, cx| input.set_error(None, cx));
             }
             cx.notify();
         })
@@ -698,11 +707,13 @@ impl AppShell {
             input.set_text(start, cx);
             input.set_colors(colors, cx);
             input.set_scale(scale, cx);
+            input.set_error(None, cx);
         });
         self.end_input.update(cx, |input, cx| {
             input.set_text(end, cx);
             input.set_colors(colors, cx);
             input.set_scale(scale, cx);
+            input.set_error(None, cx);
         });
         let notes = draft.notes.clone().unwrap_or_default();
         self.notes_input.update(cx, |input, cx| {
@@ -753,6 +764,7 @@ impl AppShell {
             input.set_text(scheduled, cx);
             input.set_colors(colors, cx);
             input.set_scale(scale, cx);
+            input.set_error(None, cx);
         });
         self.scheduled_override_switch.update(cx, |switch, cx| {
             switch.set_checked(draft.scheduled_minutes_override.is_some(), cx);
@@ -769,8 +781,13 @@ impl AppShell {
             let start = normalize_time(self.start_input.read(cx).text());
             let end = normalize_time(self.end_input.read(cx).text());
             let (Some(start), Some(end)) = (start, end) else {
-                self.model.editor.validation_error =
-                    Some("Enter valid start and end times.".to_owned());
+                self.start_input.update(cx, |input, cx| {
+                    input.set_error(start.is_none().then(|| "Enter a valid time.".into()), cx)
+                });
+                self.end_input.update(cx, |input, cx| {
+                    input.set_error(end.is_none().then(|| "Enter a valid time.".into()), cx)
+                });
+                self.model.editor.validation_error = None;
                 cx.notify();
                 return;
             };
@@ -788,7 +805,9 @@ impl AppShell {
             match parse_scheduled_minutes(self.scheduled_input.read(cx).text()) {
                 Ok(minutes) => draft.scheduled_minutes_override = Some(minutes),
                 Err(message) => {
-                    self.model.editor.validation_error = Some(message.to_owned());
+                    self.scheduled_input
+                        .update(cx, |input, cx| input.set_error(Some(message.into()), cx));
+                    self.model.editor.validation_error = None;
                     cx.notify();
                     return;
                 }
