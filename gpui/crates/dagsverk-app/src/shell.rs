@@ -12,6 +12,7 @@ use dagsverk_core::{
     },
 };
 use dagsverk_data::DataMaintenance;
+use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
     m3::{M3ColorScheme, ResolvedTheme as UiTheme, m3_icon},
     text_input::TextInput,
@@ -24,7 +25,7 @@ use gpui::{
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 
 use crate::{
-    platform::{FileDialogService, OpenFileRequest, ShellService},
+    platform::{FileDialogService, OpenFileRequest, SaveFileRequest, ShellService},
     state::{AppModel, ResolvedTheme, Route},
 };
 
@@ -37,10 +38,26 @@ actions!(
         PreviousMonth,
         NextMonth,
         StartCatchUp,
+        ExportReport,
         SaveActive,
         CloseSurface
     ]
 );
+
+#[derive(Clone, Copy)]
+enum ExportFormat {
+    Xlsx,
+    Ods,
+}
+
+impl ExportFormat {
+    const fn extension(self) -> &'static str {
+        match self {
+            Self::Xlsx => "xlsx",
+            Self::Ods => "ods",
+        }
+    }
+}
 
 struct SettingsInputs {
     opening_balance: Entity<TextInput>,
@@ -223,6 +240,7 @@ impl AppShell {
             KeyBinding::new("pageup", PreviousMonth, None),
             KeyBinding::new("pagedown", NextMonth, None),
             KeyBinding::new("ctrl-m", StartCatchUp, None),
+            KeyBinding::new("ctrl-e", ExportReport, None),
             KeyBinding::new("ctrl-s", SaveActive, None),
             KeyBinding::new("escape", CloseSurface, None),
         ]);
@@ -521,6 +539,10 @@ impl AppShell {
         } else {
             self.save_editor(cx);
         }
+    }
+
+    fn export_action(&mut self, _: &ExportReport, _: &mut Window, cx: &mut Context<Self>) {
+        self.export_report(ExportFormat::Xlsx, cx);
     }
 
     fn close_surface(&mut self, _: &CloseSurface, _: &mut Window, cx: &mut Context<Self>) {
@@ -1091,6 +1113,89 @@ impl AppShell {
         if let Err(error) = self.services.shell.open_folder(folder) {
             self.notice = Some(error.to_string());
         }
+    }
+
+    fn export_report(&mut self, format: ExportFormat, cx: &mut Context<Self>) {
+        if self.maintenance_busy {
+            return;
+        }
+        self.maintenance_busy = true;
+        self.notice = None;
+        let request = self.model.export_request();
+        let dialog = self.services.file_dialog.clone();
+        let extension = format.extension();
+        let safe_name: String = request
+            .employee_name
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric() || matches!(character, '_' | '-') {
+                    character
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let file_name = format!(
+            "Dagsverk_{safe_name}_{}-{:02}.{extension}",
+            request.year, request.month
+        );
+        cx.spawn(async move |this, cx| {
+            let selected = dialog
+                .choose_save_file(SaveFileRequest {
+                    title: "Export Timesheet Report".to_owned(),
+                    file_name: Some(file_name),
+                    filters: vec![(
+                        if matches!(format, ExportFormat::Xlsx) {
+                            "Excel Workbook"
+                        } else {
+                            "OpenDocument Spreadsheet"
+                        }
+                        .to_owned(),
+                        vec![extension.to_owned()],
+                    )],
+                    directory: None,
+                })
+                .await;
+            let path = match selected {
+                Ok(Some(path)) => path,
+                Ok(None) => {
+                    let _ = this.update(cx, |shell, cx| {
+                        shell.maintenance_busy = false;
+                        cx.notify();
+                    });
+                    return;
+                }
+                Err(error) => {
+                    let _ = this.update(cx, |shell, cx| {
+                        shell.maintenance_busy = false;
+                        shell.notice = Some(error.to_string());
+                        cx.notify();
+                    });
+                    return;
+                }
+            };
+            let output = path.clone();
+            let task = cx.background_executor().spawn(async move {
+                match format {
+                    ExportFormat::Xlsx => {
+                        export_xlsx(&request, &output, LanguagePreference::English)
+                    }
+                    ExportFormat::Ods => export_ods(&request, &output, LanguagePreference::English),
+                }
+                .map_err(|error| error.to_string())
+            });
+            let result = task.await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.maintenance_busy = false;
+                shell.notice = Some(match result {
+                    Ok(()) => format!("Report exported: {}", path.display()),
+                    Err(error) => error,
+                });
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
     }
 
     fn create_backup(&mut self, cx: &mut Context<Self>) {
@@ -2982,6 +3087,7 @@ impl Render for AppShell {
             .on_action(cx.listener(Self::previous_month))
             .on_action(cx.listener(Self::next_month))
             .on_action(cx.listener(Self::start_catch_up))
+            .on_action(cx.listener(Self::export_action))
             .on_action(cx.listener(Self::save_active))
             .on_action(cx.listener(Self::close_surface))
             .relative()
@@ -3294,6 +3400,37 @@ impl Render for AppShell {
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.set_view(MonthViewPreference::Calendar, cx)
                                             })),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .gap(px(6.0))
+                                    .child(
+                                        maintenance_button(
+                                            "export-xlsx",
+                                            "XLSX",
+                                            !self.maintenance_busy,
+                                            colors,
+                                        )
+                                        .when(!self.maintenance_busy, |button| {
+                                            button.on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.export_report(ExportFormat::Xlsx, cx)
+                                            }))
+                                        }),
+                                    )
+                                    .child(
+                                        maintenance_button(
+                                            "export-ods",
+                                            "ODS",
+                                            !self.maintenance_busy,
+                                            colors,
+                                        )
+                                        .when(!self.maintenance_busy, |button| {
+                                            button.on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.export_report(ExportFormat::Ods, cx)
+                                            }))
+                                        }),
                                     ),
                             )
                             .child(
@@ -3809,7 +3946,7 @@ fn parse_i32(value: &str) -> Result<i32, &'static str> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{path::PathBuf, sync::Arc};
 
     use chrono::{DateTime, Utc};
     use dagsverk_core::{
@@ -3823,9 +3960,24 @@ mod tests {
 
     use super::{AppShell, AppShellServices, parse_non_negative_decimal, parse_scheduled_minutes};
     use crate::{
-        platform::{NativeFileDialogService, NativeShellService},
+        platform::{
+            FileDialogService, NativeShellService, OpenFileRequest, PlatformFuture, SaveFileRequest,
+        },
         state::AppModel,
     };
+
+    struct SaveDialog(PathBuf);
+
+    impl FileDialogService for SaveDialog {
+        fn choose_open_file(&self, _: OpenFileRequest) -> PlatformFuture<'_, Option<PathBuf>> {
+            Box::pin(async { Ok(None) })
+        }
+
+        fn choose_save_file(&self, _: SaveFileRequest) -> PlatformFuture<'_, Option<PathBuf>> {
+            let path = self.0.clone();
+            Box::pin(async move { Ok(Some(path)) })
+        }
+    }
 
     #[gpui::test]
     fn shell_shortcuts_and_background_backup_work(cx: &mut TestAppContext) {
@@ -3838,6 +3990,7 @@ mod tests {
             Database::open(directory.path().join("dagsverk.db"), clock)
                 .expect("temporary database"),
         );
+        let export_path = directory.path().join("report.xlsx");
         let mut model = AppModel::new(
             repository.clone(),
             Arc::new(clock),
@@ -3847,7 +4000,7 @@ mod tests {
         model.initialize().expect("application state");
         let services = AppShellServices {
             data: repository,
-            file_dialog: Arc::new(NativeFileDialogService),
+            file_dialog: Arc::new(SaveDialog(export_path.clone())),
             shell: Arc::new(NativeShellService),
         };
 
@@ -3870,6 +4023,10 @@ mod tests {
         assert!(shell.read_with(cx, |shell, _| {
             shell.model.preferences.has_completed_setup
         }));
+
+        cx.simulate_keystrokes("ctrl-e");
+        cx.run_until_parked();
+        assert!(export_path.exists());
 
         shell.update(cx, |shell, cx| {
             shell.add_rate_band(CompensationRuleType::Ob, cx);

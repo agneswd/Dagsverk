@@ -1,19 +1,20 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use chrono::Datelike;
 use dagsverk_core::{
     DomainError,
     calculations::{
         PasteMonthError, calculate_monthly_summary, estimate_opening_balance, expected_workdays,
-        paste_month_entries,
+        paste_month_entries, threshold_for_entry,
     },
     clock::Clock,
     holidays::SwedishHolidayCalendar,
     models::{
-        AppPreferences, AppSettings, IsoDate, LanguagePreference, Minutes, MonthRecord,
-        MonthViewPreference, MonthlySummary, Project, ProjectId, TaxEstimate, ThemePreference,
-        UpdateState, UpdateStatus, WorkEntry, WorkEntryStatus, Workspace, WorkspaceId,
-        WorkspaceType, YearMonth, default_preferences, default_settings, default_workspace,
+        AppPreferences, AppSettings, ExportLanguagePreference, IsoDate, LanguagePreference,
+        Minutes, MonthRecord, MonthViewPreference, MonthlySummary, Project, ProjectId,
+        ReportExportRequest, TaxEstimate, ThemePreference, UpdateState, UpdateStatus, WorkEntry,
+        WorkEntryStatus, Workspace, WorkspaceId, WorkspaceType, YearMonth, default_preferences,
+        default_settings, default_workspace,
     },
     tax::TaxEngine,
 };
@@ -688,6 +689,55 @@ impl AppModel {
     pub fn tax_estimate(&self) -> TaxEstimate {
         self.tax
             .calculate(self.summary().gross_salary, &self.settings.tax_settings)
+    }
+
+    pub fn export_request(&self) -> ReportExportRequest {
+        let workspace = self.active_workspace();
+        let threshold_minutes_by_date: BTreeMap<_, _> = self
+            .entries
+            .iter()
+            .map(|entry| {
+                (
+                    entry.date,
+                    threshold_for_entry(
+                        entry,
+                        &self.settings.expected_hours,
+                        &self.settings.overtime_compensation,
+                        self.holidays,
+                    ),
+                )
+            })
+            .collect();
+        let language = match self.settings.export_language_preference {
+            ExportLanguagePreference::System => match self.language {
+                Language::English => ExportLanguagePreference::English,
+                Language::Swedish => ExportLanguagePreference::Swedish,
+            },
+            language => language,
+        };
+        ReportExportRequest {
+            year: self.current_month.year,
+            month: self.current_month.month,
+            employee_name: workspace
+                .and_then(|workspace| workspace.worker_name.clone())
+                .filter(|name| !name.trim().is_empty())
+                .unwrap_or_else(|| "Worker".to_owned()),
+            employer_name: workspace
+                .and_then(|workspace| workspace.organization_name.clone())
+                .unwrap_or_default(),
+            entries: self.entries.clone(),
+            summary: self.summary(),
+            language,
+            expected_hours: Some(self.settings.expected_hours.clone()),
+            overtime_settings: Some(self.settings.overtime_compensation.clone()),
+            overtime_mode: self.settings.overtime_compensation.mode,
+            daily_overtime_threshold_hours: self
+                .settings
+                .overtime_compensation
+                .daily_threshold_hours,
+            hourly_pay_basis: self.settings.salary.hourly_pay_basis,
+            threshold_minutes_by_date,
+        }
     }
 
     pub fn is_month_unstarted(&self) -> bool {
