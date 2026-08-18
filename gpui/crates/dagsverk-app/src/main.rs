@@ -1,7 +1,12 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use dagsverk_app::{shell::AppShell, startup::StartupOptions, state::AppModel};
+use dagsverk_app::{
+    platform::{NativeFileDialogService, NativeShellService},
+    shell::{AppShell, AppShellServices},
+    startup::StartupOptions,
+    state::AppModel,
+};
 use dagsverk_core::{clock::SystemClock, tax::TaxEngine};
 use dagsverk_data::Database;
 use dagsverk_ui::component_gallery::ComponentGallery;
@@ -20,11 +25,11 @@ fn main() {
             std::process::exit(2);
         }
     };
-    let mut model = if options.component_gallery {
+    let mut runtime = if options.component_gallery {
         None
     } else {
-        match create_model(&options) {
-            Ok(model) => Some(model),
+        match create_runtime(&options) {
+            Ok(runtime) => Some(runtime),
             Err(error) => {
                 eprintln!("failed to initialize Dagsverk: {error}");
                 std::process::exit(1);
@@ -60,9 +65,9 @@ fn main() {
             window_min_size: Some(size(px(960.), px(640.))),
             ..Default::default()
         };
-        let result = if let Some(model) = model.take() {
+        let result = if let Some((model, services)) = runtime.take() {
             cx.open_window(window_options(), |window, cx| {
-                cx.new(|cx| AppShell::new(model, window, cx))
+                cx.new(|cx| AppShell::new(model, services, window, cx))
             })
             .map(|_| ())
         } else {
@@ -81,12 +86,21 @@ fn main() {
     });
 }
 
-fn create_model(options: &StartupOptions) -> Result<AppModel, Box<dyn std::error::Error>> {
+fn create_runtime(
+    options: &StartupOptions,
+) -> Result<(AppModel, AppShellServices), Box<dyn std::error::Error>> {
     let clock = Arc::new(SystemClock);
     let repository = Arc::new(Database::open(options.database_path()?, SystemClock)?);
     let mut tax = TaxEngine::default();
     tax.register_json(include_str!("../../../../public/tax-data/tax-2026.json"))?;
-    let mut model = AppModel::new(repository, clock, tax, false);
+    let mut model = AppModel::new(repository.clone(), clock, tax, false);
     model.initialize()?;
-    Ok(model)
+    Ok((
+        model,
+        AppShellServices {
+            data: repository,
+            file_dialog: Arc::new(NativeFileDialogService),
+            shell: Arc::new(NativeShellService),
+        },
+    ))
 }

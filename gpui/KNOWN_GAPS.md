@@ -1,5 +1,14 @@
 # Known gaps
 
+## Interactive state parity
+
+- Current behavior: Shared buttons have hover and pressed opacity. Several shell-specific clickable surfaces do not yet show a Material 3 state layer.
+- Expected parity: Buttons, icon buttons, rows, chips, and navigation items must show consistent hover, pressed, focus, and disabled states.
+- Reason incomplete: Some production shell controls still use direct GPUI elements instead of the shared Material control.
+- Files involved: `gpui/crates/dagsverk-ui/src/m3/`, `gpui/crates/dagsverk-app/src/shell.rs`.
+- Proposed solution: Apply the shared Material state-layer helper to all remaining clickable surfaces.
+- Test needed: Component interaction tests and light/dark visual review.
+
 ## Production shell controls
 
 - Current behavior: The preview loads a real database and renders the first shell, summary, and saved-entry list.

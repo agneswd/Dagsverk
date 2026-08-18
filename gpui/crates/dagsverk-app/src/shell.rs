@@ -1,3 +1,5 @@
+use std::{path::PathBuf, sync::Arc};
+
 use chrono::Duration;
 use dagsverk_core::{
     calculations::{calculate_daily_pay, normalize_time},
@@ -9,6 +11,7 @@ use dagsverk_core::{
         SalaryType, TaxMode, ThemePreference, WorkEntryStatus, WorkspaceId, WorkspaceType,
     },
 };
+use dagsverk_data::DataMaintenance;
 use dagsverk_ui::{
     m3::{M3ColorScheme, ResolvedTheme as UiTheme, m3_icon},
     text_input::TextInput,
@@ -20,7 +23,10 @@ use gpui::{
 };
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 
-use crate::state::{AppModel, ResolvedTheme, Route};
+use crate::{
+    platform::{FileDialogService, OpenFileRequest, ShellService},
+    state::{AppModel, ResolvedTheme, Route},
+};
 
 actions!(
     dagsverk,
@@ -139,6 +145,7 @@ impl SettingsInputs {
 
 pub struct AppShell {
     model: AppModel,
+    services: AppShellServices,
     month_view: Entity<MonthView>,
     start_input: Entity<TextInput>,
     end_input: Entity<TextInput>,
@@ -162,7 +169,17 @@ pub struct AppShell {
     settings_draft: AppSettings,
     preferences_draft: AppPreferences,
     pending_currency: Option<CurrencyPreference>,
+    maintenance_busy: bool,
+    confirm_restore: Option<PathBuf>,
+    confirm_import: Option<PathBuf>,
+    last_backup: Option<PathBuf>,
     notice: Option<String>,
+}
+
+pub struct AppShellServices {
+    pub data: Arc<dyn DataMaintenance>,
+    pub file_dialog: Arc<dyn FileDialogService>,
+    pub shell: Arc<dyn ShellService>,
 }
 
 impl AppShell {
@@ -179,7 +196,12 @@ impl AppShell {
         ]);
     }
 
-    pub fn new(model: AppModel, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        model: AppModel,
+        services: AppShellServices,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         window.set_window_title("Dagsverk GPUI Preview");
         let month_view = cx.new(|_| MonthView::new(month_view_data(&model)));
         let start_input = cx.new(|cx| TextInput::new(cx, "Start time"));
@@ -207,6 +229,7 @@ impl AppShell {
         .detach();
         Self {
             model,
+            services,
             month_view,
             start_input,
             end_input,
@@ -230,6 +253,10 @@ impl AppShell {
             settings_draft,
             preferences_draft,
             pending_currency: None,
+            maintenance_busy: false,
+            confirm_restore: None,
+            confirm_import: None,
+            last_backup: None,
             notice: None,
         }
     }
@@ -445,6 +472,14 @@ impl AppShell {
     }
 
     fn close_surface(&mut self, _: &CloseSurface, _: &mut Window, cx: &mut Context<Self>) {
+        if self.confirm_restore.take().is_some() {
+            cx.notify();
+            return;
+        }
+        if self.confirm_import.take().is_some() {
+            cx.notify();
+            return;
+        }
         if self.confirm_reset {
             self.confirm_reset = false;
             cx.notify();
@@ -808,31 +843,220 @@ impl AppShell {
             Route::Timesheet => self.timesheet(colors),
             Route::Projects => self.projects_page(colors, cx),
             Route::Settings => self.settings_page(colors, cx),
-            Route::DataBackups => self.placeholder_page(
-                "Data & backups",
-                "Backup, restore, and import services are available in dagsverk-data.",
-                colors,
-            ),
+            Route::DataBackups => self.data_backups_page(colors, cx),
         }
     }
 
-    fn placeholder_page(
-        &self,
-        title: impl Into<gpui::SharedString>,
-        detail: impl Into<gpui::SharedString>,
-        colors: M3ColorScheme,
-    ) -> gpui::Div {
+    fn data_backups_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let database_path = self.services.data.database_path();
+        let busy = self.maintenance_busy;
         div()
+            .max_w(px(880.0))
+            .mx_auto()
             .p(px(32.0))
             .flex()
             .flex_col()
-            .gap(px(12.0))
-            .child(div().text_size(px(24.0)).child(title.into()))
+            .gap(px(20.0))
+            .child(div().text_size(px(28.0)).child("Data & Backups"))
+            .child("Current database")
+            .child(
+                div()
+                    .p(px(16.0))
+                    .rounded(px(12.0))
+                    .bg(colors.surface_container)
+                    .text_color(colors.on_surface_variant)
+                    .child(database_path.display().to_string()),
+            )
+            .child(
+                div()
+                    .flex()
+                    .gap(px(12.0))
+                    .child(
+                        maintenance_button("open-data-folder", "Open data folder", !busy, colors)
+                            .when(!busy, |button| {
+                                button.on_click(cx.listener(|shell, _, _, cx| {
+                                    shell.open_data_folder();
+                                    cx.notify();
+                                }))
+                            }),
+                    )
+                    .child(
+                        maintenance_button("create-backup", "Create backup", !busy, colors).when(
+                            !busy,
+                            |button| {
+                                button.on_click(
+                                    cx.listener(|shell, _, _, cx| shell.create_backup(cx)),
+                                )
+                            },
+                        ),
+                    ),
+            )
+            .when_some(self.last_backup.clone(), |page, path| {
+                page.child(format!("Last backup: {}", path.display()))
+            })
+            .child(
+                div()
+                    .mt(px(12.0))
+                    .text_size(px(20.0))
+                    .child("Restore or import"),
+            )
             .child(
                 div()
                     .text_color(colors.on_surface_variant)
-                    .child(detail.into()),
+                    .child("Close Electron Dagsverk before restore or import."),
             )
+            .child(
+                div()
+                    .flex()
+                    .gap(px(12.0))
+                    .child(
+                        maintenance_button("restore-database", "Restore database", !busy, colors)
+                            .when(!busy, |button| {
+                                button.on_click(
+                                    cx.listener(|shell, _, _, cx| shell.choose_restore(cx)),
+                                )
+                            }),
+                    )
+                    .child(
+                        maintenance_button("import-tidverk", "Import Tidverk", !busy, colors).when(
+                            !busy,
+                            |button| {
+                                button.on_click(
+                                    cx.listener(|shell, _, _, cx| shell.choose_tidverk_import(cx)),
+                                )
+                            },
+                        ),
+                    ),
+            )
+            .when(busy, |page| {
+                page.child(
+                    div()
+                        .text_color(colors.primary)
+                        .child("Database operation in progress..."),
+                )
+            })
+    }
+
+    fn open_data_folder(&mut self) {
+        let path = self.services.data.database_path();
+        let folder = path.parent().unwrap_or(path.as_path());
+        if let Err(error) = self.services.shell.open_folder(folder) {
+            self.notice = Some(error.to_string());
+        }
+    }
+
+    fn create_backup(&mut self, cx: &mut Context<Self>) {
+        self.maintenance_busy = true;
+        self.notice = None;
+        let data = self.services.data.clone();
+        let task = cx.background_executor().spawn(async move {
+            data.create_manual_backup()
+                .map_err(|error| error.to_string())
+        });
+        cx.spawn(async move |this, cx| {
+            let result = task.await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.maintenance_busy = false;
+                match result {
+                    Ok(path) => {
+                        shell.last_backup = Some(path.clone());
+                        shell.notice = Some(format!("Backup created: {}", path.display()));
+                    }
+                    Err(error) => shell.notice = Some(error),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn choose_restore(&mut self, cx: &mut Context<Self>) {
+        self.choose_database_file("Select a Dagsverk backup", false, cx);
+    }
+
+    fn choose_tidverk_import(&mut self, cx: &mut Context<Self>) {
+        self.choose_database_file("Select a Tidverk database", true, cx);
+    }
+
+    fn choose_database_file(&mut self, title: &'static str, tidverk: bool, cx: &mut Context<Self>) {
+        self.maintenance_busy = true;
+        let dialog = self.services.file_dialog.clone();
+        let directory = self
+            .services
+            .data
+            .database_path()
+            .parent()
+            .map(std::path::Path::to_owned);
+        cx.spawn(async move |this, cx| {
+            let result = dialog
+                .choose_open_file(OpenFileRequest {
+                    title: title.to_owned(),
+                    filters: vec![("SQLite database".to_owned(), vec!["db".to_owned()])],
+                    directory,
+                })
+                .await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.maintenance_busy = false;
+                match result {
+                    Ok(Some(path)) if tidverk => shell.confirm_import = Some(path),
+                    Ok(Some(path)) => shell.confirm_restore = Some(path),
+                    Ok(None) => {}
+                    Err(error) => shell.notice = Some(error.to_string()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn run_restore(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.confirm_restore = None;
+        self.run_database_change(path, false, cx);
+    }
+
+    fn run_tidverk_import(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.confirm_import = None;
+        self.run_database_change(path, true, cx);
+    }
+
+    fn run_database_change(&mut self, path: PathBuf, tidverk: bool, cx: &mut Context<Self>) {
+        self.maintenance_busy = true;
+        self.notice = None;
+        let data = self.services.data.clone();
+        let task = cx.background_executor().spawn(async move {
+            if tidverk {
+                data.import_tidverk_database(&path)
+                    .map(|result| format!("Imported {} entries from Tidverk.", result.entry_count))
+            } else {
+                data.restore(&path)
+                    .map(|()| "Database restored.".to_owned())
+            }
+            .map_err(|error| error.to_string())
+        });
+        cx.spawn(async move |this, cx| {
+            let result = task.await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.maintenance_busy = false;
+                match result {
+                    Ok(message) => match shell.model.initialize() {
+                        Ok(()) => {
+                            shell.settings_draft = shell.model.settings.clone();
+                            shell.preferences_draft = shell.model.preferences.clone();
+                            shell.settings_inputs.sync(&shell.settings_draft, cx);
+                            shell.refresh_month_view(cx);
+                            shell.notice = Some(message);
+                        }
+                        Err(error) => shell.notice = Some(error.to_string()),
+                    },
+                    Err(error) => shell.notice = Some(error),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
     }
 
     fn projects_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
@@ -2343,6 +2567,8 @@ impl Render for AppShell {
         let project_delete = self.confirm_project_delete.clone();
         let workspace_delete = self.confirm_workspace_delete.clone();
         let pending_currency = self.pending_currency;
+        let restore = self.confirm_restore.clone();
+        let tidverk_import = self.confirm_import.clone();
 
         div()
             .track_focus(&self.focus)
@@ -2872,6 +3098,116 @@ impl Render for AppShell {
                                                 })),
                                         ),
                                 ),
+                    ),
+                )
+            })
+            .when_some(restore, |root, path| {
+                let selected = path.clone();
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.55))
+                        .child(
+                            div()
+                                .w(px(480.0))
+                                .p(px(24.0))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0))
+                                .rounded(px(24.0))
+                                .bg(colors.surface_container_high)
+                                .child(div().text_size(px(20.0)).child("Restore database?"))
+                                .child("Current data will be backed up before replacement.")
+                                .child(
+                                    div()
+                                        .text_color(colors.on_surface_variant)
+                                        .child(path.display().to_string()),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0))
+                                        .child(
+                                            div()
+                                                .id("cancel-restore")
+                                                .cursor_pointer()
+                                                .child("Cancel")
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_restore = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            div()
+                                                .id("confirm-restore")
+                                                .cursor_pointer()
+                                                .text_color(colors.error)
+                                                .child("Restore")
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.run_restore(selected.clone(), cx)
+                                                })),
+                                        ),
+                                ),
+                        ),
+                )
+            })
+            .when_some(tidverk_import, |root, path| {
+                let selected = path.clone();
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.55))
+                        .child(
+                            div()
+                                .w(px(480.0))
+                                .p(px(24.0))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0))
+                                .rounded(px(24.0))
+                                .bg(colors.surface_container_high)
+                                .child(div().text_size(px(20.0)).child("Import Tidverk data?"))
+                                .child("Dagsverk will create safety backups before import.")
+                                .child(
+                                    div()
+                                        .text_color(colors.on_surface_variant)
+                                        .child(path.display().to_string()),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0))
+                                        .child(
+                                            div()
+                                                .id("cancel-tidverk-import")
+                                                .cursor_pointer()
+                                                .child("Cancel")
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_import = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            div()
+                                                .id("confirm-tidverk-import")
+                                                .cursor_pointer()
+                                                .text_color(colors.error)
+                                                .child("Import")
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.run_tidverk_import(selected.clone(), cx)
+                                                })),
+                                        ),
+                                ),
                         ),
                 )
             })
@@ -2956,6 +3292,26 @@ fn setting_chip(
         .child(label.into())
 }
 
+fn maintenance_button(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    enabled: bool,
+    colors: M3ColorScheme,
+) -> Stateful<gpui::Div> {
+    div()
+        .id(id)
+        .h(px(40.0))
+        .px(px(18.0))
+        .flex()
+        .items_center()
+        .rounded(px(20.0))
+        .bg(colors.secondary_container)
+        .text_color(colors.on_secondary_container)
+        .opacity(if enabled { 1.0 } else { 0.38 })
+        .when(enabled, |button| button.cursor_pointer())
+        .child(label.into())
+}
+
 fn parse_non_negative_decimal(value: &str) -> Result<Decimal, &'static str> {
     let value = value
         .trim()
@@ -2997,11 +3353,14 @@ mod tests {
     use gpui::TestAppContext;
     use tempfile::tempdir;
 
-    use super::{AppShell, parse_non_negative_decimal, parse_scheduled_minutes};
-    use crate::state::AppModel;
+    use super::{AppShell, AppShellServices, parse_non_negative_decimal, parse_scheduled_minutes};
+    use crate::{
+        platform::{NativeFileDialogService, NativeShellService},
+        state::AppModel,
+    };
 
     #[gpui::test]
-    fn global_view_shortcuts_persist_from_the_focused_shell(cx: &mut TestAppContext) {
+    fn shell_shortcuts_and_background_backup_work(cx: &mut TestAppContext) {
         let directory = tempdir().expect("temporary data directory");
         let now = DateTime::parse_from_rfc3339("2026-08-18T10:00:00Z")
             .expect("fixed time")
@@ -3011,16 +3370,33 @@ mod tests {
             Database::open(directory.path().join("dagsverk.db"), clock)
                 .expect("temporary database"),
         );
-        let mut model = AppModel::new(repository, Arc::new(clock), TaxEngine::default(), false);
+        let mut model = AppModel::new(
+            repository.clone(),
+            Arc::new(clock),
+            TaxEngine::default(),
+            false,
+        );
         model.initialize().expect("application state");
+        let services = AppShellServices {
+            data: repository,
+            file_dialog: Arc::new(NativeFileDialogService),
+            shell: Arc::new(NativeShellService),
+        };
 
         cx.update(AppShell::register_key_bindings);
-        let (shell, cx) = cx.add_window_view(|window, cx| AppShell::new(model, window, cx));
+        let (shell, cx) =
+            cx.add_window_view(|window, cx| AppShell::new(model, services, window, cx));
         cx.simulate_keystrokes("ctrl-2");
         assert_eq!(
             shell.read_with(cx, |shell, _| shell.model.active_view),
             MonthViewPreference::Calendar
         );
+
+        shell.update(cx, |shell, cx| shell.create_backup(cx));
+        cx.run_until_parked();
+        assert!(shell.read_with(cx, |shell, _| {
+            !shell.maintenance_busy && shell.last_backup.as_ref().is_some_and(|path| path.exists())
+        }));
     }
 
     #[test]

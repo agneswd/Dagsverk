@@ -37,7 +37,7 @@ pub struct SaveFileRequest {
     pub directory: Option<PathBuf>,
 }
 
-pub trait FileDialogService {
+pub trait FileDialogService: Send + Sync {
     fn choose_open_file(&self, request: OpenFileRequest) -> PlatformFuture<'_, Option<PathBuf>>;
     fn choose_save_file(&self, request: SaveFileRequest) -> PlatformFuture<'_, Option<PathBuf>>;
 }
@@ -75,7 +75,7 @@ impl FileDialogService for NativeFileDialogService {
     }
 }
 
-pub trait ShellService {
+pub trait ShellService: Send + Sync {
     fn open_folder(&self, path: &Path) -> Result<()>;
     fn open_external(&self, url: &str) -> Result<()>;
 }
