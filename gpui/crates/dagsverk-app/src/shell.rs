@@ -994,9 +994,10 @@ impl AppShell {
         icon: &'static str,
         label: &'static str,
         route: Route,
-        colors: M3ColorScheme,
+        collapsed: bool,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
+        let colors = self.colors();
         let selected = self.model.route == route;
         div()
             .id(id)
@@ -1016,7 +1017,7 @@ impl AppShell {
             .hover(|style| style.bg(colors.surface_container_high))
             .active(|style| style.bg(colors.surface_container_highest))
             .child(m3_icon(icon, 24.0, colors))
-            .when(!self.sidebar_collapsed, |item| item.child(self.text(label)))
+            .when(!collapsed, |item| item.child(self.text(label)))
             .on_click(cx.listener(move |shell, _, _, cx| shell.set_route(route, cx)))
     }
 
@@ -3089,10 +3090,13 @@ impl Focusable for AppShell {
 }
 
 impl Render for AppShell {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = self.colors();
         let scale = self.model.interface_scale.clamp(0.8, 1.5);
-        let sidebar_width = if self.sidebar_collapsed { 80.0 } else { 256.0 } * scale;
+        let window_width = window.bounds().size.width;
+        let (sidebar_collapsed, editor_overlay) =
+            responsive_layout(window_width, self.sidebar_collapsed);
+        let sidebar_width = if sidebar_collapsed { 80.0 } else { 256.0 } * scale;
         let workspace_name = self
             .model
             .active_workspace()
@@ -3169,7 +3173,7 @@ impl Render for AppShell {
                             .gap(px(18.0))
                             .cursor_pointer()
                             .child(m3_icon("menu", 24.0, colors))
-                            .when(!self.sidebar_collapsed, |item| item.child("Dagsverk"))
+                            .when(!sidebar_collapsed, |item| item.child("Dagsverk"))
                             .on_click(cx.listener(|shell, _, _, cx| {
                                 shell.sidebar_collapsed = !shell.sidebar_collapsed;
                                 cx.notify();
@@ -3186,7 +3190,7 @@ impl Render for AppShell {
                             .rounded(px(16.0))
                             .cursor_pointer()
                             .bg(colors.surface_container)
-                            .when(!self.sidebar_collapsed, |item| item.child(workspace_name))
+                            .when(!sidebar_collapsed, |item| item.child(workspace_name))
                             .on_click(cx.listener(|shell, _, _, cx| {
                                 shell.manage_workspaces = true;
                                 cx.notify();
@@ -3197,7 +3201,7 @@ impl Render for AppShell {
                         "schedule",
                         "Timesheet",
                         Route::Timesheet,
-                        colors,
+                        sidebar_collapsed,
                         cx,
                     ))
                     .child(self.navigation_item(
@@ -3205,7 +3209,7 @@ impl Render for AppShell {
                         "folder",
                         "Projects",
                         Route::Projects,
-                        colors,
+                        sidebar_collapsed,
                         cx,
                     ))
                     .child(div().flex_1())
@@ -3214,7 +3218,7 @@ impl Render for AppShell {
                         "settings",
                         "Settings",
                         Route::Settings,
-                        colors,
+                        sidebar_collapsed,
                         cx,
                     )),
             )
@@ -3508,6 +3512,7 @@ impl Render for AppShell {
                     )
                     .child(
                         div()
+                            .relative()
                             .flex_1()
                             .min_h_0()
                             .flex()
@@ -3521,8 +3526,30 @@ impl Render for AppShell {
                                     .bg(colors.background)
                                     .child(self.route_content(colors, cx)),
                             )
-                            .when(self.model.editor.is_open, |content| {
+                            .when(self.model.editor.is_open && !editor_overlay, |content| {
                                 content.child(self.editor_panel(colors, cx))
+                            })
+                            .when(self.model.editor.is_open && editor_overlay, |content| {
+                                content.child(
+                                    div()
+                                        .absolute()
+                                        .inset_0()
+                                        .flex()
+                                        .justify_end()
+                                        .child(
+                                            div()
+                                                .id("editor-backdrop")
+                                                .absolute()
+                                                .inset_0()
+                                                .bg(gpui::black().opacity(0.35))
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.model.close_editor();
+                                                    shell.refresh_month_view(cx);
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(self.editor_panel(colors, cx)),
+                                )
                             }),
                     ),
             )
@@ -3924,6 +3951,13 @@ fn format_hours_input(minutes: i64) -> String {
     }
 }
 
+fn responsive_layout(width: gpui::Pixels, manual_sidebar_collapse: bool) -> (bool, bool) {
+    (
+        manual_sidebar_collapse || width < px(1200.0),
+        width < px(1600.0),
+    )
+}
+
 fn parse_scheduled_minutes(value: &str) -> Result<Minutes, &'static str> {
     let hours = value
         .trim()
@@ -4048,7 +4082,10 @@ mod tests {
     use gpui::TestAppContext;
     use tempfile::tempdir;
 
-    use super::{AppShell, AppShellServices, parse_non_negative_decimal, parse_scheduled_minutes};
+    use super::{
+        AppShell, AppShellServices, parse_non_negative_decimal, parse_scheduled_minutes,
+        responsive_layout,
+    };
     use crate::{
         platform::{
             FileDialogService, NativeShellService, OpenFileRequest, PlatformFuture, SaveFileRequest,
@@ -4182,5 +4219,9 @@ mod tests {
             "123.45".parse().expect("expected decimal")
         );
         assert!(parse_non_negative_decimal("-0.01").is_err());
+        assert_eq!(responsive_layout(gpui::px(1199.0), false), (true, true));
+        assert_eq!(responsive_layout(gpui::px(1200.0), false), (false, true));
+        assert_eq!(responsive_layout(gpui::px(1600.0), false), (false, false));
+        assert_eq!(responsive_layout(gpui::px(1600.0), true), (true, false));
     }
 }

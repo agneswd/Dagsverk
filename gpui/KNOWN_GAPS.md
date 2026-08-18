@@ -21,10 +21,10 @@
 ## Day editor parity
 
 - Current behavior: Status, time, lunch, presets, copy actions, scheduled override, project, day-off reason, notes, reset, pay details, catch-up controls, and Ctrl+S are connected.
-- Expected parity: Multiline notes, dynamic pay updates during typing, holiday details, and responsive overlay behavior must match Electron.
+- Expected parity: Multiline notes, dynamic pay updates during typing, and holiday details must match Electron.
 - Reason incomplete: This is the first M6 editor slice.
 - Files involved: `gpui/crates/dagsverk-app/src/shell.rs`, `gpui/crates/dagsverk-ui/src/text_input.rs`.
-- Proposed solution: Finish responsive layout and multiline input behavior on the same draft and save path.
+- Proposed solution: Add multiline input behavior and live draft calculation on the same save path.
 - Test needed: GPUI editor focus, validation, save, reset, and catch-up tests.
 
 ## Phase 0 platform proof
