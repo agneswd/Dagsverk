@@ -16,6 +16,7 @@ pub struct M3Switch {
     checked: bool,
     enabled: bool,
     colors: M3ColorScheme,
+    scale: UiScale,
     focus: FocusHandle,
 }
 
@@ -31,6 +32,7 @@ impl M3Switch {
             checked,
             enabled: true,
             colors,
+            scale: UiScale::default(),
             focus: cx.focus_handle().tab_index(0),
         }
     }
@@ -53,6 +55,11 @@ impl M3Switch {
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
         self.colors = colors;
+        cx.notify();
+    }
+
+    pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
+        self.scale = scale;
         cx.notify();
     }
 
@@ -95,9 +102,9 @@ impl Render for M3Switch {
             .track_focus(&self.focus)
             .tab_index(0)
             .tab_stop(self.enabled)
-            .w(px(52.0))
-            .h(px(32.0))
-            .p(px(4.0))
+            .w(self.scale.px(52.0))
+            .h(self.scale.px(32.0))
+            .p(self.scale.px(4.0))
             .flex()
             .items_center()
             .when_else(
@@ -105,14 +112,18 @@ impl Render for M3Switch {
                 |track| track.justify_end().bg(background),
                 |track| track.justify_start().bg(background),
             )
-            .rounded(px(16.0))
+            .rounded(self.scale.px(16.0))
             .border_1()
             .border_color(if self.checked {
                 self.colors.primary
             } else {
                 self.colors.outline
             })
-            .shadow(selection_focus_shadow(focused, self.colors.primary))
+            .shadow(selection_focus_shadow(
+                focused,
+                self.colors.primary,
+                self.scale,
+            ))
             .opacity(if self.enabled {
                 1.0
             } else {
@@ -131,7 +142,11 @@ impl Render for M3Switch {
             })
             .child(
                 div()
-                    .size(if self.checked { px(24.0) } else { px(16.0) })
+                    .size(if self.checked {
+                        self.scale.px(24.0)
+                    } else {
+                        self.scale.px(16.0)
+                    })
                     .rounded_full()
                     .bg(if self.checked {
                         self.colors.on_primary
@@ -151,6 +166,7 @@ pub struct M3Chip {
     selected: bool,
     enabled: bool,
     colors: M3ColorScheme,
+    scale: UiScale,
     focus: FocusHandle,
 }
 
@@ -168,6 +184,7 @@ impl M3Chip {
             selected,
             enabled: true,
             colors,
+            scale: UiScale::default(),
             focus: cx.focus_handle().tab_index(0),
         }
     }
@@ -183,6 +200,11 @@ impl M3Chip {
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
         self.colors = colors;
+        cx.notify();
+    }
+
+    pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
+        self.scale = scale;
         cx.notify();
     }
 
@@ -221,17 +243,21 @@ impl Render for M3Chip {
             .track_focus(&self.focus)
             .tab_index(0)
             .tab_stop(self.enabled)
-            .h(px(32.0))
-            .px(px(16.0))
+            .h(self.scale.px(32.0))
+            .px(self.scale.px(16.0))
             .flex()
             .items_center()
-            .gap(px(8.0))
-            .rounded(px(8.0))
+            .gap(self.scale.px(8.0))
+            .rounded(self.scale.px(8.0))
             .border_1()
             .border_color(self.colors.outline)
-            .shadow(selection_focus_shadow(focused, self.colors.primary))
+            .shadow(selection_focus_shadow(
+                focused,
+                self.colors.primary,
+                self.scale,
+            ))
             .bg(background)
-            .m3_typography(TypographyRole::LabelLarge, UiScale::default())
+            .m3_typography(TypographyRole::LabelLarge, self.scale)
             .text_color(foreground)
             .opacity(if self.enabled {
                 1.0
@@ -249,19 +275,23 @@ impl Render for M3Chip {
                     .on_click(cx.listener(|this, _, _, cx| this.toggle(cx)))
             })
             .when(self.selected, |chip| {
-                chip.child(m3_icon_colored("check", 18.0, foreground))
+                chip.child(m3_icon_colored(
+                    "check",
+                    18.0 * self.scale.factor(),
+                    foreground,
+                ))
             })
             .child(self.label.clone())
     }
 }
 
-fn selection_focus_shadow(focused: bool, color: gpui::Hsla) -> Vec<BoxShadow> {
+fn selection_focus_shadow(focused: bool, color: gpui::Hsla, scale: UiScale) -> Vec<BoxShadow> {
     focused
         .then(|| BoxShadow {
             color: color.opacity(FOCUS_OPACITY),
-            offset: point(px(0.0), px(0.0)),
-            blur_radius: px(0.0),
-            spread_radius: px(3.0),
+            offset: point(scale.px(0.0), scale.px(0.0)),
+            blur_radius: scale.px(0.0),
+            spread_radius: scale.px(3.0),
         })
         .into_iter()
         .collect()

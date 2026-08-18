@@ -113,6 +113,12 @@ impl RateBandInputs {
         });
         fields
     }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for input in [&self.name, &self.start, &self.end, &self.value] {
+            input.update(cx, |input, cx| input.set_scale(scale, cx));
+        }
+    }
 }
 
 impl SettingsInputs {
@@ -195,6 +201,27 @@ impl SettingsInputs {
         ];
         for (input, value) in values {
             input.update(cx, |input, cx| input.set_text(value, cx));
+        }
+    }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for input in [
+            &self.opening_balance,
+            &self.expected_hours,
+            &self.default_start,
+            &self.default_end,
+            &self.default_lunch,
+            &self.overtime_threshold,
+            &self.default_rate_value,
+            &self.hourly_rate,
+            &self.monthly_salary,
+            &self.employment_percent,
+            &self.tax_year,
+            &self.tax_table,
+            &self.tax_column,
+            &self.manual_tax,
+        ] {
+            input.update(cx, |input, cx| input.set_scale(scale, cx));
         }
     }
 }
@@ -324,6 +351,7 @@ impl AppShell {
     pub fn apply_visual_scale(&mut self, percent: u16, cx: &mut Context<Self>) {
         self.model.preferences.interface_scale_percent = i32::from(percent);
         self.model.interface_scale = f32::from(percent) / 100.0;
+        self.sync_control_scales(cx);
         self.sync_editor_inputs(cx);
         self.refresh_month_view(cx);
         cx.notify();
@@ -523,7 +551,7 @@ impl AppShell {
             shell.refresh_month_view(cx);
         })
         .detach();
-        Self {
+        let mut shell = Self {
             model,
             services,
             month_view,
@@ -564,7 +592,9 @@ impl AppShell {
             month_menu_open: false,
             workspace_menu_open: false,
             color_picker_target: None,
-        }
+        };
+        shell.sync_control_scales(cx);
+        shell
     }
 
     fn colors(&self) -> M3ColorScheme {
@@ -617,6 +647,37 @@ impl AppShell {
         let data = month_view_data(&self.model);
         self.month_view
             .update(cx, |month_view, cx| month_view.set_data(data, cx));
+    }
+
+    fn sync_control_scales(&mut self, cx: &mut Context<Self>) {
+        let scale = interface_scale(&self.model);
+        for input in [
+            &self.start_input,
+            &self.end_input,
+            &self.notes_input,
+            &self.scheduled_input,
+            &self.project_name_input,
+            &self.project_color_input,
+            &self.workspace_name_input,
+            &self.workspace_worker_input,
+            &self.workspace_organization_input,
+            &self.workspace_color_input,
+        ] {
+            input.update(cx, |input, cx| input.set_scale(scale, cx));
+        }
+        for select in [&self.project_select, &self.reason_select] {
+            select.update(cx, |select, cx| select.set_scale(scale, cx));
+        }
+        for switch in [
+            &self.scheduled_override_switch,
+            &self.exclude_holidays_switch,
+        ] {
+            switch.update(cx, |switch, cx| switch.set_scale(scale, cx));
+        }
+        self.settings_inputs.set_scale(scale, cx);
+        for inputs in &self.rate_band_inputs {
+            inputs.set_scale(scale, cx);
+        }
     }
 
     fn sync_editor_inputs(&mut self, cx: &mut Context<Self>) {
@@ -696,6 +757,7 @@ impl AppShell {
         self.scheduled_override_switch.update(cx, |switch, cx| {
             switch.set_checked(draft.scheduled_minutes_override.is_some(), cx);
             switch.set_colors(colors, cx);
+            switch.set_scale(scale, cx);
         });
     }
 
@@ -1309,13 +1371,19 @@ impl AppShell {
             .iter()
             .map(|band| RateBandInputs::new(band, cx))
             .collect();
+        let scale = interface_scale(&self.model);
+        for inputs in &self.rate_band_inputs {
+            inputs.set_scale(scale, cx);
+        }
     }
 
     fn sync_setting_switches(&mut self, cx: &mut Context<Self>) {
         let checked = self.settings_draft.expected_hours.exclude_public_holidays;
         let colors = self.colors();
+        let scale = interface_scale(&self.model);
         self.exclude_holidays_switch.update(cx, |switch, cx| {
             switch.set_checked(checked, cx);
+            switch.set_scale(scale, cx);
             switch.set_colors(colors, cx);
         });
     }
@@ -1402,22 +1470,23 @@ impl AppShell {
     }
 
     fn data_backups_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let database_path = self.services.data.database_path();
         let busy = self.maintenance_busy;
         div()
-            .max_w(px(1088.0))
+            .max_w(scale.px(1088.0))
             .mx_auto()
-            .pt(px(24.0))
-            .px(px(32.0))
-            .pb(px(48.0))
+            .pt(scale.px(24.0))
+            .px(scale.px(32.0))
+            .pb(scale.px(48.0))
             .flex()
             .flex_col()
-            .gap(px(24.0))
+            .gap(scale.px(24.0))
             .child(self.text("Current database"))
             .child(
                 div()
-                    .p(px(16.0))
-                    .rounded(px(12.0))
+                    .p(scale.px(16.0))
+                    .rounded(scale.px(12.0))
                     .bg(colors.surface_container)
                     .text_color(colors.on_surface_variant)
                     .child(database_path.display().to_string()),
@@ -1425,25 +1494,29 @@ impl AppShell {
             .child(
                 div()
                     .flex()
-                    .gap(px(12.0))
+                    .gap(scale.px(12.0))
                     .child(
-                        maintenance_button("open-data-folder", "Open data folder", !busy, colors)
-                            .when(!busy, |button| {
-                                button.on_click(cx.listener(|shell, _, _, cx| {
-                                    shell.open_data_folder();
-                                    cx.notify();
-                                }))
-                            }),
+                        maintenance_button(
+                            "open-data-folder",
+                            "Open data folder",
+                            !busy,
+                            colors,
+                            scale,
+                        )
+                        .when(!busy, |button| {
+                            button.on_click(cx.listener(|shell, _, _, cx| {
+                                shell.open_data_folder();
+                                cx.notify();
+                            }))
+                        }),
                     )
                     .child(
-                        maintenance_button("create-backup", "Create backup", !busy, colors).when(
-                            !busy,
-                            |button| {
+                        maintenance_button("create-backup", "Create backup", !busy, colors, scale)
+                            .when(!busy, |button| {
                                 button.on_click(
                                     cx.listener(|shell, _, _, cx| shell.create_backup(cx)),
                                 )
-                            },
-                        ),
+                            }),
                     ),
             )
             .when_some(self.last_backup.clone(), |page, path| {
@@ -1451,8 +1524,8 @@ impl AppShell {
             })
             .child(
                 div()
-                    .mt(px(12.0))
-                    .text_size(px(20.0))
+                    .mt(scale.px(12.0))
+                    .text_size(scale.px(20.0))
                     .child(self.text("Restore or import")),
             )
             .child(
@@ -1463,24 +1536,32 @@ impl AppShell {
             .child(
                 div()
                     .flex()
-                    .gap(px(12.0))
+                    .gap(scale.px(12.0))
                     .child(
-                        maintenance_button("restore-database", "Restore database", !busy, colors)
-                            .when(!busy, |button| {
-                                button.on_click(
-                                    cx.listener(|shell, _, _, cx| shell.choose_restore(cx)),
-                                )
-                            }),
+                        maintenance_button(
+                            "restore-database",
+                            "Restore database",
+                            !busy,
+                            colors,
+                            scale,
+                        )
+                        .when(!busy, |button| {
+                            button.on_click(cx.listener(|shell, _, _, cx| shell.choose_restore(cx)))
+                        }),
                     )
                     .child(
-                        maintenance_button("import-tidverk", "Import Tidverk", !busy, colors).when(
+                        maintenance_button(
+                            "import-tidverk",
+                            "Import Tidverk",
                             !busy,
-                            |button| {
-                                button.on_click(
-                                    cx.listener(|shell, _, _, cx| shell.choose_tidverk_import(cx)),
-                                )
-                            },
-                        ),
+                            colors,
+                            scale,
+                        )
+                        .when(!busy, |button| {
+                            button.on_click(
+                                cx.listener(|shell, _, _, cx| shell.choose_tidverk_import(cx)),
+                            )
+                        }),
                     ),
             )
             .when(busy, |page| {
@@ -1699,34 +1780,39 @@ impl AppShell {
     }
 
     fn projects_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let projects = self.model.projects.clone();
         let new_color = self.project_color_input.read(cx).text().to_owned();
         let new_color_swatch = color_from_hex(&new_color).unwrap_or(colors.primary);
         div()
-            .max_w(px(1088.0))
+            .max_w(scale.px(1088.0))
             .mx_auto()
-            .pt(px(24.0))
-            .px(px(32.0))
-            .pb(px(48.0))
+            .pt(scale.px(24.0))
+            .px(scale.px(32.0))
+            .pb(scale.px(48.0))
             .flex()
-            .gap(px(24.0))
+            .gap(scale.px(24.0))
             .child(
                 div()
-                    .w(px(320.0))
-                    .p(px(24.0))
+                    .w(scale.px(320.0))
+                    .p(scale.px(24.0))
                     .flex()
                     .flex_col()
-                    .gap(px(14.0))
-                    .rounded(px(16.0))
+                    .gap(scale.px(14.0))
+                    .rounded(scale.px(16.0))
                     .bg(colors.surface_container_low)
-                    .child(div().text_size(px(20.0)).child(self.text("Add project")))
+                    .child(
+                        div()
+                            .text_size(scale.px(20.0))
+                            .child(self.text("Add project")),
+                    )
                     .child(self.text("Name"))
                     .child(self.project_name_input.clone())
                     .child(self.text("Color"))
                     .child(
                         div()
                             .id("new-project-color")
-                            .size(px(40.0))
+                            .size(scale.px(40.0))
                             .flex()
                             .items_center()
                             .justify_center()
@@ -1735,7 +1821,7 @@ impl AppShell {
                             .hover(|style| style.bg(colors.surface_container_high))
                             .child(
                                 div()
-                                    .size(px(28.0))
+                                    .size(scale.px(28.0))
                                     .rounded_full()
                                     .border_1()
                                     .border_color(gpui::black().opacity(0.2))
@@ -1752,9 +1838,13 @@ impl AppShell {
                                         deferred(
                                             anchored()
                                                 .anchor(Corner::TopLeft)
-                                                .offset(point(px(0.0), px(48.0)))
-                                                .snap_to_window_with_margin(px(8.0))
-                                                .child(self.color_palette(&new_color, colors, cx)),
+                                                .offset(point(scale.px(0.0), scale.px(48.0)))
+                                                .snap_to_window_with_margin(scale.px(8.0))
+                                                .child(
+                                                    self.color_palette(
+                                                        &new_color, colors, scale, cx,
+                                                    ),
+                                                ),
                                         )
                                         .priority(3),
                                     )
@@ -1764,11 +1854,11 @@ impl AppShell {
                     .child(
                         div()
                             .id("add-project")
-                            .h(px(40.0))
+                            .h(scale.px(40.0))
                             .flex()
                             .items_center()
                             .justify_center()
-                            .rounded(px(20.0))
+                            .rounded(scale.px(20.0))
                             .cursor_pointer()
                             .bg(colors.primary)
                             .text_color(colors.on_primary)
@@ -1785,15 +1875,15 @@ impl AppShell {
             .child(
                 div()
                     .flex_1()
-                    .p(px(24.0))
+                    .p(scale.px(24.0))
                     .flex()
                     .flex_col()
-                    .gap(px(12.0))
-                    .rounded(px(16.0))
+                    .gap(scale.px(12.0))
+                    .rounded(scale.px(16.0))
                     .bg(colors.surface_container_low)
                     .child(
                         div()
-                            .text_size(px(20.0))
+                            .text_size(scale.px(20.0))
                             .child(format!("Projects ({})", projects.len())),
                     )
                     .children(projects.into_iter().enumerate().map(|(index, project)| {
@@ -1808,18 +1898,18 @@ impl AppShell {
                             .unwrap_or_else(|| "#5F875F".to_owned());
                         let color = color_from_hex(&color_value).unwrap_or(colors.primary);
                         div()
-                            .h(px(64.0))
-                            .px(px(16.0))
+                            .h(scale.px(64.0))
+                            .px(scale.px(16.0))
                             .flex()
                             .items_center()
-                            .gap(px(12.0))
-                            .rounded(px(12.0))
+                            .gap(scale.px(12.0))
+                            .rounded(scale.px(12.0))
                             .bg(colors.surface_container)
-                            .child(div().size(px(12.0)).rounded_full().bg(color))
+                            .child(div().size(scale.px(12.0)).rounded_full().bg(color))
                             .child(
                                 div().flex_1().flex().flex_col().child(project.name).child(
                                     div()
-                                        .text_size(px(12.0))
+                                        .text_size(scale.px(12.0))
                                         .text_color(colors.on_surface_variant)
                                         .child(if project.is_active {
                                             "Active"
@@ -1831,9 +1921,9 @@ impl AppShell {
                             .when(project.is_default, |row| {
                                 row.child(
                                     div()
-                                        .px(px(10.0))
-                                        .py(px(4.0))
-                                        .rounded(px(12.0))
+                                        .px(scale.px(10.0))
+                                        .py(scale.px(4.0))
+                                        .rounded(scale.px(12.0))
                                         .bg(colors.primary_container)
                                         .child(self.text("Default")),
                                 )
@@ -1842,11 +1932,11 @@ impl AppShell {
                                 row.child(
                                     div()
                                         .id(("default-project", index))
-                                        .h(px(40.0))
-                                        .px(px(12.0))
+                                        .h(scale.px(40.0))
+                                        .px(scale.px(12.0))
                                         .flex()
                                         .items_center()
-                                        .rounded(px(20.0))
+                                        .rounded(scale.px(20.0))
                                         .cursor_pointer()
                                         .hover(move |style| {
                                             style.bg(m3_state_layer(
@@ -1871,7 +1961,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .id(("color-project", index))
-                                    .size(px(40.0))
+                                    .size(scale.px(40.0))
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -1880,7 +1970,7 @@ impl AppShell {
                                     .hover(|style| style.bg(colors.surface_container_high))
                                     .child(
                                         div()
-                                            .size(px(28.0))
+                                            .size(scale.px(28.0))
                                             .rounded_full()
                                             .border_1()
                                             .border_color(gpui::black().opacity(0.2))
@@ -1899,11 +1989,15 @@ impl AppShell {
                                                 deferred(
                                                     anchored()
                                                         .anchor(Corner::TopRight)
-                                                        .offset(point(px(40.0), px(48.0)))
-                                                        .snap_to_window_with_margin(px(8.0))
+                                                        .offset(point(
+                                                            scale.px(40.0),
+                                                            scale.px(48.0),
+                                                        ))
+                                                        .snap_to_window_with_margin(scale.px(8.0))
                                                         .child(self.color_palette(
                                                             &color_value,
                                                             colors,
+                                                            scale,
                                                             cx,
                                                         )),
                                                 )
@@ -1915,11 +2009,11 @@ impl AppShell {
                             .child(
                                 div()
                                     .id(("toggle-project", index))
-                                    .h(px(40.0))
-                                    .px(px(10.0))
+                                    .h(scale.px(40.0))
+                                    .px(scale.px(10.0))
                                     .flex()
                                     .items_center()
-                                    .rounded(px(20.0))
+                                    .rounded(scale.px(20.0))
                                     .cursor_pointer()
                                     .hover(move |style| {
                                         style.bg(m3_state_layer(
@@ -1948,11 +2042,11 @@ impl AppShell {
                                 row.child(
                                     div()
                                         .id(("delete-project", index))
-                                        .h(px(40.0))
-                                        .px(px(10.0))
+                                        .h(scale.px(40.0))
+                                        .px(scale.px(10.0))
                                         .flex()
                                         .items_center()
-                                        .rounded(px(20.0))
+                                        .rounded(scale.px(20.0))
                                         .cursor_pointer()
                                         .text_color(colors.error)
                                         .hover(move |style| {
@@ -1981,6 +2075,7 @@ impl AppShell {
     }
 
     fn workspace_dialog(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let workspaces = self.model.workspaces.clone();
         let active = self.model.active_workspace_id.clone();
         let can_delete = workspaces.len() > 1;
@@ -1995,13 +2090,13 @@ impl AppShell {
             .bg(gpui::black().opacity(0.45))
             .child(
                 div()
-                    .w(px(760.0))
-                    .max_h(px(700.0))
-                    .p(px(24.0))
+                    .w(scale.px(760.0))
+                    .max_h(scale.px(700.0))
+                    .p(scale.px(24.0))
                     .flex()
                     .flex_col()
-                    .gap(px(16.0))
-                    .rounded(px(28.0))
+                    .gap(scale.px(16.0))
+                    .rounded(scale.px(28.0))
                     .bg(colors.surface_container_high)
                     .child(
                         div()
@@ -2010,13 +2105,13 @@ impl AppShell {
                             .justify_between()
                             .child(
                                 div()
-                                    .text_size(px(22.0))
+                                    .text_size(scale.px(22.0))
                                     .child(self.text("Manage workspaces")),
                             )
                             .child(
                                 div()
                                     .id("close-workspaces")
-                                    .size(px(40.0))
+                                    .size(scale.px(40.0))
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -2024,7 +2119,7 @@ impl AppShell {
                                     .cursor_pointer()
                                     .hover(|style| style.bg(colors.surface_container_highest))
                                     .active(|style| style.bg(colors.surface_container))
-                                    .child(m3_icon("close", 24.0, colors))
+                                    .child(m3_icon("close", 24.0 * scale.factor(), colors))
                                     .on_click(cx.listener(|shell, _, _, cx| {
                                         shell.manage_workspaces = false;
                                         cx.notify();
@@ -2035,12 +2130,12 @@ impl AppShell {
                         div()
                             .grid()
                             .grid_cols(2)
-                            .gap(px(16.0))
+                            .gap(scale.px(16.0))
                             .child(
                                 div()
                                     .flex()
                                     .flex_col()
-                                    .gap(px(10.0))
+                                    .gap(scale.px(10.0))
                                     .child(self.text("Workspace name"))
                                     .child(self.workspace_name_input.clone())
                                     .child(self.text("Worker name"))
@@ -2052,10 +2147,10 @@ impl AppShell {
                                 div()
                                     .flex()
                                     .flex_col()
-                                    .gap(px(10.0))
+                                    .gap(scale.px(10.0))
                                     .child(self.text("Type"))
                                     .child(
-                                        div().flex().gap(px(6.0)).children(
+                                        div().flex().gap(scale.px(6.0)).children(
                                             [
                                                 ("Employment", WorkspaceType::Employment),
                                                 ("Contract", WorkspaceType::Contract),
@@ -2073,11 +2168,11 @@ impl AppShell {
                                                     };
                                                     div()
                                                         .id(("workspace-type", index))
-                                                        .h(px(36.0))
-                                                        .px(px(10.0))
+                                                        .h(scale.px(36.0))
+                                                        .px(scale.px(10.0))
                                                         .flex()
                                                         .items_center()
-                                                        .rounded(px(18.0))
+                                                        .rounded(scale.px(18.0))
                                                         .cursor_pointer()
                                                         .bg(background)
                                                         .hover(move |style| {
@@ -2109,7 +2204,7 @@ impl AppShell {
                                     .child(
                                         div()
                                             .id("new-workspace-color")
-                                            .size(px(40.0))
+                                            .size(scale.px(40.0))
                                             .flex()
                                             .items_center()
                                             .justify_center()
@@ -2118,7 +2213,7 @@ impl AppShell {
                                             .hover(|style| style.bg(colors.surface_container_high))
                                             .child(
                                                 div()
-                                                    .size(px(28.0))
+                                                    .size(scale.px(28.0))
                                                     .rounded_full()
                                                     .border_1()
                                                     .border_color(gpui::black().opacity(0.2))
@@ -2137,10 +2232,15 @@ impl AppShell {
                                                         deferred(
                                                             anchored()
                                                                 .anchor(Corner::TopLeft)
-                                                                .offset(point(px(0.0), px(48.0)))
-                                                                .snap_to_window_with_margin(px(8.0))
+                                                                .offset(point(
+                                                                    scale.px(0.0),
+                                                                    scale.px(48.0),
+                                                                ))
+                                                                .snap_to_window_with_margin(
+                                                                    scale.px(8.0),
+                                                                )
                                                                 .child(self.color_palette(
-                                                                    &new_color, colors, cx,
+                                                                    &new_color, colors, scale, cx,
                                                                 )),
                                                         )
                                                         .priority(3),
@@ -2151,11 +2251,11 @@ impl AppShell {
                                     .child(
                                         div()
                                             .id("create-workspace")
-                                            .h(px(40.0))
+                                            .h(scale.px(40.0))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .rounded(px(20.0))
+                                            .rounded(scale.px(20.0))
                                             .cursor_pointer()
                                             .bg(colors.primary)
                                             .text_color(colors.on_primary)
@@ -2183,11 +2283,11 @@ impl AppShell {
                     .child(
                         div()
                             .id("workspace-list")
-                            .max_h(px(300.0))
+                            .max_h(scale.px(300.0))
                             .overflow_y_scroll()
                             .flex()
                             .flex_col()
-                            .gap(px(8.0))
+                            .gap(scale.px(8.0))
                             .children(workspaces.into_iter().enumerate().map(
                                 |(index, workspace)| {
                                     let switch_id = workspace.id.clone();
@@ -2199,25 +2299,25 @@ impl AppShell {
                                     let swatch =
                                         color_from_hex(&color_value).unwrap_or(colors.primary);
                                     div()
-                                        .h(px(72.0))
-                                        .px(px(20.0))
+                                        .h(scale.px(72.0))
+                                        .px(scale.px(20.0))
                                         .flex()
                                         .items_center()
-                                        .gap(px(12.0))
-                                        .rounded(px(12.0))
+                                        .gap(scale.px(12.0))
+                                        .rounded(scale.px(12.0))
                                         .bg(colors.surface_container)
-                                        .child(div().size(px(12.0)).rounded_full().bg(swatch))
+                                        .child(div().size(scale.px(12.0)).rounded_full().bg(swatch))
                                         .child(div().flex_1().child(workspace.name))
                                         .when(is_active, |row| row.child(self.text("Active")))
                                         .when(!is_active, |row| {
                                             row.child(
                                                 div()
                                                     .id(("switch-workspace", index))
-                                                    .h(px(36.0))
-                                                    .px(px(12.0))
+                                                    .h(scale.px(36.0))
+                                                    .px(scale.px(12.0))
                                                     .flex()
                                                     .items_center()
-                                                    .rounded(px(18.0))
+                                                    .rounded(scale.px(18.0))
                                                     .cursor_pointer()
                                                     .hover(move |style| {
                                                         style.bg(m3_state_layer(
@@ -2244,7 +2344,7 @@ impl AppShell {
                                         .child(
                                             div()
                                                 .id(("workspace-color", index))
-                                                .size(px(40.0))
+                                                .size(scale.px(40.0))
                                                 .flex()
                                                 .items_center()
                                                 .justify_center()
@@ -2255,7 +2355,7 @@ impl AppShell {
                                                 })
                                                 .child(
                                                     div()
-                                                        .size(px(28.0))
+                                                        .size(scale.px(28.0))
                                                         .rounded_full()
                                                         .border_1()
                                                         .border_color(gpui::black().opacity(0.2))
@@ -2279,15 +2379,16 @@ impl AppShell {
                                                                 anchored()
                                                                     .anchor(Corner::TopRight)
                                                                     .offset(point(
-                                                                        px(40.0),
-                                                                        px(48.0),
+                                                                        scale.px(40.0),
+                                                                        scale.px(48.0),
                                                                     ))
-                                                                    .snap_to_window_with_margin(px(
-                                                                        8.0,
-                                                                    ))
+                                                                    .snap_to_window_with_margin(
+                                                                        scale.px(8.0),
+                                                                    )
                                                                     .child(self.color_palette(
                                                                         &color_value,
                                                                         colors,
+                                                                        scale,
                                                                         cx,
                                                                     )),
                                                             )
@@ -2304,11 +2405,11 @@ impl AppShell {
                                                 .child(self.text("Delete"))
                                                 .when(can_delete, |button| {
                                                     button
-                                                        .h(px(40.0))
-                                                        .px(px(10.0))
+                                                        .h(scale.px(40.0))
+                                                        .px(scale.px(10.0))
                                                         .flex()
                                                         .items_center()
-                                                        .rounded(px(20.0))
+                                                        .rounded(scale.px(20.0))
                                                         .cursor_pointer()
                                                         .hover(move |style| {
                                                             style.bg(m3_state_layer(
@@ -2340,6 +2441,7 @@ impl AppShell {
     }
 
     fn setup_dialog(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let salary_type = self.settings_draft.salary.salary_type;
         let language = self.preferences_draft.language_preference;
         div()
@@ -2500,8 +2602,14 @@ impl AppShell {
                     )
                     .child(
                         div().flex().justify_end().child(
-                            maintenance_button("complete-setup", "Save and continue", true, colors)
-                                .on_click(cx.listener(|shell, _, _, cx| shell.save_setup(cx))),
+                            maintenance_button(
+                                "complete-setup",
+                                "Save and continue",
+                                true,
+                                colors,
+                                scale,
+                            )
+                            .on_click(cx.listener(|shell, _, _, cx| shell.save_setup(cx))),
                         ),
                     ),
             )
@@ -3393,7 +3501,9 @@ impl AppShell {
             rate_type: CompensationRateType::HourlyPremiumPercent,
             rate_value: Decimal::from(50),
         };
-        self.rate_band_inputs.push(RateBandInputs::new(&band, cx));
+        let inputs = RateBandInputs::new(&band, cx);
+        inputs.set_scale(interface_scale(&self.model), cx);
+        self.rate_band_inputs.push(inputs);
         self.settings_draft
             .overtime_compensation
             .rate_bands
@@ -3453,6 +3563,7 @@ impl AppShell {
     }
 
     fn editor_panel(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
         let Some(draft) = self.model.editor.draft.as_ref() else {
             return div();
         };
@@ -3481,7 +3592,7 @@ impl AppShell {
         let effective_hours = Decimal::new(worked_minutes(draft).value(), 0) / Decimal::new(60, 0);
         let premium_pay = daily_pay.overtime_pay.decimal() + daily_pay.ob_pay.decimal();
         div()
-            .w(px(416.0))
+            .w(scale.px(416.0))
             .h_full()
             .flex_none()
             .flex()
@@ -3490,10 +3601,10 @@ impl AppShell {
             .shadow(side_sheet_elevation())
             .child(
                 div()
-                    .h(px(64.0))
-                    .min_h(px(64.0))
-                    .pl(px(24.0))
-                    .pr(px(16.0))
+                    .h(scale.px(64.0))
+                    .min_h(scale.px(64.0))
+                    .pl(scale.px(24.0))
+                    .pr(scale.px(16.0))
                     .flex()
                     .items_center()
                     .justify_between()
@@ -3505,11 +3616,11 @@ impl AppShell {
                             .min_w_0()
                             .flex()
                             .items_center()
-                            .gap(px(8.0))
+                            .gap(scale.px(8.0))
                             .child(
                                 div()
                                     .min_w_0()
-                                    .text_size(px(18.0))
+                                    .text_size(scale.px(18.0))
                                     .font_weight(gpui::FontWeight::MEDIUM)
                                     .truncate()
                                     .child(date_title),
@@ -3517,12 +3628,12 @@ impl AppShell {
                             .when_some(holiday, |header, holiday| {
                                 header.child(
                                     div()
-                                        .px(px(8.0))
-                                        .py(px(2.0))
-                                        .rounded(px(12.0))
+                                        .px(scale.px(8.0))
+                                        .py(scale.px(2.0))
+                                        .rounded(scale.px(12.0))
                                         .bg(colors.warning_container)
                                         .text_color(colors.on_warning_container)
-                                        .text_size(px(12.0))
+                                        .text_size(scale.px(12.0))
                                         .child(holiday),
                                 )
                             }),
@@ -3530,7 +3641,7 @@ impl AppShell {
                     .child(
                         div()
                             .id("close-editor")
-                            .size(px(40.0))
+                            .size(scale.px(40.0))
                             .flex()
                             .items_center()
                             .justify_center()
@@ -3538,7 +3649,7 @@ impl AppShell {
                             .cursor_pointer()
                             .hover(|style| style.bg(colors.surface_container_high))
                             .active(|style| style.bg(colors.surface_container_highest))
-                            .child(m3_icon("close", 20.0, colors))
+                            .child(m3_icon("close", 20.0 * scale.factor(), colors))
                             .on_click(cx.listener(|shell, _, _, cx| {
                                 shell.model.close_catch_up();
                                 shell.refresh_month_view(cx);
@@ -3552,15 +3663,15 @@ impl AppShell {
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()
-                    .p(px(24.0))
+                    .p(scale.px(24.0))
                     .flex()
                     .flex_col()
-                    .gap(px(24.0))
+                    .gap(scale.px(24.0))
                     .child(self.text("Status"))
                     .child(
                         div()
                             .flex()
-                            .rounded(px(20.0))
+                            .rounded(scale.px(20.0))
                             .border_1()
                             .border_color(colors.outline_variant)
                             .children(
@@ -3591,13 +3702,13 @@ impl AppShell {
                                         };
                                         div()
                                             .id(id)
-                                            .h(px(40.0))
-                                            .px(px(12.0))
+                                            .h(scale.px(40.0))
+                                            .px(scale.px(12.0))
                                             .flex_1()
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .gap(px(8.0))
+                                            .gap(scale.px(8.0))
                                             .cursor_pointer()
                                             .when(index > 0, |segment| {
                                                 segment
@@ -3632,7 +3743,11 @@ impl AppShell {
                                                     0.12,
                                                 ))
                                             })
-                                            .child(m3_icon_colored(icon, 18.0, foreground))
+                                            .child(m3_icon_colored(
+                                                icon,
+                                                18.0 * scale.factor(),
+                                                foreground,
+                                            ))
                                             .child(label)
                                             .on_click(cx.listener(move |shell, _, _, cx| {
                                                 if let Some(draft) =
@@ -3648,22 +3763,22 @@ impl AppShell {
                     )
                     .child(self.text("Reuse"))
                     .child(
-                        div().flex().gap(px(8.0)).children(
+                        div().flex().gap(scale.px(8.0)).children(
                             ["Normal day", "Copy previous", "Copy last week"]
                                 .into_iter()
                                 .enumerate()
                                 .map(|(index, label)| {
                                     div()
                                         .id(("reuse", index))
-                                        .h(px(36.0))
-                                        .px(px(10.0))
+                                        .h(scale.px(36.0))
+                                        .px(scale.px(10.0))
                                         .flex()
                                         .items_center()
-                                        .rounded(px(18.0))
+                                        .rounded(scale.px(18.0))
                                         .border_1()
                                         .border_color(colors.outline_variant)
                                         .cursor_pointer()
-                                        .text_size(px(12.0))
+                                        .text_size(scale.px(12.0))
                                         .hover(move |style| {
                                             style.bg(m3_state_layer(
                                                 colors.surface_container_low,
@@ -3714,7 +3829,7 @@ impl AppShell {
                         panel
                             .child(self.text("Quick Presets"))
                             .child(
-                                div().flex().gap(px(8.0)).children(
+                                div().flex().gap(scale.px(8.0)).children(
                                     [
                                         ("08:00-16:30", "08:00", "16:30"),
                                         ("08:30-17:00", "08:30", "17:00"),
@@ -3726,15 +3841,15 @@ impl AppShell {
                                         |(index, (label, start, end))| {
                                             div()
                                                 .id(("preset", index))
-                                                .h(px(36.0))
-                                                .px(px(10.0))
+                                                .h(scale.px(36.0))
+                                                .px(scale.px(10.0))
                                                 .flex()
                                                 .items_center()
-                                                .rounded(px(18.0))
+                                                .rounded(scale.px(18.0))
                                                 .border_1()
                                                 .border_color(colors.outline_variant)
                                                 .cursor_pointer()
-                                                .text_size(px(12.0))
+                                                .text_size(scale.px(12.0))
                                                 .hover(move |style| {
                                                     style.bg(m3_state_layer(
                                                         colors.surface_container_low,
@@ -3772,14 +3887,14 @@ impl AppShell {
                             .child(
                                 div()
                                     .flex()
-                                    .gap(px(12.0))
+                                    .gap(scale.px(12.0))
                                     .child(
                                         div()
                                             .min_w_0()
                                             .flex_1()
                                             .flex()
                                             .flex_col()
-                                            .gap(px(8.0))
+                                            .gap(scale.px(8.0))
                                             .child(self.start_input.clone()),
                                     )
                                     .child(
@@ -3788,12 +3903,12 @@ impl AppShell {
                                             .flex_1()
                                             .flex()
                                             .flex_col()
-                                            .gap(px(8.0))
+                                            .gap(scale.px(8.0))
                                             .child(self.end_input.clone()),
                                     ),
                             )
                             .child(self.text("Lunch Break"))
-                            .child(div().flex().gap(px(8.0)).children(
+                            .child(div().flex().gap(scale.px(8.0)).children(
                                 [0_i64, 30, 45, 60].into_iter().map(|minutes| {
                                     let selected = lunch == minutes;
                                     let background = if selected {
@@ -3808,11 +3923,11 @@ impl AppShell {
                                     };
                                     div()
                                         .id(("lunch", minutes as usize))
-                                        .h(px(36.0))
-                                        .px(px(14.0))
+                                        .h(scale.px(36.0))
+                                        .px(scale.px(14.0))
                                         .flex()
                                         .items_center()
-                                        .rounded(px(18.0))
+                                        .rounded(scale.px(18.0))
                                         .cursor_pointer()
                                         .bg(background)
                                         .text_color(foreground)
@@ -3833,7 +3948,7 @@ impl AppShell {
                             ))
                             .child(
                                 div()
-                                    .min_h(px(48.0))
+                                    .min_h(scale.px(48.0))
                                     .flex()
                                     .items_center()
                                     .justify_between()
@@ -3850,11 +3965,11 @@ impl AppShell {
                     })
                     .child(
                         div()
-                            .p(px(16.0))
+                            .p(scale.px(16.0))
                             .flex()
                             .flex_col()
-                            .gap(px(8.0))
-                            .rounded(px(12.0))
+                            .gap(scale.px(8.0))
+                            .rounded(scale.px(12.0))
                             .bg(colors.surface_container)
                             .child(
                                 div()
@@ -3872,13 +3987,13 @@ impl AppShell {
                                         .child(format!("+{} {currency}", premium_pay.round_dp(2))),
                                 )
                             })
-                            .child(div().h(px(1.0)).bg(colors.grid_line))
+                            .child(div().h(scale.px(1.0)).bg(colors.grid_line))
                             .child(
                                 div()
                                     .flex()
                                     .justify_between()
                                     .text_color(colors.primary)
-                                    .text_size(px(16.0))
+                                    .text_size(scale.px(16.0))
                                     .font_weight(gpui::FontWeight::MEDIUM)
                                     .child(self.text("Estimated Day Pay"))
                                     .child(format!(
@@ -3894,23 +4009,23 @@ impl AppShell {
             )
             .child(
                 div()
-                    .h(px(64.0))
-                    .px(px(16.0))
+                    .h(scale.px(64.0))
+                    .px(scale.px(16.0))
                     .flex()
                     .items_center()
                     .justify_end()
-                    .gap(px(8.0))
+                    .gap(scale.px(8.0))
                     .border_t_1()
                     .border_color(colors.grid_line)
                     .bg(colors.surface_container)
                     .child(
                         div()
                             .id("reset-entry")
-                            .h(px(40.0))
-                            .px(px(12.0))
+                            .h(scale.px(40.0))
+                            .px(scale.px(12.0))
                             .flex()
                             .items_center()
-                            .rounded(px(20.0))
+                            .rounded(scale.px(20.0))
                             .cursor_pointer()
                             .text_color(colors.error)
                             .hover(|style| style.bg(colors.error_container))
@@ -3928,11 +4043,11 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("catch-up-back")
-                                    .h(px(40.0))
-                                    .px(px(12.0))
+                                    .h(scale.px(40.0))
+                                    .px(scale.px(12.0))
                                     .flex()
                                     .items_center()
-                                    .rounded(px(20.0))
+                                    .rounded(scale.px(20.0))
                                     .cursor_pointer()
                                     .hover(|style| style.bg(colors.surface_container_high))
                                     .child(self.text("Back"))
@@ -3946,11 +4061,11 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("catch-up-skip")
-                                    .h(px(40.0))
-                                    .px(px(12.0))
+                                    .h(scale.px(40.0))
+                                    .px(scale.px(12.0))
                                     .flex()
                                     .items_center()
-                                    .rounded(px(20.0))
+                                    .rounded(scale.px(20.0))
                                     .cursor_pointer()
                                     .hover(|style| style.bg(colors.surface_container_high))
                                     .child(self.text("Skip"))
@@ -3965,11 +4080,11 @@ impl AppShell {
                     .child(
                         div()
                             .id("cancel-editor")
-                            .h(px(40.0))
-                            .px(px(12.0))
+                            .h(scale.px(40.0))
+                            .px(scale.px(12.0))
                             .flex()
                             .items_center()
-                            .rounded(px(20.0))
+                            .rounded(scale.px(20.0))
                             .cursor_pointer()
                             .hover(|style| style.bg(colors.surface_container_high))
                             .child(self.text("Cancel"))
@@ -3982,13 +4097,13 @@ impl AppShell {
                     .child(
                         div()
                             .id("save-entry")
-                            .h(px(40.0))
-                            .min_w(px(128.0))
-                            .px(px(20.0))
+                            .h(scale.px(40.0))
+                            .min_w(scale.px(128.0))
+                            .px(scale.px(20.0))
                             .flex()
                             .items_center()
                             .justify_center()
-                            .rounded(px(20.0))
+                            .rounded(scale.px(20.0))
                             .cursor_pointer()
                             .bg(colors.primary)
                             .text_color(colors.on_primary)
@@ -4236,16 +4351,17 @@ impl AppShell {
         &mut self,
         selected: &str,
         colors: M3ColorScheme,
+        scale: UiScale,
         cx: &mut Context<Self>,
     ) -> gpui::Div {
         let selected = selected.to_ascii_uppercase();
         div()
-            .min_w(px(232.0))
-            .p(px(16.0))
+            .min_w(scale.px(232.0))
+            .p(scale.px(16.0))
             .grid()
             .grid_cols(6)
-            .gap(px(8.0))
-            .rounded(px(16.0))
+            .gap(scale.px(8.0))
+            .rounded(scale.px(16.0))
             .bg(colors.surface_container_high)
             .shadow(workspace_menu_elevation())
             .on_mouse_down_out(cx.listener(|shell, _, _, cx| {
@@ -4261,7 +4377,7 @@ impl AppShell {
                         let is_selected = selected == color;
                         div()
                             .id(("color-preset", index))
-                            .size(px(32.0))
+                            .size(scale.px(32.0))
                             .flex()
                             .items_center()
                             .justify_center()
@@ -4276,7 +4392,11 @@ impl AppShell {
                             .cursor_pointer()
                             .hover(|style| style.border_color(colors.on_surface))
                             .when(is_selected, |item| {
-                                item.child(m3_icon_colored("check", 18.0, gpui::white()))
+                                item.child(m3_icon_colored(
+                                    "check",
+                                    18.0 * scale.factor(),
+                                    gpui::white(),
+                                ))
                             })
                             .on_click(cx.listener(move |shell, _, _, cx| {
                                 shell.apply_picker_color(color, cx)
@@ -5689,16 +5809,17 @@ fn maintenance_button(
     label: impl Into<SharedString>,
     enabled: bool,
     colors: M3ColorScheme,
+    scale: UiScale,
 ) -> Stateful<gpui::Div> {
     let background = colors.secondary_container;
     let foreground = colors.on_secondary_container;
     div()
         .id(id)
-        .h(px(40.0))
-        .px(px(18.0))
+        .h(scale.px(40.0))
+        .px(scale.px(18.0))
         .flex()
         .items_center()
-        .rounded(px(20.0))
+        .rounded(scale.px(20.0))
         .bg(background)
         .text_color(foreground)
         .opacity(if enabled { 1.0 } else { 0.38 })
