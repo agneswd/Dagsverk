@@ -94,6 +94,23 @@ const TAX_MODE_OPTIONS: [TaxMode; 4] = [
     TaxMode::SecondaryIncomeThirtyPercent,
     TaxMode::ManualMonthlyDeduction,
 ];
+const OVERTIME_MODE_OPTIONS: [OvertimeCompensationMode; 2] = [
+    OvertimeCompensationMode::CompTime,
+    OvertimeCompensationMode::Paid,
+];
+const OVERTIME_THRESHOLD_OPTIONS: [OvertimeThresholdMode; 2] = [
+    OvertimeThresholdMode::FixedDailyHours,
+    OvertimeThresholdMode::ScheduledHours,
+];
+const OB_COMBINATION_OPTIONS: [ObOvertimeCombinationMode; 2] = [
+    ObOvertimeCombinationMode::ExcludeOb,
+    ObOvertimeCombinationMode::IncludeOb,
+];
+const RATE_TYPE_OPTIONS: [CompensationRateType; 3] = [
+    CompensationRateType::HourlyPremiumPercent,
+    CompensationRateType::FixedHourlyAmount,
+    CompensationRateType::FullTimeMonthlySalaryDivisor,
+];
 
 impl ExportFormat {
     const fn extension(self) -> &'static str {
@@ -132,6 +149,68 @@ struct SalaryTaxSelects {
     salary_type: Entity<M3Select>,
     hourly_pay_basis: Entity<M3Select>,
     tax_mode: Entity<M3Select>,
+}
+
+struct OvertimeSelects {
+    mode: Entity<M3Select>,
+    threshold: Entity<M3Select>,
+    ob_combination: Entity<M3Select>,
+    default_rate: Entity<M3Select>,
+}
+
+impl OvertimeSelects {
+    fn new(settings: &AppSettings, cx: &mut Context<AppShell>) -> Self {
+        let overtime = &settings.overtime_compensation;
+        Self {
+            mode: cx.new(|cx| {
+                M3Select::new(
+                    "Compensation mode",
+                    ["Comp time", "Direct salary"],
+                    option_index(&OVERTIME_MODE_OPTIONS, overtime.mode),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            threshold: cx.new(|cx| {
+                M3Select::new(
+                    "Overtime threshold",
+                    ["Fixed daily hours", "Scheduled hours"],
+                    option_index(&OVERTIME_THRESHOLD_OPTIONS, overtime.threshold_mode),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            ob_combination: cx.new(|cx| {
+                M3Select::new(
+                    "OB during overtime",
+                    ["Exclude", "Include"],
+                    option_index(&OB_COMBINATION_OPTIONS, overtime.ob_overtime_combination),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            default_rate: cx.new(|cx| {
+                M3Select::new(
+                    "Default paid-overtime rate",
+                    ["Premium percent", "Fixed amount", "Monthly divisor"],
+                    option_index(&RATE_TYPE_OPTIONS, overtime.default_rate_type),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+        }
+    }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for select in [
+            &self.mode,
+            &self.threshold,
+            &self.ob_combination,
+            &self.default_rate,
+        ] {
+            select.update(cx, |select, cx| select.set_scale(scale, cx));
+        }
+    }
 }
 
 impl SalaryTaxSelects {
@@ -397,6 +476,7 @@ pub struct AppShell {
     currency_select: Entity<M3Select>,
     application_selects: ApplicationSelects,
     salary_tax_selects: SalaryTaxSelects,
+    overtime_selects: OvertimeSelects,
     scheduled_input: Entity<TextInput>,
     scheduled_override_switch: Entity<M3Switch>,
     exclude_holidays_switch: Entity<M3Switch>,
@@ -594,6 +674,7 @@ impl AppShell {
         });
         let application_selects = ApplicationSelects::new(&model.preferences, &model.settings, cx);
         let salary_tax_selects = SalaryTaxSelects::new(&model.settings, cx);
+        let overtime_selects = OvertimeSelects::new(&model.settings, cx);
         let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
         scheduled_input.update(cx, |input, cx| input.set_suffix("hours", cx));
         let scheduled_override_switch = cx.new(|cx| {
@@ -874,6 +955,49 @@ impl AppShell {
             },
         )
         .detach();
+        cx.subscribe(
+            &overtime_selects.mode,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = OVERTIME_MODE_OPTIONS.get(event.0) {
+                    shell.settings_draft.overtime_compensation.mode = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &overtime_selects.threshold,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = OVERTIME_THRESHOLD_OPTIONS.get(event.0) {
+                    shell.settings_draft.overtime_compensation.threshold_mode = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &overtime_selects.ob_combination,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = OB_COMBINATION_OPTIONS.get(event.0) {
+                    shell
+                        .settings_draft
+                        .overtime_compensation
+                        .ob_overtime_combination = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &overtime_selects.default_rate,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = RATE_TYPE_OPTIONS.get(event.0) {
+                    shell.settings_draft.overtime_compensation.default_rate_type = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
         cx.observe_window_appearance(window, |shell, window, cx| {
             shell.model.set_system_dark(matches!(
                 window.appearance(),
@@ -895,6 +1019,7 @@ impl AppShell {
             currency_select,
             application_selects,
             salary_tax_selects,
+            overtime_selects,
             scheduled_input,
             scheduled_override_switch,
             exclude_holidays_switch,
@@ -1020,6 +1145,7 @@ impl AppShell {
             .update(cx, |tabs, cx| tabs.set_scale(scale, cx));
         self.application_selects.set_scale(scale, cx);
         self.salary_tax_selects.set_scale(scale, cx);
+        self.overtime_selects.set_scale(scale, cx);
         self.settings_inputs.set_scale(scale, cx);
         for inputs in &self.rate_band_inputs {
             inputs.set_scale(scale, cx);
@@ -3336,6 +3462,48 @@ impl AppShell {
     fn overtime_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
         let scale = interface_scale(&self.model);
         let overtime = self.settings_draft.overtime_compensation.clone();
+        let mode_labels = [self.text("Comp time"), self.text("Direct salary")];
+        let threshold_labels = [self.text("Fixed daily hours"), self.text("Scheduled hours")];
+        let combination_labels = [self.text("Exclude"), self.text("Include")];
+        let rate_labels = [
+            self.text("Premium percent"),
+            self.text("Fixed amount"),
+            self.text("Monthly divisor"),
+        ];
+        self.overtime_selects.mode.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                mode_labels,
+                option_index(&OVERTIME_MODE_OPTIONS, overtime.mode),
+                cx,
+            );
+        });
+        self.overtime_selects.threshold.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                threshold_labels,
+                option_index(&OVERTIME_THRESHOLD_OPTIONS, overtime.threshold_mode),
+                cx,
+            );
+        });
+        self.overtime_selects
+            .ob_combination
+            .update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    combination_labels,
+                    option_index(&OB_COMBINATION_OPTIONS, overtime.ob_overtime_combination),
+                    cx,
+                );
+            });
+        self.overtime_selects.default_rate.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                rate_labels,
+                option_index(&RATE_TYPE_OPTIONS, overtime.default_rate_type),
+                cx,
+            );
+        });
         div()
             .flex()
             .flex_col()
@@ -3345,119 +3513,18 @@ impl AppShell {
                     .text_size(scale.px(18.0))
                     .child(self.text("Overtime & OB")),
             )
-            .child(self.text("Compensation Mode"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        ("Comp time", OvertimeCompensationMode::CompTime),
-                        ("Direct salary", OvertimeCompensationMode::Paid),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("overtime-mode", index),
-                            label,
-                            overtime.mode == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell.settings_draft.overtime_compensation.mode = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
+            .child(self.overtime_selects.mode.clone())
+            .child(self.overtime_selects.threshold.clone())
+            .when(
+                overtime.threshold_mode == OvertimeThresholdMode::FixedDailyHours,
+                |settings| settings.child(self.settings_inputs.overtime_threshold.clone()),
             )
-            .child(self.text("Overtime threshold"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        ("Fixed daily hours", OvertimeThresholdMode::FixedDailyHours),
-                        ("Scheduled hours", OvertimeThresholdMode::ScheduledHours),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("threshold-mode", index),
-                            label,
-                            overtime.threshold_mode == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell.settings_draft.overtime_compensation.threshold_mode = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
-            .child(self.text("Fixed daily hours"))
-            .child(self.settings_inputs.overtime_threshold.clone())
-            .child(self.text("OB During Overtime"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        ("Exclude", ObOvertimeCombinationMode::ExcludeOb),
-                        ("Include", ObOvertimeCombinationMode::IncludeOb),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("ob-combination", index),
-                            label,
-                            overtime.ob_overtime_combination == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell
-                                .settings_draft
-                                .overtime_compensation
-                                .ob_overtime_combination = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
-            .child(self.text("Default paid-overtime rate"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        (
-                            "Premium percent",
-                            CompensationRateType::HourlyPremiumPercent,
-                        ),
-                        ("Fixed amount", CompensationRateType::FixedHourlyAmount),
-                        (
-                            "Monthly divisor",
-                            CompensationRateType::FullTimeMonthlySalaryDivisor,
-                        ),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("default-rate", index),
-                            label,
-                            overtime.default_rate_type == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            shell.settings_draft.overtime_compensation.default_rate_type = value;
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
-            .child(self.settings_inputs.default_rate_value.clone())
+            .child(self.overtime_selects.ob_combination.clone())
+            .when(overtime.mode == OvertimeCompensationMode::Paid, |settings| {
+                settings
+                    .child(self.overtime_selects.default_rate.clone())
+                    .child(self.settings_inputs.default_rate_value.clone())
+            })
             .child(
                 div()
                     .id("add-overtime-rule")
@@ -6465,7 +6532,7 @@ mod tests {
         clock::FixedClock,
         models::{
             CompensationRuleType, CurrencyPreference, LanguagePreference, MonthViewPreference,
-            SalaryType, TaxMode, ThemePreference,
+            OvertimeCompensationMode, OvertimeThresholdMode, SalaryType, TaxMode, ThemePreference,
         },
         tax::TaxEngine,
     };
@@ -6588,6 +6655,33 @@ mod tests {
         assert_eq!(
             shell.read_with(cx, |shell, _| shell.settings_draft.tax_settings.mode),
             TaxMode::PrimaryIncomeTaxTable
+        );
+        shell.update(cx, |shell, cx| {
+            shell.settings_tab = 2;
+            shell
+                .settings_tabs
+                .update(cx, |tabs, cx| tabs.set_selected(2, cx));
+        });
+        cx.refresh().expect("refresh overtime settings");
+        let overtime_mode = shell.read_with(cx, |shell, _| shell.overtime_selects.mode.clone());
+        cx.update(|window, app| window.focus(&overtime_mode.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter home down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell
+                .settings_draft
+                .overtime_compensation
+                .mode),
+            OvertimeCompensationMode::Paid
+        );
+        let threshold = shell.read_with(cx, |shell, _| shell.overtime_selects.threshold.clone());
+        cx.update(|window, app| window.focus(&threshold.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter home enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell
+                .settings_draft
+                .overtime_compensation
+                .threshold_mode),
+            OvertimeThresholdMode::FixedDailyHours
         );
         let shell_focus = shell.read_with(cx, |shell, _| shell.focus.clone());
         cx.update(|window, _| window.focus(&shell_focus));

@@ -68,6 +68,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - General Settings uses outlined Material selects for Default Project and Currency instead of chip collections.
 - Application Settings uses outlined Material selects for Theme, Language, Interface scale, and Export language.
 - Salary and Tax Settings uses outlined Material selects and shows only fields that apply to the selected modes.
+- Overtime and OB Settings uses outlined Material selects for its top-level modes and shows mode-specific fields conditionally.
 
 ## Comparison tolerances
 
