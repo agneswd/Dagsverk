@@ -62,6 +62,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - Projects stack below an 860 px content pane. Route pages reduce horizontal padding below 720 px.
 - The timesheet header hides labels and secondary actions from the measured available pane width, including the docked editor width.
 - Settings tabs share one tonal surface with the first settings card and use the selected text and indicator colors.
+- Add Project uses a filled icon button state and stays disabled until the trimmed project name is non-empty.
 
 ## Comparison tolerances
 

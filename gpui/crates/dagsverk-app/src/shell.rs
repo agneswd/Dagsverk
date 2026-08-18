@@ -537,6 +537,10 @@ impl AppShell {
             cx.notify();
         })
         .detach();
+        cx.subscribe(&project_name_input, |_, _, _: &TextInputEvent, cx| {
+            cx.notify();
+        })
+        .detach();
         cx.subscribe(&project_select, |shell, _, event: &M3SelectEvent, cx| {
             let options = editor_project_options(&shell.model);
             if let Some(draft) = shell.model.editor.draft.as_mut() {
@@ -1839,6 +1843,7 @@ impl AppShell {
         let projects = self.model.projects.clone();
         let new_color = self.project_color_input.read(cx).text().to_owned();
         let new_color_swatch = color_from_hex(&new_color).unwrap_or(colors.primary);
+        let can_add_project = !self.project_name_input.read(cx).text().trim().is_empty();
         div()
             .max_w(scale.px(1088.0))
             .mx_auto()
@@ -1915,21 +1920,40 @@ impl AppShell {
                         div()
                             .id("add-project")
                             .h(scale.px(40.0))
+                            .mt(scale.px(10.0))
                             .flex()
                             .items_center()
                             .justify_center()
+                            .gap(scale.px(8.0))
                             .rounded(scale.px(20.0))
-                            .cursor_pointer()
                             .bg(colors.primary)
                             .text_color(colors.on_primary)
-                            .hover(move |style| {
-                                style.bg(m3_state_layer(colors.primary, colors.on_primary, 0.08))
+                            .opacity(if can_add_project { 1.0 } else { 0.38 })
+                            .when(can_add_project, |button| {
+                                button
+                                    .cursor_pointer()
+                                    .hover(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.primary,
+                                            colors.on_primary,
+                                            0.08,
+                                        ))
+                                    })
+                                    .active(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.primary,
+                                            colors.on_primary,
+                                            0.12,
+                                        ))
+                                    })
+                                    .on_click(cx.listener(|shell, _, _, cx| shell.add_project(cx)))
                             })
-                            .active(move |style| {
-                                style.bg(m3_state_layer(colors.primary, colors.on_primary, 0.12))
-                            })
-                            .child(self.text("Add project"))
-                            .on_click(cx.listener(|shell, _, _, cx| shell.add_project(cx))),
+                            .child(m3_icon_colored(
+                                "add",
+                                18.0 * scale.factor(),
+                                colors.on_primary,
+                            ))
+                            .child(self.text("Add project")),
                     ),
             )
             .child(
