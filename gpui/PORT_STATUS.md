@@ -11,5 +11,5 @@
 | SQLite | `electron/database.service.ts` | `dagsverk-data` | Yes | N/A | N/A | Behavior complete | Electron-to-Rust, Rust-to-Electron, round-trip, migration, backup, restore, and Tidverk tests pass. |
 | XLSX and ODS export | `electron/*-export.service.ts` | `dagsverk-export` | Yes | N/A | N/A | Behavior complete | Semantic ZIP, XML, worksheet, formula, cached value, localization, and validation tests pass. |
 | Native platform services | `electron/main.ts`, `preload.ts` | `dagsverk-app/platform` | Yes | N/A | N/A | Behavior complete | Async native dialogs, shell opening, injectable traits, and development updater state are implemented. |
-| Material 3 foundation | `src/styles.scss` | `dagsverk-ui/m3` | Yes | In progress | Linux | In progress | Tokens, typography, buttons, cards, input, switches, chips, status chips, and Material Symbols compile and launch on Wayland. |
+| Material 3 foundation | `src/styles.scss` | `dagsverk-ui/m3` | Yes | In progress | Linux | In progress | Core controls, tabs, segmented choices, dialogs, menus, snackbars, progress, expansion panels, and Material Symbols compile and launch on Wayland. |
 | Resource comparison | Electron and GPUI builds | `gpui/PERFORMANCE.md` | N/A | N/A | N/A | Not started | Same-machine startup, CPU, memory, database, editor, navigation, and export measurements are required in M8. |

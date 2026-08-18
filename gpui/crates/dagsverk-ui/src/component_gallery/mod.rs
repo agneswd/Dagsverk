@@ -5,8 +5,9 @@ use gpui::{
 
 use crate::{
     m3::{
-        M3Button, M3ButtonVariant, M3Chip, M3ColorScheme, M3Status, M3Switch, ResolvedTheme,
-        m3_card, m3_icon, m3_status_chip,
+        M3Button, M3ButtonVariant, M3Chip, M3ChoiceGroup, M3ChoiceKind, M3ColorScheme, M3Dialog,
+        M3ExpansionPanel, M3Menu, M3SnackbarHost, M3Status, M3Switch, ResolvedTheme, m3_card,
+        m3_divider, m3_icon, m3_progress_bar, m3_status_chip,
     },
     text_input::TextInput,
 };
@@ -18,6 +19,12 @@ pub struct ComponentGallery {
     input: Entity<TextInput>,
     switch: Entity<M3Switch>,
     chips: Vec<Entity<M3Chip>>,
+    tabs: Entity<M3ChoiceGroup>,
+    segmented: Entity<M3ChoiceGroup>,
+    expansion: Entity<M3ExpansionPanel>,
+    dialog: Entity<M3Dialog>,
+    menu: Entity<M3Menu>,
+    snackbar: Entity<M3SnackbarHost>,
     theme: ResolvedTheme,
     activations: usize,
 }
@@ -29,6 +36,8 @@ impl ComponentGallery {
             KeyBinding::new("shift-tab", TabPrevious, None),
         ]);
         TextInput::register_key_bindings(cx);
+        M3Dialog::register_key_bindings(cx);
+        M3Menu::register_key_bindings(cx);
     }
 
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -41,17 +50,46 @@ impl ComponentGallery {
             ("outlined", "Outlined", M3ButtonVariant::Outlined),
             ("text", "Text", M3ButtonVariant::Text),
             ("disabled", "Disabled", M3ButtonVariant::Filled),
+            ("dialog", "Open dialog", M3ButtonVariant::Tonal),
+            ("menu", "Open menu", M3ButtonVariant::Outlined),
+            ("snackbar", "Show snackbar", M3ButtonVariant::Text),
         ];
         let buttons: Vec<_> = specs
             .into_iter()
             .map(|(id, label, variant)| cx.new(|cx| M3Button::new(id, label, variant, colors, cx)))
             .collect();
         buttons[5].update(cx, |button, cx| button.set_enabled(false, cx));
+        let dialog = cx.new(|cx| {
+            M3Dialog::new(
+                "gallery-dialog",
+                "Material dialog",
+                "Escape, the backdrop, or Close dismisses this dialog. Focus stays on its action.",
+                colors,
+                cx,
+            )
+        });
+        let menu = cx.new(|cx| {
+            M3Menu::new(
+                ["Fill normal workdays", "Copy month", "Reset month"],
+                colors,
+                cx,
+            )
+        });
+        let snackbar = cx.new(|cx| M3SnackbarHost::new(colors, cx));
 
         for (index, button) in buttons.iter().enumerate() {
+            let dialog = dialog.clone();
+            let menu = menu.clone();
+            let snackbar = snackbar.clone();
             cx.subscribe(button, move |gallery, _, _, cx| {
                 if index == 0 {
                     gallery.toggle_theme(cx);
+                } else if index == 6 {
+                    dialog.update(cx, |dialog, cx| dialog.open(cx));
+                } else if index == 7 {
+                    menu.update(cx, |menu, cx| menu.open(cx));
+                } else if index == 8 {
+                    snackbar.update(cx, |snackbar, cx| snackbar.show("Settings saved.", cx));
                 } else {
                     gallery.activations += 1;
                     cx.notify();
@@ -66,12 +104,47 @@ impl ComponentGallery {
             cx.new(|cx| M3Chip::new("chip-selected", "Selected", true, colors, cx)),
             cx.new(|cx| M3Chip::new("chip-unselected", "Filter chip", false, colors, cx)),
         ];
+        let tabs = cx.new(|cx| {
+            M3ChoiceGroup::new(
+                "gallery-tabs",
+                ["General", "Schedule", "Application"],
+                0,
+                M3ChoiceKind::Tabs,
+                colors,
+                cx,
+            )
+        });
+        let segmented = cx.new(|cx| {
+            M3ChoiceGroup::new(
+                "gallery-segmented",
+                ["Ledger", "Calendar"],
+                0,
+                M3ChoiceKind::Segmented,
+                colors,
+                cx,
+            )
+        });
+        let expansion = cx.new(|cx| {
+            M3ExpansionPanel::new(
+                "gallery-expansion",
+                "Overtime rule",
+                "Scheduled workdays, 18:00-22:00, 50% premium",
+                colors,
+                cx,
+            )
+        });
         window.focus(&input.read(cx).focus_handle(cx));
         Self {
             buttons,
             input,
             switch,
             chips,
+            tabs,
+            segmented,
+            expansion,
+            dialog,
+            menu,
+            snackbar,
             theme: ResolvedTheme::Light,
             activations: 0,
         }
@@ -93,6 +166,16 @@ impl ComponentGallery {
         for chip in &self.chips {
             chip.update(cx, |chip, cx| chip.set_colors(colors, cx));
         }
+        self.tabs.update(cx, |tabs, cx| tabs.set_colors(colors, cx));
+        self.segmented
+            .update(cx, |segmented, cx| segmented.set_colors(colors, cx));
+        self.expansion
+            .update(cx, |panel, cx| panel.set_colors(colors, cx));
+        self.dialog
+            .update(cx, |dialog, cx| dialog.set_colors(colors, cx));
+        self.menu.update(cx, |menu, cx| menu.set_colors(colors, cx));
+        self.snackbar
+            .update(cx, |snackbar, cx| snackbar.set_colors(colors, cx));
         cx.notify();
     }
 
@@ -112,6 +195,7 @@ impl Render for ComponentGallery {
             .on_action(cx.listener(Self::tab))
             .on_action(cx.listener(Self::tab_previous))
             .id("component-gallery")
+            .relative()
             .size_full()
             .overflow_y_scroll()
             .p(px(32.0))
@@ -185,6 +269,19 @@ impl Render for ComponentGallery {
                         m3_card(colors)
                             .p(px(24.0))
                             .flex()
+                            .flex_col()
+                            .gap(px(16.0))
+                            .child("Tabs and progress")
+                            .child(self.tabs.clone())
+                            .child(m3_divider(colors))
+                            .child(self.segmented.clone())
+                            .child(m3_progress_bar(0.64, colors))
+                            .child(self.expansion.clone()),
+                    )
+                    .child(
+                        m3_card(colors)
+                            .p(px(24.0))
+                            .flex()
                             .items_center()
                             .gap(px(16.0))
                             .child("Material Symbols")
@@ -201,6 +298,9 @@ impl Render for ComponentGallery {
                             ),
                     ),
             )
+            .child(self.dialog.clone())
+            .child(self.menu.clone())
+            .child(self.snackbar.clone())
     }
 }
 
@@ -210,11 +310,14 @@ mod tests {
     use gpui::{KeyUpEvent, Keystroke, TestAppContext};
 
     #[gpui::test]
-    fn buttons_activate_from_the_keyboard_and_disabled_buttons_do_not(cx: &mut TestAppContext) {
+    fn gallery_controls_handle_keyboard_focus_and_disabled_state(cx: &mut TestAppContext) {
         cx.update(ComponentGallery::register_key_bindings);
         let (gallery, cx) = cx.add_window_view(ComponentGallery::new);
         let buttons = gallery.read_with(cx, |gallery, _| gallery.buttons.clone());
         let switch = gallery.read_with(cx, |gallery, _| gallery.switch.clone());
+        let dialog = gallery.read_with(cx, |gallery, _| gallery.dialog.clone());
+        let menu = gallery.read_with(cx, |gallery, _| gallery.menu.clone());
+        let snackbar = gallery.read_with(cx, |gallery, _| gallery.snackbar.clone());
 
         cx.update(|window, app| window.focus(&buttons[1].read(app).focus_handle()));
         cx.refresh().expect("refresh focused button");
@@ -239,5 +342,23 @@ mod tests {
             keystroke: Keystroke::parse("space").expect("space keystroke"),
         });
         assert!(!switch.read_with(cx, |switch, _| switch.checked()));
+
+        dialog.update(cx, |dialog, cx| dialog.open(cx));
+        cx.refresh().expect("refresh open dialog");
+        cx.run_until_parked();
+        assert!(cx.update(|window, app| dialog.read(app).focus_handle().is_focused(window)));
+        cx.simulate_keystrokes("tab");
+        assert!(cx.update(|window, app| dialog.read(app).focus_handle().is_focused(window)));
+        cx.simulate_keystrokes("escape");
+        assert!(!dialog.read_with(cx, |dialog, _| dialog.is_open()));
+
+        menu.update(cx, |menu, cx| menu.open(cx));
+        cx.refresh().expect("refresh open menu");
+        cx.run_until_parked();
+        cx.simulate_keystrokes("escape");
+        assert!(!menu.read_with(cx, |menu, _| menu.is_open()));
+
+        snackbar.update(cx, |snackbar, cx| snackbar.show("Saved", cx));
+        assert!(snackbar.read_with(cx, |snackbar, _| snackbar.is_visible()));
     }
 }
