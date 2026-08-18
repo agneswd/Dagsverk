@@ -235,6 +235,15 @@ pub struct AppShell {
     export_menu_open: bool,
     month_menu_open: bool,
     workspace_menu_open: bool,
+    color_picker_target: Option<ColorPickerTarget>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum ColorPickerTarget {
+    NewProject,
+    Project(ProjectId),
+    NewWorkspace,
+    Workspace(WorkspaceId),
 }
 
 pub struct AppShellServices {
@@ -418,6 +427,7 @@ impl AppShell {
             export_menu_open: false,
             month_menu_open: false,
             workspace_menu_open: false,
+            color_picker_target: None,
         }
     }
 
@@ -452,6 +462,7 @@ impl AppShell {
         self.export_menu_open = false;
         self.month_menu_open = false;
         self.workspace_menu_open = false;
+        self.color_picker_target = None;
         cx.notify();
     }
 
@@ -660,11 +671,13 @@ impl AppShell {
             || self.export_menu_open
             || self.month_menu_open
             || self.workspace_menu_open
+            || self.color_picker_target.is_some()
         {
             self.month_actions_open = false;
             self.export_menu_open = false;
             self.month_menu_open = false;
             self.workspace_menu_open = false;
+            self.color_picker_target = None;
             cx.notify();
             return;
         }
@@ -963,6 +976,31 @@ impl AppShell {
         match self.model.save_workspace(workspace) {
             Ok(()) => self.notice = Some("Workspace color updated.".to_owned()),
             Err(error) => self.model.transient_error = Some(error.to_string()),
+        }
+        cx.notify();
+    }
+
+    fn apply_picker_color(&mut self, color: &'static str, cx: &mut Context<Self>) {
+        let Some(target) = self.color_picker_target.take() else {
+            return;
+        };
+        match target {
+            ColorPickerTarget::NewProject => self
+                .project_color_input
+                .update(cx, |input, cx| input.set_text(color, cx)),
+            ColorPickerTarget::NewWorkspace => self
+                .workspace_color_input
+                .update(cx, |input, cx| input.set_text(color, cx)),
+            ColorPickerTarget::Project(id) => {
+                self.project_color_input
+                    .update(cx, |input, cx| input.set_text(color, cx));
+                self.update_project_color(&id, cx);
+            }
+            ColorPickerTarget::Workspace(id) => {
+                self.workspace_color_input
+                    .update(cx, |input, cx| input.set_text(color, cx));
+                self.update_workspace_color(&id, cx);
+            }
         }
         cx.notify();
     }
@@ -1479,6 +1517,8 @@ impl AppShell {
 
     fn projects_page(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
         let projects = self.model.projects.clone();
+        let new_color = self.project_color_input.read(cx).text().to_owned();
+        let new_color_swatch = color_from_hex(&new_color).unwrap_or(colors.primary);
         div()
             .max_w(px(1088.0))
             .mx_auto()
@@ -1500,7 +1540,44 @@ impl AppShell {
                     .child(self.text("Name"))
                     .child(self.project_name_input.clone())
                     .child(self.text("Color"))
-                    .child(self.project_color_input.clone())
+                    .child(
+                        div()
+                            .id("new-project-color")
+                            .size(px(40.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_full()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(colors.surface_container_high))
+                            .child(
+                                div()
+                                    .size(px(28.0))
+                                    .rounded_full()
+                                    .border_1()
+                                    .border_color(gpui::black().opacity(0.2))
+                                    .bg(new_color_swatch),
+                            )
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.color_picker_target = Some(ColorPickerTarget::NewProject);
+                                cx.notify();
+                            }))
+                            .when(
+                                self.color_picker_target == Some(ColorPickerTarget::NewProject),
+                                |trigger| {
+                                    trigger.child(
+                                        deferred(
+                                            anchored()
+                                                .anchor(Corner::TopLeft)
+                                                .offset(point(px(0.0), px(48.0)))
+                                                .snap_to_window_with_margin(px(8.0))
+                                                .child(self.color_palette(&new_color, colors, cx)),
+                                        )
+                                        .priority(3),
+                                    )
+                                },
+                            ),
+                    )
                     .child(
                         div()
                             .id("add-project")
@@ -1534,12 +1611,13 @@ impl AppShell {
                         let default_id = project.id.clone();
                         let toggle_id = project.id.clone();
                         let color_id = project.id.clone();
+                        let picker_id = project.id.clone();
                         let delete_id = project.id.clone();
-                        let color = project
+                        let color_value = project
                             .color
-                            .as_deref()
-                            .and_then(color_from_hex)
-                            .unwrap_or(colors.primary);
+                            .clone()
+                            .unwrap_or_else(|| "#5F875F".to_owned());
+                        let color = color_from_hex(&color_value).unwrap_or(colors.primary);
                         div()
                             .h(px(64.0))
                             .px(px(16.0))
@@ -1585,11 +1663,46 @@ impl AppShell {
                             .child(
                                 div()
                                     .id(("color-project", index))
+                                    .size(px(40.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
                                     .cursor_pointer()
-                                    .child(self.text("Apply color"))
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .child(
+                                        div()
+                                            .size(px(28.0))
+                                            .rounded_full()
+                                            .border_1()
+                                            .border_color(gpui::black().opacity(0.2))
+                                            .bg(color),
+                                    )
                                     .on_click(cx.listener(move |shell, _, _, cx| {
-                                        shell.update_project_color(&color_id, cx)
-                                    })),
+                                        shell.color_picker_target =
+                                            Some(ColorPickerTarget::Project(color_id.clone()));
+                                        cx.notify();
+                                    }))
+                                    .when(
+                                        self.color_picker_target
+                                            == Some(ColorPickerTarget::Project(picker_id)),
+                                        |trigger| {
+                                            trigger.child(
+                                                deferred(
+                                                    anchored()
+                                                        .anchor(Corner::TopRight)
+                                                        .offset(point(px(40.0), px(48.0)))
+                                                        .snap_to_window_with_margin(px(8.0))
+                                                        .child(self.color_palette(
+                                                            &color_value,
+                                                            colors,
+                                                            cx,
+                                                        )),
+                                                )
+                                                .priority(3),
+                                            )
+                                        },
+                                    ),
                             )
                             .child(
                                 div()
@@ -1625,6 +1738,8 @@ impl AppShell {
         let workspaces = self.model.workspaces.clone();
         let active = self.model.active_workspace_id.clone();
         let can_delete = workspaces.len() > 1;
+        let new_color = self.workspace_color_input.read(cx).text().to_owned();
+        let new_color_swatch = color_from_hex(&new_color).unwrap_or(colors.primary);
         div()
             .absolute()
             .inset_0()
@@ -1722,7 +1837,48 @@ impl AppShell {
                                         ),
                                     )
                                     .child(self.text("Accent color"))
-                                    .child(self.workspace_color_input.clone())
+                                    .child(
+                                        div()
+                                            .id("new-workspace-color")
+                                            .size(px(40.0))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded_full()
+                                            .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .child(
+                                                div()
+                                                    .size(px(28.0))
+                                                    .rounded_full()
+                                                    .border_1()
+                                                    .border_color(gpui::black().opacity(0.2))
+                                                    .bg(new_color_swatch),
+                                            )
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.color_picker_target =
+                                                    Some(ColorPickerTarget::NewWorkspace);
+                                                cx.notify();
+                                            }))
+                                            .when(
+                                                self.color_picker_target
+                                                    == Some(ColorPickerTarget::NewWorkspace),
+                                                |trigger| {
+                                                    trigger.child(
+                                                        deferred(
+                                                            anchored()
+                                                                .anchor(Corner::TopLeft)
+                                                                .offset(point(px(0.0), px(48.0)))
+                                                                .snap_to_window_with_margin(px(8.0))
+                                                                .child(self.color_palette(
+                                                                    &new_color, colors, cx,
+                                                                )),
+                                                        )
+                                                        .priority(3),
+                                                    )
+                                                },
+                                            ),
+                                    )
                                     .child(
                                         div()
                                             .id("create-workspace")
@@ -1753,23 +1909,21 @@ impl AppShell {
                                 |(index, workspace)| {
                                     let switch_id = workspace.id.clone();
                                     let color_id = workspace.id.clone();
+                                    let picker_id = workspace.id.clone();
                                     let delete_id = workspace.id.clone();
                                     let is_active = workspace.id == active;
+                                    let color_value = workspace.color.clone();
+                                    let swatch =
+                                        color_from_hex(&color_value).unwrap_or(colors.primary);
                                     div()
-                                        .h(px(60.0))
-                                        .px(px(14.0))
+                                        .h(px(72.0))
+                                        .px(px(20.0))
                                         .flex()
                                         .items_center()
                                         .gap(px(12.0))
                                         .rounded(px(12.0))
                                         .bg(colors.surface_container)
-                                        .child(
-                                            div()
-                                                .size(px(12.0))
-                                                .rounded_full()
-                                                .bg(color_from_hex(&workspace.color)
-                                                    .unwrap_or(colors.primary)),
-                                        )
+                                        .child(div().size(px(12.0)).rounded_full().bg(swatch))
                                         .child(div().flex_1().child(workspace.name))
                                         .when(is_active, |row| row.child(self.text("Active")))
                                         .when(!is_active, |row| {
@@ -1788,11 +1942,57 @@ impl AppShell {
                                         .child(
                                             div()
                                                 .id(("workspace-color", index))
+                                                .size(px(40.0))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_full()
                                                 .cursor_pointer()
-                                                .child(self.text("Apply color"))
+                                                .hover(|style| {
+                                                    style.bg(colors.surface_container_high)
+                                                })
+                                                .child(
+                                                    div()
+                                                        .size(px(28.0))
+                                                        .rounded_full()
+                                                        .border_1()
+                                                        .border_color(gpui::black().opacity(0.2))
+                                                        .bg(swatch),
+                                                )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
-                                                    shell.update_workspace_color(&color_id, cx)
-                                                })),
+                                                    shell.color_picker_target =
+                                                        Some(ColorPickerTarget::Workspace(
+                                                            color_id.clone(),
+                                                        ));
+                                                    cx.notify();
+                                                }))
+                                                .when(
+                                                    self.color_picker_target
+                                                        == Some(ColorPickerTarget::Workspace(
+                                                            picker_id,
+                                                        )),
+                                                    |trigger| {
+                                                        trigger.child(
+                                                            deferred(
+                                                                anchored()
+                                                                    .anchor(Corner::TopRight)
+                                                                    .offset(point(
+                                                                        px(40.0),
+                                                                        px(48.0),
+                                                                    ))
+                                                                    .snap_to_window_with_margin(px(
+                                                                        8.0,
+                                                                    ))
+                                                                    .child(self.color_palette(
+                                                                        &color_value,
+                                                                        colors,
+                                                                        cx,
+                                                                    )),
+                                                            )
+                                                            .priority(3),
+                                                        )
+                                                    },
+                                                ),
                                         )
                                         .child(
                                             div()
@@ -3592,6 +3792,59 @@ impl AppShell {
                 }),
             ))
     }
+
+    fn color_palette(
+        &mut self,
+        selected: &str,
+        colors: M3ColorScheme,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let selected = selected.to_ascii_uppercase();
+        div()
+            .min_w(px(232.0))
+            .p(px(16.0))
+            .grid()
+            .grid_cols(6)
+            .gap(px(8.0))
+            .rounded(px(16.0))
+            .bg(colors.surface_container_high)
+            .shadow(workspace_menu_elevation())
+            .on_mouse_down_out(cx.listener(|shell, _, _, cx| {
+                shell.color_picker_target = None;
+                cx.notify();
+            }))
+            .children(
+                MATERIAL_COLOR_PRESETS
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, color)| {
+                        let swatch = color_from_hex(color).unwrap_or(colors.primary);
+                        let is_selected = selected == color;
+                        div()
+                            .id(("color-preset", index))
+                            .size(px(32.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_full()
+                            .border_1()
+                            .border_color(if is_selected {
+                                colors.primary
+                            } else {
+                                gpui::black().opacity(0.2)
+                            })
+                            .bg(swatch)
+                            .cursor_pointer()
+                            .hover(|style| style.border_color(colors.on_surface))
+                            .when(is_selected, |item| {
+                                item.child(m3_icon_colored("check", 18.0, gpui::white()))
+                            })
+                            .on_click(cx.listener(move |shell, _, _, cx| {
+                                shell.apply_picker_color(color, cx)
+                            }))
+                    }),
+            )
+    }
 }
 
 impl Focusable for AppShell {
@@ -4766,6 +5019,11 @@ fn format_hours_input(minutes: i64) -> String {
         format!("{whole}.{:02}", remainder * 100 / 60)
     }
 }
+
+const MATERIAL_COLOR_PRESETS: [&str; 12] = [
+    "#5F875F", "#1E8E3E", "#00897B", "#039BE5", "#3F51B5", "#7986CB", "#8E24AA", "#D81B60",
+    "#E67C73", "#F6BF26", "#F4511E", "#616161",
+];
 
 fn format_editor_date(
     date: dagsverk_core::models::IsoDate,
