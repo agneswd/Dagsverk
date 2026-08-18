@@ -2,9 +2,9 @@
 
 ## Interactive state parity
 
-- Current behavior: Shared buttons, header menus, chips, and maintenance buttons use Material 3 8% hover and 12% pressed state layers. Some shell-specific rows still use direct colors.
+- Current behavior: Every direct pointer control in the production shell now has a hover state. Buttons, menus, chips, dialog actions, and editor controls use Material 3 8% hover and 12% pressed state layers.
 - Expected parity: Buttons, icon buttons, rows, chips, and navigation items must show consistent hover, pressed, focus, and disabled states.
-- Reason incomplete: Some production shell controls still use direct GPUI elements instead of the shared Material control.
+- Reason incomplete: Some production shell controls still use direct GPUI elements and do not yet share the complete keyboard focus implementation.
 - Files involved: `gpui/crates/dagsverk-ui/src/m3/`, `gpui/crates/dagsverk-app/src/shell.rs`.
 - Proposed solution: Apply the shared Material state-layer helper to all remaining clickable surfaces.
 - Test needed: Component interaction tests and light/dark visual review.

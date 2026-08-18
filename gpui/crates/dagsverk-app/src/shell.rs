@@ -1703,6 +1703,12 @@ impl AppShell {
                             .cursor_pointer()
                             .bg(colors.primary)
                             .text_color(colors.on_primary)
+                            .hover(move |style| {
+                                style.bg(m3_state_layer(colors.primary, colors.on_primary, 0.08))
+                            })
+                            .active(move |style| {
+                                style.bg(m3_state_layer(colors.primary, colors.on_primary, 0.12))
+                            })
                             .child(self.text("Add project"))
                             .on_click(cx.listener(|shell, _, _, cx| shell.add_project(cx))),
                     ),
@@ -1767,7 +1773,26 @@ impl AppShell {
                                 row.child(
                                     div()
                                         .id(("default-project", index))
+                                        .h(px(40.0))
+                                        .px(px(12.0))
+                                        .flex()
+                                        .items_center()
+                                        .rounded(px(20.0))
                                         .cursor_pointer()
+                                        .hover(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container,
+                                                colors.on_surface,
+                                                0.08,
+                                            ))
+                                        })
+                                        .active(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container,
+                                                colors.on_surface,
+                                                0.12,
+                                            ))
+                                        })
                                         .child(self.text("Set Default"))
                                         .on_click(cx.listener(move |shell, _, _, cx| {
                                             shell.set_default_project(&default_id, cx)
@@ -1821,7 +1846,26 @@ impl AppShell {
                             .child(
                                 div()
                                     .id(("toggle-project", index))
+                                    .h(px(40.0))
+                                    .px(px(10.0))
+                                    .flex()
+                                    .items_center()
+                                    .rounded(px(20.0))
                                     .cursor_pointer()
+                                    .hover(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.surface_container,
+                                            colors.on_surface,
+                                            0.08,
+                                        ))
+                                    })
+                                    .active(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.surface_container,
+                                            colors.on_surface,
+                                            0.12,
+                                        ))
+                                    })
                                     .child(if project.is_active {
                                         "Archive"
                                     } else {
@@ -1835,8 +1879,27 @@ impl AppShell {
                                 row.child(
                                     div()
                                         .id(("delete-project", index))
+                                        .h(px(40.0))
+                                        .px(px(10.0))
+                                        .flex()
+                                        .items_center()
+                                        .rounded(px(20.0))
                                         .cursor_pointer()
                                         .text_color(colors.error)
+                                        .hover(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container,
+                                                colors.error,
+                                                0.08,
+                                            ))
+                                        })
+                                        .active(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container,
+                                                colors.error,
+                                                0.12,
+                                            ))
+                                        })
                                         .child(self.text("Delete"))
                                         .on_click(cx.listener(move |shell, _, _, cx| {
                                             shell.confirm_project_delete = Some(delete_id.clone());
@@ -1884,7 +1947,14 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("close-workspaces")
+                                    .size(px(40.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
                                     .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_highest))
+                                    .active(|style| style.bg(colors.surface_container))
                                     .child(m3_icon("close", 24.0, colors))
                                     .on_click(cx.listener(|shell, _, _, cx| {
                                         shell.manage_workspaces = false;
@@ -1926,6 +1996,12 @@ impl AppShell {
                                             .enumerate()
                                             .map(
                                                 |(index, (label, value))| {
+                                                    let selected = self.new_workspace_type == value;
+                                                    let background = if selected {
+                                                        colors.secondary_container
+                                                    } else {
+                                                        colors.surface_container
+                                                    };
                                                     div()
                                                         .id(("workspace-type", index))
                                                         .h(px(36.0))
@@ -1934,10 +2010,20 @@ impl AppShell {
                                                         .items_center()
                                                         .rounded(px(18.0))
                                                         .cursor_pointer()
-                                                        .bg(if self.new_workspace_type == value {
-                                                            colors.secondary_container
-                                                        } else {
-                                                            colors.surface_container
+                                                        .bg(background)
+                                                        .hover(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                background,
+                                                                colors.on_surface,
+                                                                0.08,
+                                                            ))
+                                                        })
+                                                        .active(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                background,
+                                                                colors.on_surface,
+                                                                0.12,
+                                                            ))
                                                         })
                                                         .child(label)
                                                         .on_click(cx.listener(
@@ -2004,6 +2090,20 @@ impl AppShell {
                                             .cursor_pointer()
                                             .bg(colors.primary)
                                             .text_color(colors.on_primary)
+                                            .hover(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.primary,
+                                                    colors.on_primary,
+                                                    0.08,
+                                                ))
+                                            })
+                                            .active(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.primary,
+                                                    colors.on_primary,
+                                                    0.12,
+                                                ))
+                                            })
                                             .child(self.text("Create workspace"))
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 shell.create_workspace(cx)
@@ -2044,7 +2144,26 @@ impl AppShell {
                                             row.child(
                                                 div()
                                                     .id(("switch-workspace", index))
+                                                    .h(px(36.0))
+                                                    .px(px(12.0))
+                                                    .flex()
+                                                    .items_center()
+                                                    .rounded(px(18.0))
                                                     .cursor_pointer()
+                                                    .hover(move |style| {
+                                                        style.bg(m3_state_layer(
+                                                            colors.surface_container,
+                                                            colors.on_surface,
+                                                            0.08,
+                                                        ))
+                                                    })
+                                                    .active(move |style| {
+                                                        style.bg(m3_state_layer(
+                                                            colors.surface_container,
+                                                            colors.on_surface,
+                                                            0.12,
+                                                        ))
+                                                    })
                                                     .child(self.text("Switch workspace"))
                                                     .on_click(cx.listener(
                                                         move |shell, _, _, cx| {
@@ -2115,13 +2234,34 @@ impl AppShell {
                                                 .text_color(colors.error)
                                                 .child(self.text("Delete"))
                                                 .when(can_delete, |button| {
-                                                    button.cursor_pointer().on_click(cx.listener(
-                                                        move |shell, _, _, cx| {
-                                                            shell.confirm_workspace_delete =
-                                                                Some(delete_id.clone());
-                                                            cx.notify();
-                                                        },
-                                                    ))
+                                                    button
+                                                        .h(px(40.0))
+                                                        .px(px(10.0))
+                                                        .flex()
+                                                        .items_center()
+                                                        .rounded(px(20.0))
+                                                        .cursor_pointer()
+                                                        .hover(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                colors.surface_container,
+                                                                colors.error,
+                                                                0.08,
+                                                            ))
+                                                        })
+                                                        .active(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                colors.surface_container,
+                                                                colors.error,
+                                                                0.12,
+                                                            ))
+                                                        })
+                                                        .on_click(cx.listener(
+                                                            move |shell, _, _, cx| {
+                                                                shell.confirm_workspace_delete =
+                                                                    Some(delete_id.clone());
+                                                                cx.notify();
+                                                            },
+                                                        ))
                                                 }),
                                         )
                                 },
@@ -2350,6 +2490,20 @@ impl AppShell {
                                 } else {
                                     gpui::transparent_black()
                                 })
+                                .hover(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.on_surface,
+                                        0.08,
+                                    ))
+                                })
+                                .active(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.on_surface,
+                                        0.12,
+                                    ))
+                                })
                                 .child(self.text(label))
                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                     shell.settings_tab = index;
@@ -2384,9 +2538,25 @@ impl AppShell {
                             .opacity(if dirty { 1.0 } else { 0.38 })
                             .child(self.text("Discard"))
                             .when(dirty, |button| {
-                                button.cursor_pointer().on_click(
-                                    cx.listener(|shell, _, _, cx| shell.discard_settings(cx)),
-                                )
+                                button
+                                    .cursor_pointer()
+                                    .hover(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.background,
+                                            colors.on_surface,
+                                            0.08,
+                                        ))
+                                    })
+                                    .active(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.background,
+                                            colors.on_surface,
+                                            0.12,
+                                        ))
+                                    })
+                                    .on_click(
+                                        cx.listener(|shell, _, _, cx| shell.discard_settings(cx)),
+                                    )
                             }),
                     )
                     .child(
@@ -2402,9 +2572,25 @@ impl AppShell {
                             .text_color(colors.on_primary)
                             .child(self.text("Save"))
                             .when(dirty, |button| {
-                                button.cursor_pointer().on_click(
-                                    cx.listener(|shell, _, _, cx| shell.save_settings(cx)),
-                                )
+                                button
+                                    .cursor_pointer()
+                                    .hover(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.primary,
+                                            colors.on_primary,
+                                            0.08,
+                                        ))
+                                    })
+                                    .active(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.primary,
+                                            colors.on_primary,
+                                            0.12,
+                                        ))
+                                    })
+                                    .on_click(
+                                        cx.listener(|shell, _, _, cx| shell.save_settings(cx)),
+                                    )
                             }),
                     ),
             )
@@ -2667,6 +2853,20 @@ impl AppShell {
                     .rounded(px(19.0))
                     .cursor_pointer()
                     .bg(colors.secondary_container)
+                    .hover(move |style| {
+                        style.bg(m3_state_layer(
+                            colors.secondary_container,
+                            colors.on_secondary_container,
+                            0.08,
+                        ))
+                    })
+                    .active(move |style| {
+                        style.bg(m3_state_layer(
+                            colors.secondary_container,
+                            colors.on_secondary_container,
+                            0.12,
+                        ))
+                    })
                     .child(self.text("Add overtime rule"))
                     .on_click(cx.listener(|shell, _, _, cx| {
                         shell.add_rate_band(CompensationRuleType::Overtime, cx);
@@ -2683,6 +2883,20 @@ impl AppShell {
                     .rounded(px(19.0))
                     .cursor_pointer()
                     .bg(colors.secondary_container)
+                    .hover(move |style| {
+                        style.bg(m3_state_layer(
+                            colors.secondary_container,
+                            colors.on_secondary_container,
+                            0.08,
+                        ))
+                    })
+                    .active(move |style| {
+                        style.bg(m3_state_layer(
+                            colors.secondary_container,
+                            colors.on_secondary_container,
+                            0.12,
+                        ))
+                    })
                     .child(self.text("Add OB rule"))
                     .on_click(cx.listener(|shell, _, _, cx| {
                         shell.add_rate_band(CompensationRuleType::Ob, cx);
@@ -2812,8 +3026,27 @@ impl AppShell {
                                     .child(
                                         div()
                                             .id(("remove-band", index))
+                                            .h(px(40.0))
+                                            .px(px(10.0))
+                                            .flex()
+                                            .items_center()
+                                            .rounded(px(20.0))
                                             .cursor_pointer()
                                             .text_color(colors.error)
+                                            .hover(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.surface_container,
+                                                    colors.error,
+                                                    0.08,
+                                                ))
+                                            })
+                                            .active(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.surface_container,
+                                                    colors.error,
+                                                    0.12,
+                                                ))
+                                            })
                                             .child(self.text("Remove"))
                                             .on_click(cx.listener(move |shell, _, _, cx| {
                                                 if index
@@ -3054,6 +3287,22 @@ impl AppShell {
                     .items_center()
                     .cursor_pointer()
                     .text_color(colors.primary)
+                    .px(px(12.0))
+                    .rounded(px(20.0))
+                    .hover(move |style| {
+                        style.bg(m3_state_layer(
+                            colors.surface_container_low,
+                            colors.primary,
+                            0.08,
+                        ))
+                    })
+                    .active(move |style| {
+                        style.bg(m3_state_layer(
+                            colors.surface_container_low,
+                            colors.primary,
+                            0.12,
+                        ))
+                    })
                     .child(self.text("Data & backups"))
                     .on_click(
                         cx.listener(|shell, _, _, cx| shell.set_route(Route::DataBackups, cx)),
@@ -3290,7 +3539,28 @@ impl AppShell {
                                                 colors.surface_container_low
                                             })
                                             .text_color(foreground)
-                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .hover(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    if selected {
+                                                        colors.secondary_container
+                                                    } else {
+                                                        colors.surface_container_low
+                                                    },
+                                                    foreground,
+                                                    0.08,
+                                                ))
+                                            })
+                                            .active(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    if selected {
+                                                        colors.secondary_container
+                                                    } else {
+                                                        colors.surface_container_low
+                                                    },
+                                                    foreground,
+                                                    0.12,
+                                                ))
+                                            })
                                             .child(m3_icon_colored(icon, 18.0, foreground))
                                             .child(label)
                                             .on_click(cx.listener(move |shell, _, _, cx| {
@@ -3323,6 +3593,20 @@ impl AppShell {
                                         .border_color(colors.outline_variant)
                                         .cursor_pointer()
                                         .text_size(px(12.0))
+                                        .hover(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container_low,
+                                                colors.on_surface,
+                                                0.08,
+                                            ))
+                                        })
+                                        .active(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container_low,
+                                                colors.on_surface,
+                                                0.12,
+                                            ))
+                                        })
                                         .child(label)
                                         .on_click(cx.listener(move |shell, _, _, cx| match index {
                                             0 => {
@@ -3380,6 +3664,20 @@ impl AppShell {
                                                 .border_color(colors.outline_variant)
                                                 .cursor_pointer()
                                                 .text_size(px(12.0))
+                                                .hover(move |style| {
+                                                    style.bg(m3_state_layer(
+                                                        colors.surface_container_low,
+                                                        colors.on_surface,
+                                                        0.08,
+                                                    ))
+                                                })
+                                                .active(move |style| {
+                                                    style.bg(m3_state_layer(
+                                                        colors.surface_container_low,
+                                                        colors.on_surface,
+                                                        0.12,
+                                                    ))
+                                                })
                                                 .child(label)
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.start_input.update(cx, |input, cx| {
@@ -3426,6 +3724,17 @@ impl AppShell {
                             .child(self.text("Lunch Break"))
                             .child(div().flex().gap(px(8.0)).children(
                                 [0_i64, 30, 45, 60].into_iter().map(|minutes| {
+                                    let selected = lunch == minutes;
+                                    let background = if selected {
+                                        colors.secondary_container
+                                    } else {
+                                        colors.surface_container
+                                    };
+                                    let foreground = if selected {
+                                        colors.on_secondary_container
+                                    } else {
+                                        colors.on_surface
+                                    };
                                     div()
                                         .id(("lunch", minutes as usize))
                                         .h(px(36.0))
@@ -3434,10 +3743,13 @@ impl AppShell {
                                         .items_center()
                                         .rounded(px(18.0))
                                         .cursor_pointer()
-                                        .bg(if lunch == minutes {
-                                            colors.secondary_container
-                                        } else {
-                                            colors.surface_container
+                                        .bg(background)
+                                        .text_color(foreground)
+                                        .hover(move |style| {
+                                            style.bg(m3_state_layer(background, foreground, 0.08))
+                                        })
+                                        .active(move |style| {
+                                            style.bg(m3_state_layer(background, foreground, 0.12))
                                         })
                                         .child(format!("{minutes}m"))
                                         .on_click(cx.listener(move |shell, _, _, cx| {
@@ -4720,21 +5032,24 @@ impl Render for AppShell {
                                         .justify_end()
                                         .gap(px(16.0))
                                         .child(
-                                            div()
-                                                .id("cancel-reset")
-                                                .cursor_pointer()
-                                                .child(self.text("Cancel"))
+                                            dialog_action(
+                                                "cancel-reset",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_reset = false;
                                                     cx.notify();
                                                 })),
                                         )
                                         .child(
-                                            div()
-                                                .id("confirm-reset")
-                                                .cursor_pointer()
-                                                .text_color(colors.error)
-                                                .child(self.text("Reset"))
+                                            dialog_action(
+                                                "confirm-reset",
+                                                self.text("Reset"),
+                                                colors.error,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.reset_month(cx)
                                                 })),
@@ -4773,21 +5088,24 @@ impl Render for AppShell {
                                         .justify_end()
                                         .gap(px(16.0))
                                         .child(
-                                            div()
-                                                .id("cancel-project-delete")
-                                                .cursor_pointer()
-                                                .child(self.text("Cancel"))
+                                            dialog_action(
+                                                "cancel-project-delete",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_project_delete = None;
                                                     cx.notify();
                                                 })),
                                         )
                                         .child(
-                                            div()
-                                                .id("confirm-project-delete")
-                                                .cursor_pointer()
-                                                .text_color(colors.error)
-                                                .child(self.text("Delete"))
+                                            dialog_action(
+                                                "confirm-project-delete",
+                                                self.text("Delete"),
+                                                colors.error,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.delete_project(&project_id, cx)
                                                 })),
@@ -4831,21 +5149,24 @@ impl Render for AppShell {
                                         .justify_end()
                                         .gap(px(16.0))
                                         .child(
-                                            div()
-                                                .id("cancel-workspace-delete")
-                                                .cursor_pointer()
-                                                .child(self.text("Cancel"))
+                                            dialog_action(
+                                                "cancel-workspace-delete",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_workspace_delete = None;
                                                     cx.notify();
                                                 })),
                                         )
                                         .child(
-                                            div()
-                                                .id("confirm-workspace-delete")
-                                                .cursor_pointer()
-                                                .text_color(colors.error)
-                                                .child(self.text("Delete"))
+                                            dialog_action(
+                                                "confirm-workspace-delete",
+                                                self.text("Delete"),
+                                                colors.error,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.delete_workspace(&workspace_id, cx)
                                                 })),
@@ -4886,21 +5207,24 @@ impl Render for AppShell {
                                         .justify_end()
                                         .gap(px(16.0))
                                         .child(
-                                            div()
-                                                .id("cancel-currency")
-                                                .cursor_pointer()
-                                                .child(self.text("Cancel"))
+                                            dialog_action(
+                                                "cancel-currency",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.pending_currency = None;
                                                     cx.notify();
                                                 })),
                                         )
                                         .child(
-                                            div()
-                                                .id("confirm-currency")
-                                                .cursor_pointer()
-                                                .text_color(colors.primary)
-                                                .child(self.text("Change"))
+                                            dialog_action(
+                                                "confirm-currency",
+                                                self.text("Change"),
+                                                colors.primary,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.settings_draft.currency_preference = currency;
                                                     shell.pending_currency = None;
@@ -4949,21 +5273,24 @@ impl Render for AppShell {
                                         .justify_end()
                                         .gap(px(16.0))
                                         .child(
-                                            div()
-                                                .id("cancel-restore")
-                                                .cursor_pointer()
-                                                .child(self.text("Cancel"))
+                                            dialog_action(
+                                                "cancel-restore",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_restore = None;
                                                     cx.notify();
                                                 })),
                                         )
                                         .child(
-                                            div()
-                                                .id("confirm-restore")
-                                                .cursor_pointer()
-                                                .text_color(colors.error)
-                                                .child(self.text("Restore database"))
+                                            dialog_action(
+                                                "confirm-restore",
+                                                self.text("Restore database"),
+                                                colors.error,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.run_restore(selected.clone(), cx)
                                                 })),
@@ -5010,21 +5337,24 @@ impl Render for AppShell {
                                         .justify_end()
                                         .gap(px(16.0))
                                         .child(
-                                            div()
-                                                .id("cancel-tidverk-import")
-                                                .cursor_pointer()
-                                                .child(self.text("Cancel"))
+                                            dialog_action(
+                                                "cancel-tidverk-import",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(|shell, _, _, cx| {
                                                     shell.confirm_import = None;
                                                     cx.notify();
                                                 })),
                                         )
                                         .child(
-                                            div()
-                                                .id("confirm-tidverk-import")
-                                                .cursor_pointer()
-                                                .text_color(colors.error)
-                                                .child(self.text("Import from Tidverk"))
+                                            dialog_action(
+                                                "confirm-tidverk-import",
+                                                self.text("Import from Tidverk"),
+                                                colors.error,
+                                                colors,
+                                            )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
                                                     shell.run_tidverk_import(selected.clone(), cx)
                                                 })),
@@ -5220,6 +5550,39 @@ fn setting_chip(
         .hover(move |style| style.bg(m3_state_layer(background, foreground, 0.08)))
         .active(move |style| style.bg(m3_state_layer(background, foreground, 0.12)))
         .child(translate(language, label.into().as_ref()).into_owned())
+}
+
+fn dialog_action(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    foreground: gpui::Hsla,
+    colors: M3ColorScheme,
+) -> Stateful<gpui::Div> {
+    let label: SharedString = label.into();
+    div()
+        .id(id)
+        .h(px(40.0))
+        .px(px(12.0))
+        .flex()
+        .items_center()
+        .rounded(px(20.0))
+        .cursor_pointer()
+        .text_color(foreground)
+        .hover(move |style| {
+            style.bg(m3_state_layer(
+                colors.surface_container_high,
+                foreground,
+                0.08,
+            ))
+        })
+        .active(move |style| {
+            style.bg(m3_state_layer(
+                colors.surface_container_high,
+                foreground,
+                0.12,
+            ))
+        })
+        .child(label)
 }
 
 fn maintenance_button(
