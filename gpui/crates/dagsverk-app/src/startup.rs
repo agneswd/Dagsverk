@@ -1,5 +1,6 @@
 use std::{ffi::OsString, path::PathBuf};
 
+use chrono::NaiveDate;
 use dagsverk_data::paths::{DataPathOptions, Platform, database_path};
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -8,6 +9,7 @@ pub struct StartupOptions {
     pub data_dir: Option<PathBuf>,
     pub compatibility_mode: bool,
     pub component_gallery: bool,
+    pub today: Option<NaiveDate>,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -18,6 +20,8 @@ pub enum StartupError {
     UnknownOption(String),
     #[error("the operating system data directory is unavailable")]
     DataDirectoryUnavailable,
+    #[error("invalid --today date: {0}")]
+    InvalidToday(String),
 }
 
 impl StartupOptions {
@@ -40,6 +44,14 @@ impl StartupOptions {
                 }
                 "--compatibility-mode" => options.compatibility_mode = true,
                 "--component-gallery" => options.component_gallery = true,
+                "--today" => {
+                    let value = args.next().ok_or(StartupError::MissingValue("--today"))?;
+                    let value = value.to_string_lossy();
+                    options.today = Some(
+                        NaiveDate::parse_from_str(&value, "%Y-%m-%d")
+                            .map_err(|_| StartupError::InvalidToday(value.into_owned()))?,
+                    );
+                }
                 unknown => return Err(StartupError::UnknownOption(unknown.to_owned())),
             }
         }
@@ -113,6 +125,7 @@ fn current_platform() -> Platform {
 mod tests {
     use std::{ffi::OsString, path::Path};
 
+    use chrono::NaiveDate;
     use dagsverk_data::paths::Platform;
 
     use super::{StartupError, StartupOptions};
@@ -123,10 +136,17 @@ mod tests {
             OsString::from("--database"),
             OsString::from("/tmp/copy.db"),
             OsString::from("--component-gallery"),
+            OsString::from("--today"),
+            OsString::from("2026-08-18"),
         ])
         .expect("valid startup options");
         assert_eq!(options.database.as_deref(), Some(Path::new("/tmp/copy.db")));
         assert!(options.component_gallery);
+        assert_eq!(
+            options.today,
+            NaiveDate::from_ymd_opt(2026, 8, 18),
+            "fixed date must be deterministic"
+        );
         assert_eq!(
             StartupOptions::parse([OsString::from("--wat")]),
             Err(StartupError::UnknownOption("--wat".to_owned()))
@@ -171,6 +191,7 @@ mod tests {
             data_dir: Some("/ignored".into()),
             compatibility_mode: true,
             component_gallery: false,
+            today: None,
         };
         assert_eq!(
             options

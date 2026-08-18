@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use chrono::{DateTime, NaiveDate, Utc};
 use dagsverk_app::{
     logging,
     platform::{NativeFileDialogService, NativeShellService},
@@ -8,7 +9,10 @@ use dagsverk_app::{
     startup::StartupOptions,
     state::{AppModel, Language},
 };
-use dagsverk_core::{clock::SystemClock, tax::TaxEngine};
+use dagsverk_core::{
+    clock::{Clock, FixedClock, SystemClock},
+    tax::TaxEngine,
+};
 use dagsverk_data::Database;
 use dagsverk_ui::component_gallery::ComponentGallery;
 use gpui::{
@@ -42,7 +46,7 @@ fn main() {
     };
     logging::info("Dagsverk GPUI Preview starting.");
     let mut runtime = if let Some(database_path) = database_path {
-        match create_runtime(database_path) {
+        match create_runtime(database_path, options.today) {
             Ok(runtime) => Some(runtime),
             Err(error) => {
                 logging::error("Dagsverk initialization failed.", error.as_ref());
@@ -107,14 +111,15 @@ fn main() {
 
 fn create_runtime(
     database_path: std::path::PathBuf,
+    today: Option<NaiveDate>,
 ) -> Result<(AppModel, AppShellServices), Box<dyn std::error::Error>> {
-    let clock = Arc::new(SystemClock);
-    let repository = Arc::new(Database::open(database_path, SystemClock)?);
+    let clock = RuntimeClock::new(today);
+    let repository = Arc::new(Database::open(database_path, clock)?);
     let mut tax = TaxEngine::default();
     tax.register_json(include_str!("../../../../public/tax-data/tax-2026.json"))?;
     let mut model = AppModel::new_with_system_language(
         repository.clone(),
-        clock,
+        Arc::new(clock),
         tax,
         false,
         system_language(),
@@ -128,6 +133,39 @@ fn create_runtime(
             shell: Arc::new(NativeShellService),
         },
     ))
+}
+
+#[derive(Clone, Copy)]
+enum RuntimeClock {
+    System(SystemClock),
+    Fixed(FixedClock),
+}
+
+impl RuntimeClock {
+    fn new(today: Option<NaiveDate>) -> Self {
+        today.map_or(Self::System(SystemClock), |date| {
+            Self::Fixed(FixedClock::new(DateTime::from_naive_utc_and_offset(
+                date.and_hms_opt(12, 0, 0).unwrap_or_else(|| unreachable!()),
+                Utc,
+            )))
+        })
+    }
+}
+
+impl Clock for RuntimeClock {
+    fn today(&self) -> NaiveDate {
+        match self {
+            Self::System(clock) => clock.today(),
+            Self::Fixed(clock) => clock.today(),
+        }
+    }
+
+    fn now_utc(&self) -> DateTime<Utc> {
+        match self {
+            Self::System(clock) => clock.now_utc(),
+            Self::Fixed(clock) => clock.now_utc(),
+        }
+    }
 }
 
 fn system_language() -> Language {
