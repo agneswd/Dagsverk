@@ -77,15 +77,21 @@ impl M3Select {
         selected: usize,
         cx: &mut Context<Self>,
     ) {
-        self.options = options.into_iter().map(Into::into).collect();
-        self.selected = selected.min(self.options.len().saturating_sub(1));
-        self.highlighted = self.selected;
-        cx.notify();
+        let options: Vec<_> = options.into_iter().map(Into::into).collect();
+        let selected = selected.min(options.len().saturating_sub(1));
+        if self.options != options || self.selected != selected {
+            self.options = options;
+            self.selected = selected;
+            self.highlighted = selected;
+            cx.notify();
+        }
     }
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
-        self.colors = colors;
-        cx.notify();
+        if self.colors != colors {
+            self.colors = colors;
+            cx.notify();
+        }
     }
 
     pub fn set_leading_icon(&mut self, icon: impl Into<SharedString>, cx: &mut Context<Self>) {

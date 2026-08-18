@@ -65,6 +65,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - Add Project uses a filled icon button state and stays disabled until the trimmed project name is non-empty.
 - Create Workspace uses the same filled icon and disabled-state behavior for invalid form values.
 - Month titles and ledger/calendar weekday labels use the active English or Swedish interface language.
+- General Settings uses outlined Material selects for Default Project and Currency instead of chip collections.
 
 ## Comparison tolerances
 

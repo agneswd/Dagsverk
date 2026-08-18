@@ -59,6 +59,15 @@ enum ExportFormat {
     Ods,
 }
 
+const CURRENCY_OPTIONS: [(&str, CurrencyPreference); 6] = [
+    ("SEK", CurrencyPreference::Sek),
+    ("EUR", CurrencyPreference::Eur),
+    ("USD", CurrencyPreference::Usd),
+    ("GBP", CurrencyPreference::Gbp),
+    ("NOK", CurrencyPreference::Nok),
+    ("DKK", CurrencyPreference::Dkk),
+];
+
 impl ExportFormat {
     const fn extension(self) -> &'static str {
         match self {
@@ -236,6 +245,8 @@ pub struct AppShell {
     notes_input: Entity<TextInput>,
     project_select: Entity<M3Select>,
     reason_select: Entity<M3Select>,
+    settings_project_select: Entity<M3Select>,
+    currency_select: Entity<M3Select>,
     scheduled_input: Entity<TextInput>,
     scheduled_override_switch: Entity<M3Switch>,
     exclude_holidays_switch: Entity<M3Switch>,
@@ -408,6 +419,29 @@ impl AppShell {
             )
         });
         reason_select.update(cx, |select, cx| select.set_leading_icon("beach_access", cx));
+        let settings_project_select = cx.new(|cx| {
+            M3Select::new(
+                "Default Project",
+                [model.settings.default_project.clone()],
+                0,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        settings_project_select.update(cx, |select, cx| select.set_leading_icon("folder", cx));
+        let currency_selected = CURRENCY_OPTIONS
+            .iter()
+            .position(|(_, value)| *value == model.settings.currency_preference)
+            .unwrap_or(0);
+        let currency_select = cx.new(|cx| {
+            M3Select::new(
+                "Currency",
+                CURRENCY_OPTIONS.map(|(label, _)| label),
+                currency_selected,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
         let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
         scheduled_input.update(cx, |input, cx| input.set_suffix("hours", cx));
         let scheduled_override_switch = cx.new(|cx| {
@@ -593,6 +627,31 @@ impl AppShell {
             cx.notify();
         })
         .detach();
+        cx.subscribe(
+            &settings_project_select,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(project) = shell
+                    .model
+                    .projects
+                    .iter()
+                    .filter(|project| project.is_active)
+                    .nth(event.0)
+                {
+                    shell.settings_draft.default_project = project.name.clone();
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(&currency_select, |shell, _, event: &M3SelectEvent, cx| {
+            if let Some((_, currency)) = CURRENCY_OPTIONS.get(event.0)
+                && shell.settings_draft.currency_preference != *currency
+            {
+                shell.pending_currency = Some(*currency);
+            }
+            cx.notify();
+        })
+        .detach();
         cx.observe_window_appearance(window, |shell, window, cx| {
             shell.model.set_system_dark(matches!(
                 window.appearance(),
@@ -610,6 +669,8 @@ impl AppShell {
             notes_input,
             project_select,
             reason_select,
+            settings_project_select,
+            currency_select,
             scheduled_input,
             scheduled_override_switch,
             exclude_holidays_switch,
@@ -717,7 +778,12 @@ impl AppShell {
         ] {
             input.update(cx, |input, cx| input.set_scale(scale, cx));
         }
-        for select in [&self.project_select, &self.reason_select] {
+        for select in [
+            &self.project_select,
+            &self.reason_select,
+            &self.settings_project_select,
+            &self.currency_select,
+        ] {
             select.update(cx, |select, cx| select.set_scale(scale, cx));
         }
         for switch in [
@@ -2935,71 +3001,43 @@ impl AppShell {
 
     fn general_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
         let scale = interface_scale(&self.model);
-        let projects = self.model.projects.clone();
-        let current_currency = self.settings_draft.currency_preference;
+        let projects: Vec<_> = self
+            .model
+            .projects
+            .iter()
+            .filter(|project| project.is_active)
+            .map(|project| project.name.clone())
+            .collect();
+        let selected_project = projects
+            .iter()
+            .position(|name| *name == self.settings_draft.default_project)
+            .unwrap_or(0);
+        let current_currency = self
+            .pending_currency
+            .unwrap_or(self.settings_draft.currency_preference);
+        let selected_currency = CURRENCY_OPTIONS
+            .iter()
+            .position(|(_, currency)| *currency == current_currency)
+            .unwrap_or(0);
+        self.settings_project_select.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(projects, selected_project, cx);
+        });
+        self.currency_select.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                CURRENCY_OPTIONS.map(|(label, _)| label),
+                selected_currency,
+                cx,
+            );
+        });
         div()
             .flex()
             .flex_col()
             .gap(scale.px(14.0))
             .child(div().text_size(scale.px(18.0)).child(self.text("General")))
-            .child(self.text("Default Project"))
-            .child(
-                div().flex().flex_wrap().gap(scale.px(8.0)).children(
-                    projects
-                        .into_iter()
-                        .filter(|project| project.is_active)
-                        .enumerate()
-                        .map(|(index, project)| {
-                            let name = project.name.clone();
-                            let selected = self.settings_draft.default_project == project.name;
-                            setting_chip(
-                                self.ui_language(),
-                                ("default-setting-project", index),
-                                project.name,
-                                selected,
-                                colors,
-                                scale,
-                            )
-                            .on_click(cx.listener(
-                                move |shell, _, _, cx| {
-                                    shell.settings_draft.default_project = name.clone();
-                                    cx.notify();
-                                },
-                            ))
-                        }),
-                ),
-            )
-            .child(self.text("Currency"))
-            .child(
-                div().flex().gap(scale.px(8.0)).children(
-                    [
-                        ("SEK", CurrencyPreference::Sek),
-                        ("EUR", CurrencyPreference::Eur),
-                        ("USD", CurrencyPreference::Usd),
-                        ("GBP", CurrencyPreference::Gbp),
-                        ("NOK", CurrencyPreference::Nok),
-                        ("DKK", CurrencyPreference::Dkk),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, (label, value))| {
-                        setting_chip(
-                            self.ui_language(),
-                            ("currency", index),
-                            label,
-                            current_currency == value,
-                            colors,
-                            scale,
-                        )
-                        .on_click(cx.listener(move |shell, _, _, cx| {
-                            if shell.settings_draft.currency_preference != value {
-                                shell.pending_currency = Some(value);
-                            }
-                            cx.notify();
-                        }))
-                    }),
-                ),
-            )
+            .child(self.settings_project_select.clone())
+            .child(self.currency_select.clone())
             .child(self.text("Starting time balance"))
             .child(self.settings_inputs.opening_balance.clone())
     }
@@ -6283,11 +6321,13 @@ mod tests {
     use chrono::{DateTime, Utc};
     use dagsverk_core::{
         clock::FixedClock,
-        models::{CompensationRuleType, LanguagePreference, MonthViewPreference},
+        models::{
+            CompensationRuleType, CurrencyPreference, LanguagePreference, MonthViewPreference,
+        },
         tax::TaxEngine,
     };
     use dagsverk_data::Database;
-    use gpui::TestAppContext;
+    use gpui::{Focusable, TestAppContext};
     use tempfile::tempdir;
 
     use super::{
@@ -6359,6 +6399,19 @@ mod tests {
             shell.read_with(cx, |shell, cx| shell.settings_tabs.read(cx).selected()),
             2
         );
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::SettingsGeneral, cx)
+        });
+        let currency_select = shell.read_with(cx, |shell, _| shell.currency_select.clone());
+        cx.update(|window, app| window.focus(&currency_select.read(app).focus_handle(app)));
+        cx.refresh().expect("refresh currency select");
+        cx.simulate_keystrokes("enter down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.pending_currency),
+            Some(CurrencyPreference::Eur)
+        );
+        let shell_focus = shell.read_with(cx, |shell, _| shell.focus.clone());
+        cx.update(|window, _| window.focus(&shell_focus));
         shell.update(cx, |shell, cx| {
             shell.apply_visual_state(VisualState::EditorDark, cx)
         });
