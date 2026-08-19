@@ -390,6 +390,7 @@ mod tests {
         let switch = gallery.read_with(cx, |gallery, _| gallery.switch.clone());
         let tabs = gallery.read_with(cx, |gallery, _| gallery.tabs.clone());
         let segmented = gallery.read_with(cx, |gallery, _| gallery.segmented.clone());
+        let expansion = gallery.read_with(cx, |gallery, _| gallery.expansion.clone());
         let dialog = gallery.read_with(cx, |gallery, _| gallery.dialog.clone());
         let menu = gallery.read_with(cx, |gallery, _| gallery.menu.clone());
         let snackbar = gallery.read_with(cx, |gallery, _| gallery.snackbar.clone());
@@ -470,6 +471,11 @@ mod tests {
         cx.refresh().expect("refresh tab focus");
         cx.simulate_keystrokes("right");
         assert_eq!(tabs.read_with(cx, |tabs, _| tabs.selected()), 1);
+
+        cx.update(|window, app| window.focus(&expansion.read(app).focus_handle()));
+        cx.refresh().expect("refresh expansion focus");
+        cx.simulate_keystrokes("enter");
+        assert!(expansion.read_with(cx, |expansion, _| expansion.expanded()));
 
         dialog.update(cx, |dialog, cx| dialog.open(cx));
         cx.refresh().expect("refresh open dialog");

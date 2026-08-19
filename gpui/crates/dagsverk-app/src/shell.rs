@@ -17,10 +17,10 @@ use dagsverk_data::DataMaintenance;
 use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
     m3::{
-        M3ChoiceEvent, M3ChoiceGroup, M3ChoiceKind, M3ColorScheme, M3Select, M3SelectEvent,
-        M3SnackbarEvent, M3SnackbarHost, M3Switch, M3SwitchEvent, ResolvedTheme as UiTheme,
-        UiScale, m3_icon, m3_icon_colored, m3_icon_filled, m3_state_layer, menu_elevation,
-        side_sheet_elevation, workspace_menu_elevation,
+        M3ChoiceEvent, M3ChoiceGroup, M3ChoiceKind, M3ColorScheme, M3ExpansionPanel,
+        M3ExpansionPanelEvent, M3Select, M3SelectEvent, M3SnackbarEvent, M3SnackbarHost, M3Switch,
+        M3SwitchEvent, ResolvedTheme as UiTheme, UiScale, m3_icon, m3_icon_colored, m3_icon_filled,
+        m3_state_layer, menu_elevation, side_sheet_elevation, workspace_menu_elevation,
     },
     text_input::{TextInput, TextInputEvent},
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
@@ -347,6 +347,7 @@ struct RateBandInputs {
     rule_type: Entity<M3Select>,
     day_category: Entity<M3Select>,
     rate_type: Entity<M3Select>,
+    expansion: Entity<M3ExpansionPanel>,
 }
 
 impl RateBandInputs {
@@ -383,7 +384,19 @@ impl RateBandInputs {
                     cx,
                 )
             }),
+            expansion: cx.new(|cx| {
+                M3ExpansionPanel::new(
+                    ("rate-band-expansion", uuid::Uuid::new_v4().as_u64_pair().0),
+                    band.name.clone(),
+                    "",
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
         };
+        fields
+            .expansion
+            .update(cx, |panel, cx| panel.set_header_only(true, cx));
         fields
             .name
             .update(cx, |input, cx| input.set_text(band.name.clone(), cx));
@@ -473,6 +486,24 @@ impl RateBandInputs {
             },
         )
         .detach();
+        cx.subscribe(
+            &self.expansion,
+            |shell, emitter, event: &M3ExpansionPanelEvent, cx| {
+                if event.0 {
+                    let others = shell
+                        .rate_band_inputs
+                        .iter()
+                        .map(|inputs| inputs.expansion.clone())
+                        .filter(|panel| *panel != emitter)
+                        .collect::<Vec<_>>();
+                    for panel in others {
+                        panel.update(cx, |panel, cx| panel.set_expanded(false, cx));
+                    }
+                }
+                cx.notify();
+            },
+        )
+        .detach();
     }
 
     fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
@@ -482,6 +513,8 @@ impl RateBandInputs {
         for select in [&self.rule_type, &self.day_category, &self.rate_type] {
             select.update(cx, |select, cx| select.set_scale(scale, cx));
         }
+        self.expansion
+            .update(cx, |panel, cx| panel.set_scale(scale, cx));
     }
 }
 
@@ -3589,6 +3622,7 @@ impl AppShell {
     fn overtime_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
         let scale = interface_scale(&self.model);
         let overtime = self.settings_draft.overtime_compensation.clone();
+        let has_rate_bands = !overtime.rate_bands.is_empty();
         let mode_labels = [self.text("Comp time"), self.text("Direct salary")];
         let threshold_labels = [self.text("Fixed daily hours"), self.text("Scheduled hours")];
         let combination_labels = [self.text("Exclude"), self.text("Include")];
@@ -3656,6 +3690,23 @@ impl AppShell {
                     option_index(&RATE_TYPE_OPTIONS, band.rate_type),
                     cx,
                 );
+            });
+            let title: SharedString = if band.name.trim().is_empty() {
+                self.text("Untitled Band")
+            } else {
+                band.name.clone().into()
+            };
+            let description = format!(
+                "{} • {}-{} • {}",
+                overtime_day_category_label(band.day_category),
+                band.start_time,
+                band.end_time,
+                band.rate_value
+            );
+            inputs.expansion.update(cx, |panel, cx| {
+                panel.set_colors(colors, cx);
+                panel.set_title(title, cx);
+                panel.set_description(Some(description), cx);
             });
         }
         div()
@@ -3742,6 +3793,18 @@ impl AppShell {
                         cx.notify();
                     })),
             )
+            .when(!has_rate_bands, |settings| {
+                settings.child(
+                    div()
+                        .p(scale.px(16.0))
+                        .rounded(scale.px(8.0))
+                        .bg(colors.surface_container)
+                        .text_color(colors.on_surface_variant)
+                        .child(self.text(
+                            "No special OB bands defined. Standard overtime rules will apply.",
+                        )),
+                )
+            })
             .children(
                 overtime
                     .rate_bands
@@ -3749,80 +3812,101 @@ impl AppShell {
                     .enumerate()
                     .map(|(index, _band)| {
                         let inputs = &self.rate_band_inputs[index];
+                        let expanded = inputs.expansion.read(cx).expanded();
                         div()
-                            .p(scale.px(16.0))
-                            .flex()
-                            .flex_col()
-                            .gap(scale.px(10.0))
-                            .rounded(scale.px(12.0))
+                            .rounded(scale.px(8.0))
+                            .overflow_hidden()
                             .bg(colors.surface_container)
-                            .child(
-                                div()
-                                    .flex()
-                                    .gap(scale.px(10.0))
-                                    .child(div().flex_1().child(inputs.name.clone()))
-                                    .child(div().flex_1().child(inputs.rule_type.clone())),
-                            )
-                            .child(
-                                div()
-                                    .flex()
-                                    .gap(scale.px(10.0))
-                                    .child(div().flex_1().child(inputs.start.clone()))
-                                    .child(div().flex_1().child(inputs.end.clone()))
-                                    .child(div().flex_1().child(inputs.value.clone())),
-                            )
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap(scale.px(10.0))
-                                    .child(div().flex_1().child(inputs.day_category.clone()))
-                                    .child(div().flex_1().child(inputs.rate_type.clone()))
-                                    .child(div().flex_1())
-                                    .child(
-                                        div()
-                                            .id(("remove-band", index))
-                                            .h(scale.px(40.0))
-                                            .px(scale.px(10.0))
-                                            .flex()
-                                            .items_center()
-                                            .rounded(scale.px(20.0))
-                                            .cursor_pointer()
-                                            .text_color(colors.error)
-                                            .hover(move |style| {
-                                                style.bg(m3_state_layer(
-                                                    colors.surface_container,
-                                                    colors.error,
-                                                    0.08,
-                                                ))
-                                            })
-                                            .active(move |style| {
-                                                style.bg(m3_state_layer(
-                                                    colors.surface_container,
-                                                    colors.error,
-                                                    0.12,
-                                                ))
-                                            })
-                                            .child(self.text("Remove"))
-                                            .on_click(cx.listener(move |shell, _, _, cx| {
-                                                if index
-                                                    < shell
-                                                        .settings_draft
-                                                        .overtime_compensation
-                                                        .rate_bands
-                                                        .len()
-                                                {
-                                                    shell
-                                                        .settings_draft
-                                                        .overtime_compensation
-                                                        .rate_bands
-                                                        .remove(index);
-                                                    shell.rate_band_inputs.remove(index);
-                                                }
-                                                cx.notify();
-                                            })),
-                                    ),
-                            )
+                            .child(inputs.expansion.clone())
+                            .when(expanded, |panel| {
+                                panel.child(
+                                    div()
+                                        .p(scale.px(16.0))
+                                        .pt(scale.px(12.0))
+                                        .flex()
+                                        .flex_col()
+                                        .gap(scale.px(16.0))
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .gap(scale.px(10.0))
+                                                .child(div().flex_1().child(inputs.name.clone()))
+                                                .child(
+                                                    div().flex_1().child(inputs.rule_type.clone()),
+                                                ),
+                                        )
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .gap(scale.px(10.0))
+                                                .child(div().flex_1().child(inputs.start.clone()))
+                                                .child(div().flex_1().child(inputs.end.clone()))
+                                                .child(div().flex_1().child(inputs.value.clone())),
+                                        )
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .gap(scale.px(10.0))
+                                                .child(
+                                                    div()
+                                                        .flex_1()
+                                                        .child(inputs.day_category.clone()),
+                                                )
+                                                .child(
+                                                    div().flex_1().child(inputs.rate_type.clone()),
+                                                )
+                                                .child(div().flex_1())
+                                                .child(
+                                                    div()
+                                                        .id(("remove-band", index))
+                                                        .h(scale.px(40.0))
+                                                        .px(scale.px(10.0))
+                                                        .flex()
+                                                        .items_center()
+                                                        .rounded(scale.px(20.0))
+                                                        .cursor_pointer()
+                                                        .text_color(colors.error)
+                                                        .hover(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                colors.surface_container,
+                                                                colors.error,
+                                                                0.08,
+                                                            ))
+                                                        })
+                                                        .active(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                colors.surface_container,
+                                                                colors.error,
+                                                                0.12,
+                                                            ))
+                                                        })
+                                                        .child(self.text("Remove"))
+                                                        .on_click(cx.listener(
+                                                            move |shell, _, _, cx| {
+                                                                if index
+                                                                    < shell
+                                                                        .settings_draft
+                                                                        .overtime_compensation
+                                                                        .rate_bands
+                                                                        .len()
+                                                                {
+                                                                    shell
+                                                                        .settings_draft
+                                                                        .overtime_compensation
+                                                                        .rate_bands
+                                                                        .remove(index);
+                                                                    shell
+                                                                        .rate_band_inputs
+                                                                        .remove(index);
+                                                                }
+                                                                cx.notify();
+                                                            },
+                                                        )),
+                                                ),
+                                        ),
+                                )
+                            })
                     }),
             )
     }
@@ -6785,10 +6869,18 @@ mod tests {
             shell.apply_visual_state(VisualState::SettingsOvertime, cx)
         });
         cx.refresh().expect("refresh rate-band controls");
-        let (day_category, rate_type) = shell.read_with(cx, |shell, _| {
+        let (expansion, day_category, rate_type) = shell.read_with(cx, |shell, _| {
             let controls = shell.rate_band_inputs.last().expect("new rule controls");
-            (controls.day_category.clone(), controls.rate_type.clone())
+            (
+                controls.expansion.clone(),
+                controls.day_category.clone(),
+                controls.rate_type.clone(),
+            )
         });
+        cx.update(|window, app| window.focus(&expansion.read(app).focus_handle()));
+        cx.simulate_keystrokes("enter");
+        assert!(expansion.read_with(cx, |panel, _| panel.expanded()));
+        cx.refresh().expect("refresh expanded rate band");
         cx.update(|window, app| window.focus(&day_category.read(app).focus_handle(app)));
         cx.simulate_keystrokes("enter end enter");
         cx.update(|window, app| window.focus(&rate_type.read(app).focus_handle(app)));

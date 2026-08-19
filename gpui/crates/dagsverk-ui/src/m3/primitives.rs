@@ -266,8 +266,10 @@ pub struct M3ExpansionPanelEvent(pub bool);
 pub struct M3ExpansionPanel {
     id: ElementId,
     title: SharedString,
+    description: Option<SharedString>,
     body: SharedString,
     expanded: bool,
+    header_only: bool,
     colors: M3ColorScheme,
     focus: FocusHandle,
     scale: UiScale,
@@ -284,8 +286,10 @@ impl M3ExpansionPanel {
         Self {
             id: id.into(),
             title: title.into(),
+            description: None,
             body: body.into(),
             expanded: false,
+            header_only: false,
             colors,
             focus: cx.focus_handle().tab_index(0),
             scale: UiScale::default(),
@@ -294,6 +298,10 @@ impl M3ExpansionPanel {
 
     pub fn expanded(&self) -> bool {
         self.expanded
+    }
+
+    pub fn focus_handle(&self) -> FocusHandle {
+        self.focus.clone()
     }
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
@@ -306,6 +314,40 @@ impl M3ExpansionPanel {
         cx.notify();
     }
 
+    pub fn set_title(&mut self, title: impl Into<SharedString>, cx: &mut Context<Self>) {
+        let title = title.into();
+        if self.title != title {
+            self.title = title;
+            cx.notify();
+        }
+    }
+
+    pub fn set_description(
+        &mut self,
+        description: Option<impl Into<SharedString>>,
+        cx: &mut Context<Self>,
+    ) {
+        let description = description.map(Into::into);
+        if self.description != description {
+            self.description = description;
+            cx.notify();
+        }
+    }
+
+    pub fn set_expanded(&mut self, expanded: bool, cx: &mut Context<Self>) {
+        if self.expanded != expanded {
+            self.expanded = expanded;
+            cx.notify();
+        }
+    }
+
+    pub fn set_header_only(&mut self, header_only: bool, cx: &mut Context<Self>) {
+        if self.header_only != header_only {
+            self.header_only = header_only;
+            cx.notify();
+        }
+    }
+
     fn toggle(&mut self, cx: &mut Context<Self>) {
         self.expanded = !self.expanded;
         cx.emit(M3ExpansionPanelEvent(self.expanded));
@@ -315,21 +357,42 @@ impl M3ExpansionPanel {
 
 impl EventEmitter<M3ExpansionPanelEvent> for M3ExpansionPanel {}
 
+impl gpui::Focusable for M3ExpansionPanel {
+    fn focus_handle(&self, _: &gpui::App) -> FocusHandle {
+        self.focus.clone()
+    }
+}
+
 impl Render for M3ExpansionPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focused = self.focus.is_focused(window);
         let scale = self.scale;
+        let icon = if self.expanded {
+            "expand_less"
+        } else {
+            "expand_more"
+        };
+        let header_background = if self.header_only {
+            self.colors.surface_container
+        } else {
+            self.colors.surface_container_lowest
+        };
+        let header_foreground = self.colors.on_surface;
         div()
             .w_full()
             .rounded(scale.px(12.0))
-            .border_1()
-            .border_color(self.colors.outline_variant)
-            .bg(self.colors.surface_container_lowest)
+            .when(!self.header_only, |panel| {
+                panel
+                    .border_1()
+                    .border_color(self.colors.outline_variant)
+                    .bg(self.colors.surface_container_lowest)
+            })
             .child(
                 div()
                     .id(self.id.clone())
                     .track_focus(&self.focus)
                     .tab_index(0)
+                    .tab_stop(true)
                     .h(scale.px(48.0))
                     .px(scale.px(16.0))
                     .flex()
@@ -338,11 +401,50 @@ impl Render for M3ExpansionPanel {
                     .shadow(choice_focus_shadow(focused, self.colors.primary, scale))
                     .rounded(scale.px(12.0))
                     .cursor_pointer()
+                    .hover(move |style| {
+                        style.bg(m3_state_layer(
+                            header_background,
+                            header_foreground,
+                            HOVER_OPACITY,
+                        ))
+                    })
+                    .active(move |style| {
+                        style.bg(m3_state_layer(
+                            header_background,
+                            header_foreground,
+                            PRESSED_OPACITY,
+                        ))
+                    })
                     .on_click(cx.listener(|this, _, _, cx| this.toggle(cx)))
-                    .child(self.title.clone())
-                    .child(m3_icon("expand_more", 20.0 * scale.factor(), self.colors)),
+                    .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
+                        if matches!(event.keystroke.key.as_str(), "enter" | "space") {
+                            this.toggle(cx);
+                        }
+                    }))
+                    .child(
+                        div()
+                            .min_w(px(0.0))
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .child(
+                                div()
+                                    .m3_typography(TypographyRole::TitleSmall, scale)
+                                    .text_color(self.colors.on_surface)
+                                    .child(self.title.clone()),
+                            )
+                            .when_some(self.description.clone(), |header, description| {
+                                header.child(
+                                    div()
+                                        .m3_typography(TypographyRole::BodySmall, scale)
+                                        .text_color(self.colors.on_surface_variant)
+                                        .child(description),
+                                )
+                            }),
+                    )
+                    .child(m3_icon(icon, 20.0 * scale.factor(), self.colors)),
             )
-            .when(self.expanded, |panel| {
+            .when(self.expanded && !self.header_only, |panel| {
                 panel.child(
                     div()
                         .px(scale.px(16.0))
