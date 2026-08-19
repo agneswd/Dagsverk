@@ -232,6 +232,7 @@ impl Render for M3Select {
             .w_full()
             .px(scale.px(16.0))
             .flex()
+            .gap(scale.px(12.0))
             .items_center()
             .justify_between()
             .rounded(scale.px(4.0))
@@ -256,6 +257,7 @@ impl Render for M3Select {
             .child(
                 div()
                     .min_w_0()
+                    .flex_1()
                     .flex()
                     .flex_col()
                     .child(

@@ -6,8 +6,9 @@ use dagsverk_core::{
     holidays::SwedishHolidayCalendar,
     i18n::translate,
     models::{
-        AppSettings, IsoDate, LanguagePreference, MonthViewPreference, MonthlySummary, Project,
-        TaxEstimate, WorkEntry, WorkEntryStatus, YearMonth,
+        AppSettings, CurrencyPreference, IsoDate, LanguagePreference, MonthViewPreference,
+        MonthlySummary, OvertimeCompensationMode, Project, TaxEstimate, WorkEntry, WorkEntryStatus,
+        YearMonth,
     },
 };
 use gpui::{
@@ -102,7 +103,7 @@ impl MonthView {
                     .items_center()
                     .bg(colors.surface_container)
                     .border_b_1()
-                    .border_color(colors.grid_line)
+                    .border_color(colors.outline)
                     .m3_typography(TypographyRole::LabelMedium, scale)
                     .text_color(colors.on_surface_variant)
                     .children(
@@ -133,9 +134,13 @@ impl MonthView {
                     colors.warning_container
                 } else {
                     match row.status {
-                        WorkEntryStatus::Worked => colors.success_container,
+                        WorkEntryStatus::Worked => colors
+                            .surface_container
+                            .blend(colors.primary_container.opacity(0.72)),
                         WorkEntryStatus::Off => colors.surface_container_high,
-                        WorkEntryStatus::Incomplete if row.is_missing => colors.warning_container,
+                        WorkEntryStatus::Incomplete if row.is_missing => {
+                            colors.surface_container_low
+                        }
                         WorkEntryStatus::Incomplete => colors.surface_container_low,
                     }
                 };
@@ -156,7 +161,7 @@ impl MonthView {
                     .flex()
                     .items_center()
                     .border_b_1()
-                    .border_color(colors.grid_line)
+                    .border_color(colors.outline)
                     .bg(row_background)
                     .m3_typography(TypographyRole::BodyMedium, scale)
                     .cursor_pointer()
@@ -181,7 +186,6 @@ impl MonthView {
                             div()
                                 .w(scale.px(62.0))
                                 .h(scale.px(26.0))
-                                .px(scale.px(6.0))
                                 .grid()
                                 .grid_cols(2)
                                 .gap(scale.px(4.0))
@@ -189,10 +193,6 @@ impl MonthView {
                                 .rounded(scale.px(8.0))
                                 .bg(if row.is_today {
                                     colors.primary
-                                } else if row.date.as_naive_date().weekday().number_from_monday()
-                                    > 5
-                                {
-                                    colors.surface_container
                                 } else {
                                     gpui::transparent_black()
                                 })
@@ -265,20 +265,25 @@ impl MonthView {
                         ),
                     )
                     .child(
-                        ledger_cell(6, scale).child(match row.project_name {
-                            Some(project) => div()
-                                .max_w(scale.px(180.0))
-                                .px(scale.px(10.0))
-                                .py(scale.px(4.0))
-                                .flex()
-                                .items_center()
-                                .gap(scale.px(8.0))
-                                .rounded(scale.px(12.0))
-                                .bg(colors.surface_container)
-                                .child(div().size(scale.px(8.0)).rounded_full().bg(project_color))
-                                .child(div().min_w_0().truncate().child(project)),
-                            None => empty_value(colors),
-                        }),
+                        ledger_cell(6, scale)
+                            .flex()
+                            .items_center()
+                            .child(match row.project_name {
+                                Some(project) => div()
+                                    .max_w(scale.px(180.0))
+                                    .px(scale.px(10.0))
+                                    .py(scale.px(4.0))
+                                    .flex()
+                                    .items_center()
+                                    .gap(scale.px(8.0))
+                                    .rounded(scale.px(12.0))
+                                    .bg(colors.surface_container)
+                                    .child(
+                                        div().size(scale.px(8.0)).rounded_full().bg(project_color),
+                                    )
+                                    .child(div().min_w_0().truncate().child(project)),
+                                None => empty_value(colors),
+                            }),
                     )
                     .child(
                         ledger_cell(7, scale).child(match row.notes {
@@ -594,12 +599,21 @@ impl Render for MonthView {
 pub fn summary_banner(
     summary: &MonthlySummary,
     tax: &TaxEstimate,
-    currency: &str,
+    settings: &AppSettings,
     unstarted: bool,
     language: LanguagePreference,
     colors: M3ColorScheme,
     scale: UiScale,
 ) -> gpui::Div {
+    let currency = match settings.currency_preference {
+        CurrencyPreference::Sek => "SEK",
+        CurrencyPreference::Eur => "EUR",
+        CurrencyPreference::Usd => "USD",
+        CurrencyPreference::Gbp => "GBP",
+        CurrencyPreference::Nok => "NOK",
+        CurrencyPreference::Dkk => "DKK",
+    };
+    let comp_time = settings.overtime_compensation.mode == OvertimeCompensationMode::CompTime;
     let net = tax
         .estimated_net_pay
         .unwrap_or(summary.gross_salary)
@@ -609,15 +623,19 @@ pub fn summary_banner(
         (
             "schedule",
             localized(language, "Worked Time"),
-            format!("{} / {}h", summary.worked_hours, summary.expected_hours),
-            String::new(),
+            format!("{:.2}", summary.worked_hours),
+            format!("/ {:.2}h", summary.expected_hours),
             colors.on_surface,
         ),
         (
             "more_time",
             localized(language, "Overtime & OB"),
-            format!("{}h", summary.overtime_hours),
-            format!("{}h OB", summary.ob_hours),
+            format!("{:.2}h", summary.overtime_hours),
+            if comp_time {
+                localized(language, "Comp time")
+            } else {
+                localized(language, "Direct salary")
+            },
             colors.on_surface,
         ),
         (
@@ -628,7 +646,7 @@ pub fn summary_banner(
                 localized(language, "Opening Balance")
             } else {
                 format!(
-                    "Δ {}",
+                    "(Δ {})",
                     format_minutes(summary.monthly_difference_minutes.value())
                 )
             },
@@ -643,9 +661,12 @@ pub fn summary_banner(
         (
             "payments",
             localized(language, "Estimated Net Pay"),
-            format!("{net} {currency}"),
+            format!("{} {currency}", format_grouped_integer(&net)),
             if tax.is_available {
-                format!("Gross: {}", summary.gross_salary.decimal().round_dp(0))
+                format!(
+                    "Gross: {}",
+                    format_grouped_integer(&summary.gross_salary.decimal().round_dp(0))
+                )
             } else {
                 "Gross".to_owned()
             },
@@ -892,7 +913,23 @@ fn format_hours(minutes: i64, plus: bool) -> String {
 fn format_minutes(minutes: i64) -> String {
     let sign = if minutes < 0 { "-" } else { "" };
     let absolute = minutes.abs();
-    format!("{sign}{}:{:02}", absolute / 60, absolute % 60)
+    format!("{sign}{}h {}m", absolute / 60, absolute % 60)
+}
+
+fn format_grouped_integer(value: &impl ToString) -> String {
+    let value = value.to_string();
+    let (sign, digits) = value
+        .strip_prefix('-')
+        .map_or(("", value.as_str()), |digits| ("-", digits));
+    let mut grouped = String::with_capacity(value.len() + value.len() / 3);
+    grouped.push_str(sign);
+    for (index, character) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(character);
+    }
+    grouped
 }
 
 fn parse_hex(value: &str) -> Option<Hsla> {
@@ -940,14 +977,16 @@ mod tests {
     use crate::m3::M3ColorScheme;
 
     use super::{
-        LEDGER_COLUMN_RATIOS, MonthView, MonthViewData, format_hours, format_minutes, parse_hex,
+        LEDGER_COLUMN_RATIOS, MonthView, MonthViewData, format_grouped_integer, format_hours,
+        format_minutes, parse_hex,
     };
 
     #[test]
     fn display_helpers_cover_empty_negative_and_project_colors() {
         assert_eq!(format_hours(0, false), "-");
         assert_eq!(format_hours(90, true), "+1.50h");
-        assert_eq!(format_minutes(-75), "-1:15");
+        assert_eq!(format_minutes(-75), "-1h 15m");
+        assert_eq!(format_grouped_integer(&10157), "10,157");
         assert!(parse_hex("#5F875F").is_some());
         assert!(parse_hex("bad").is_none());
     }

@@ -28,7 +28,7 @@ use dagsverk_ui::{
 use gpui::{
     App, AppContext, Context, Corner, ElementId, Entity, FocusHandle, Focusable, KeyBinding,
     Render, SharedString, Stateful, Window, WindowAppearance, actions, anchored, deferred, div,
-    point, prelude::*, px,
+    point, prelude::*, px, relative,
 };
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 
@@ -60,7 +60,7 @@ enum ExportFormat {
 }
 
 const CURRENCY_OPTIONS: [(&str, CurrencyPreference); 6] = [
-    ("SEK", CurrencyPreference::Sek),
+    ("SEK (kr)", CurrencyPreference::Sek),
     ("EUR", CurrencyPreference::Eur),
     ("USD", CurrencyPreference::Usd),
     ("GBP", CurrencyPreference::Gbp),
@@ -521,7 +521,7 @@ impl RateBandInputs {
 impl SettingsInputs {
     fn new(settings: &AppSettings, cx: &mut Context<AppShell>) -> Self {
         let inputs = Self {
-            opening_balance: cx.new(|cx| TextInput::new(cx, "Starting balance hours")),
+            opening_balance: cx.new(|cx| TextInput::new(cx, "Starting time balance")),
             expected_hours: cx.new(|cx| TextInput::new(cx, "Hours per workday")),
             default_start: cx.new(|cx| TextInput::new(cx, "Default start")),
             default_end: cx.new(|cx| TextInput::new(cx, "Default end")),
@@ -536,6 +536,9 @@ impl SettingsInputs {
             tax_column: cx.new(|cx| TextInput::new(cx, "Tax column")),
             manual_tax: cx.new(|cx| TextInput::new(cx, "Manual monthly deduction")),
         };
+        inputs
+            .opening_balance
+            .update(cx, |input, cx| input.set_suffix("hours", cx));
         inputs.sync(settings, cx);
         inputs
     }
@@ -3450,6 +3453,18 @@ impl AppShell {
             .parse_settings_inputs(cx)
             .map_or(true, |settings| settings != self.model.settings)
             || self.preferences_draft != self.model.preferences;
+        let tab_labels = [
+            self.text("General"),
+            self.text("Schedule"),
+            self.text("Overtime & OB"),
+            self.text("Salary & Tax"),
+            self.text("Application"),
+        ];
+        self.settings_tabs.update(cx, |tabs, cx| {
+            tabs.set_colors(colors, cx);
+            tabs.set_selected(self.settings_tab, cx);
+            tabs.set_labels(tab_labels, cx);
+        });
         let content = match self.settings_tab {
             0 => self.general_settings(colors, cx),
             1 => self.schedule_settings(colors, cx),
@@ -3466,88 +3481,109 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap_0()
-            .child(self.settings_tabs.clone())
             .child(
                 div()
-                    .p(scale.px(24.0))
+                    .h(scale.px(40.0))
                     .flex()
-                    .flex_col()
-                    .gap(scale.px(18.0))
-                    .rounded_b(scale.px(16.0))
-                    .bg(colors.surface_container_low)
-                    .child(content),
-            )
-            .child(
-                div()
-                    .mt(scale.px(20.0))
-                    .flex()
-                    .justify_end()
-                    .gap(scale.px(16.0))
+                    .items_center()
+                    .justify_between()
                     .child(
-                        div()
-                            .id("discard-settings")
-                            .h(scale.px(40.0))
-                            .px(scale.px(18.0))
-                            .flex()
-                            .items_center()
-                            .rounded(scale.px(20.0))
-                            .opacity(if dirty { 1.0 } else { 0.38 })
-                            .child(self.text("Discard"))
-                            .when(dirty, |button| {
-                                button
-                                    .cursor_pointer()
-                                    .hover(move |style| {
-                                        style.bg(m3_state_layer(
-                                            colors.background,
-                                            colors.on_surface,
-                                            0.08,
-                                        ))
-                                    })
-                                    .active(move |style| {
-                                        style.bg(m3_state_layer(
-                                            colors.background,
-                                            colors.on_surface,
-                                            0.12,
-                                        ))
-                                    })
-                                    .on_click(
-                                        cx.listener(|shell, _, _, cx| shell.discard_settings(cx)),
-                                    )
-                            }),
+                        div().text_color(colors.on_surface_variant).child(
+                            self.text("Set your schedule, pay, tax, and timesheet defaults."),
+                        ),
                     )
                     .child(
                         div()
-                            .id("save-settings")
-                            .h(scale.px(40.0))
-                            .px(scale.px(20.0))
                             .flex()
                             .items_center()
-                            .rounded(scale.px(20.0))
-                            .opacity(if dirty { 1.0 } else { 0.38 })
-                            .bg(colors.primary)
-                            .text_color(colors.on_primary)
-                            .child(self.text("Save"))
-                            .when(dirty, |button| {
-                                button
-                                    .cursor_pointer()
-                                    .hover(move |style| {
-                                        style.bg(m3_state_layer(
-                                            colors.primary,
-                                            colors.on_primary,
-                                            0.08,
-                                        ))
-                                    })
-                                    .active(move |style| {
-                                        style.bg(m3_state_layer(
-                                            colors.primary,
-                                            colors.on_primary,
-                                            0.12,
-                                        ))
-                                    })
-                                    .on_click(
-                                        cx.listener(|shell, _, _, cx| shell.save_settings(cx)),
-                                    )
-                            }),
+                            .gap(scale.px(8.0))
+                            .child(
+                                div()
+                                    .id("discard-settings")
+                                    .h(scale.px(40.0))
+                                    .px(scale.px(18.0))
+                                    .flex()
+                                    .items_center()
+                                    .rounded(scale.px(20.0))
+                                    .opacity(if dirty { 1.0 } else { 0.38 })
+                                    .child(self.text("Discard"))
+                                    .when(dirty, |button| {
+                                        button
+                                            .cursor_pointer()
+                                            .hover(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.background,
+                                                    colors.on_surface,
+                                                    0.08,
+                                                ))
+                                            })
+                                            .active(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.background,
+                                                    colors.on_surface,
+                                                    0.12,
+                                                ))
+                                            })
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.discard_settings(cx)
+                                            }))
+                                    }),
+                            )
+                            .child(
+                                div()
+                                    .id("save-settings")
+                                    .h(scale.px(40.0))
+                                    .px(scale.px(18.0))
+                                    .flex()
+                                    .items_center()
+                                    .gap(scale.px(8.0))
+                                    .rounded(scale.px(20.0))
+                                    .opacity(if dirty { 1.0 } else { 0.38 })
+                                    .bg(colors.primary)
+                                    .text_color(colors.on_primary)
+                                    .child(m3_icon_colored(
+                                        "save",
+                                        18.0 * scale.factor(),
+                                        colors.on_primary,
+                                    ))
+                                    .child(self.text("Save Settings"))
+                                    .when(dirty, |button| {
+                                        button
+                                            .cursor_pointer()
+                                            .hover(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.primary,
+                                                    colors.on_primary,
+                                                    0.08,
+                                                ))
+                                            })
+                                            .active(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.primary,
+                                                    colors.on_primary,
+                                                    0.12,
+                                                ))
+                                            })
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.save_settings(cx)
+                                            }))
+                                    }),
+                            ),
+                    ),
+            )
+            .child(
+                div()
+                    .mt(scale.px(24.0))
+                    .child(self.settings_tabs.clone())
+                    .child(
+                        div()
+                            .p(scale.px(24.0))
+                            .flex()
+                            .flex_col()
+                            .gap(scale.px(18.0))
+                            .rounded_b(scale.px(16.0))
+                            .bg(colors.surface_container_low)
+                            .child(content),
                     ),
             )
     }
@@ -3587,12 +3623,34 @@ impl AppShell {
         div()
             .flex()
             .flex_col()
-            .gap(scale.px(14.0))
-            .child(div().text_size(scale.px(18.0)).child(self.text("General")))
-            .child(self.settings_project_select.clone())
-            .child(self.currency_select.clone())
-            .child(self.text("Starting time balance"))
-            .child(self.settings_inputs.opening_balance.clone())
+            .gap(scale.px(16.0))
+            .child(
+                div()
+                    .font_weight(gpui::FontWeight::MEDIUM)
+                    .child(self.text("Workspace defaults")),
+            )
+            .child(
+                div()
+                    .text_size(scale.px(12.0))
+                    .text_color(colors.on_surface_variant)
+                    .child(self.text(
+                        "Projects and report preferences for the active workspace. Manage identity details from the workspace menu.",
+                    )),
+            )
+            .child(
+                div()
+                    .grid()
+                    .grid_cols(2)
+                    .gap(scale.px(16.0))
+                    .child(self.settings_project_select.clone())
+                    .child(self.currency_select.clone()),
+            )
+            .child(
+                div()
+                    .w(relative(0.5))
+                    .pr(scale.px(8.0))
+                    .child(self.settings_inputs.opening_balance.clone()),
+            )
     }
 
     fn schedule_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
@@ -4145,14 +4203,6 @@ impl AppShell {
         let summary = self.model.summary();
         let tax = self.model.tax_estimate();
         let unstarted = self.model.is_month_unstarted();
-        let currency = match self.model.settings.currency_preference {
-            CurrencyPreference::Sek => "SEK",
-            CurrencyPreference::Eur => "EUR",
-            CurrencyPreference::Usd => "USD",
-            CurrencyPreference::Gbp => "GBP",
-            CurrencyPreference::Nok => "NOK",
-            CurrencyPreference::Dkk => "DKK",
-        };
         div()
             .w_full()
             .max_w(scale.px(1280.0))
@@ -4166,7 +4216,7 @@ impl AppShell {
             .child(summary_banner(
                 &summary,
                 &tax,
-                currency,
+                &self.model.settings,
                 self.model.is_month_unstarted(),
                 match self.model.language {
                     crate::state::Language::English => LanguagePreference::English,
@@ -5192,6 +5242,7 @@ impl Render for AppShell {
         let colors = self.colors();
         let scale = self.model.interface_scale.clamp(0.8, 1.5);
         let window_width = window.bounds().size.width;
+        let content_height = window.bounds().size.height - px(64.0 * scale);
         let (sidebar_collapsed, editor_overlay) =
             responsive_layout(window_width, self.sidebar_collapsed);
         let sidebar_width = if sidebar_collapsed { 80.0 } else { 256.0 } * scale;
@@ -5252,6 +5303,9 @@ impl Render for AppShell {
                 0.0
             };
         let header_layout = header_layout(pane_width);
+        let timesheet_header_offset = 32.0 - header_layout.padding;
+        let route_header_offset =
+            (32.0 + ((pane_width - 1088.0) / 2.0).max(0.0) - header_layout.padding).max(0.0);
         self.snackbar.update(cx, |snackbar, cx| {
             snackbar.configure(
                 message.clone().map(Into::into),
@@ -5453,7 +5507,8 @@ impl Render for AppShell {
                 div()
                     .relative()
                     .min_w_0()
-                    .flex_1()
+                    .w(window_width - px(sidebar_width))
+                    .flex_none()
                     .h_full()
                     .flex()
                     .flex_col()
@@ -5469,6 +5524,7 @@ impl Render for AppShell {
                             .when(self.model.route == Route::Timesheet, |header| {
                                 header.child(
                                 div()
+                                    .ml(px(timesheet_header_offset * scale))
                                     .flex()
                                     .items_center()
                                     .gap(px(4.0 * scale))
@@ -5812,6 +5868,7 @@ impl Render for AppShell {
                                 header
                                     .child(
                                         div()
+                                            .ml(px(route_header_offset * scale))
                                             .flex()
                                             .items_center()
                                             .gap(px(8.0 * scale))
@@ -5869,55 +5926,58 @@ impl Render for AppShell {
                                             })),
                                     )
                             }),
-                    )
+                    ),
+            )
+            .child(
+                div()
+                    .absolute()
+                    .top(px(64.0 * scale))
+                    .left(px(sidebar_width))
+                    .w(window_width - px(sidebar_width))
+                    .h(content_height)
+                    .flex()
                     .child(
                         div()
-                            .relative()
                             .flex_1()
-                            .min_h_0()
-                            .flex()
+                            .min_w_0()
+                            .h_full()
+                            .rounded_tl(px(24.0 * scale))
+                            .overflow_hidden()
+                            .bg(colors.background)
                             .child(
                                 div()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .rounded_tl(px(24.0 * scale))
-                                    .overflow_hidden()
+                                    .id("route-content")
+                                    .size_full()
+                                    .overflow_y_scroll()
                                     .bg(colors.background)
-                                    .child(
-                                        div()
-                                            .id("route-content")
-                                            .size_full()
-                                            .overflow_y_scroll()
-                                            .bg(colors.background)
-                                            .child(self.route_content(colors, pane_width, cx)),
-                                    ),
-                            )
-                            .when(self.model.editor.is_open && !editor_overlay, |content| {
-                                content.child(self.editor_panel(colors, cx))
-                            })
-                            .when(self.model.editor.is_open && editor_overlay, |content| {
-                                content.child(
+                                    .child(self.route_content(colors, pane_width, cx)),
+                            ),
+                    )
+                    .when(self.model.editor.is_open && !editor_overlay, |content| {
+                        content.child(self.editor_panel(colors, cx))
+                    })
+                    .when(self.model.editor.is_open && editor_overlay, |content| {
+                        content.child(
+                            div()
+                                .absolute()
+                                .inset_0()
+                                .flex()
+                                .justify_end()
+                                .child(
                                     div()
+                                        .id("editor-backdrop")
                                         .absolute()
                                         .inset_0()
-                                        .flex()
-                                        .justify_end()
-                                        .child(
-                                            div()
-                                                .id("editor-backdrop")
-                                                .absolute()
-                                                .inset_0()
-                                                .bg(gpui::black().opacity(0.35))
-                                                .on_click(cx.listener(|shell, _, _, cx| {
-                                                    shell.model.close_editor();
-                                                    shell.refresh_month_view(cx);
-                                                    cx.notify();
-                                                })),
-                                        )
-                                        .child(self.editor_panel(colors, cx)),
+                                        .bg(gpui::black().opacity(0.35))
+                                        .on_click(cx.listener(|shell, _, _, cx| {
+                                            shell.model.close_editor();
+                                            shell.refresh_month_view(cx);
+                                            cx.notify();
+                                        })),
                                 )
-                            }),
-                    ),
+                                .child(self.editor_panel(colors, cx)),
+                        )
+                    }),
             )
             .when(self.workspace_menu_open, |root| {
                 root.child(

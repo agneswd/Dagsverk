@@ -191,6 +191,7 @@ impl Render for M3ChoiceGroup {
                     .h_full()
                     .px(scale.px(16.0))
                     .flex()
+                    .when(kind == M3ChoiceKind::Tabs, |item| item.flex_1())
                     .items_center()
                     .justify_center()
                     .when(kind == M3ChoiceKind::Segmented && index > 0, |item| {
