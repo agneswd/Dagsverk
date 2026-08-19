@@ -73,6 +73,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - Overtime and OB rate bands use compact expansion-panel summaries. Enter and Space open the focused panel, and opening one panel closes the others.
 - Overtime and OB rate bands use outlined Material selects for rule type, day category, and rate type.
 - All 26 current GPUI captures were regenerated and compared against the matching Electron dimensions on 2026-08-19. Select panels use measured trigger bounds, and the workspace menu uses the source sidebar anchor geometry.
+- Selected navigation icons follow the captured Electron Material Icons outline silhouettes with the selected weight. The source template's `filled` class does not match the nested `.material-symbols-outlined.filled` rule, so a true Material Symbols `FILL=1` glyph would not match the Electron baseline.
 
 ## Comparison tolerances
 
