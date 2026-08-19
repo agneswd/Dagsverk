@@ -1,0 +1,19 @@
+# Known gaps
+
+## Background GPUI capture
+
+- Current behavior: Tests, builds, and GPUI captures run without taking desktop focus. An isolated headless Sway compositor presents through the real NVIDIA Vulkan driver and records all typed visual states at exact window sizes and scales.
+- Expected parity: Automated captures must not use the active desktop.
+- Reason incomplete: The pinned Linux backend still cannot present through Xvfb or seatless Weston, so capture depends on a machine with a real Vulkan driver.
+- Files involved: `gpui/tools/visual-diff/`, `gpui/VISUAL_PARITY.md`.
+- Proposed solution: Keep the non-focusing Niri fallback and document the isolated headless Sway path for GPU-capable hosts.
+- Test needed: Add the isolated capture path to a GPU-capable CI runner when one is available.
+
+## Phase 0 platform proof
+
+- Current behavior: The pinned preview builds, launches, sets its native title, resizes under Niri, and exits cleanly on Linux.
+- Expected parity: Input, clipboard, focus, resize, and native launch work on Windows and Linux.
+- Reason incomplete: Windows CI and launch checks remain. Automated clipboard interaction did not produce reliable evidence, so the clipboard check remains open.
+- Files involved: `gpui/crates/dagsverk-app`, `.github/workflows/gpui.yml`.
+- Proposed solution: Complete local Wayland checks and Windows CI.
+- Test needed: Manual platform checklist and CI release builds.

@@ -1,0 +1,59 @@
+{
+  "sourceCommit": "204d00873bfc02b8fc2c04e08b8cce8b8ce59885",
+  "generatedAt": "2026-08-18T12:43:24+02:00",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "input": "",
+      "output": null
+    },
+    {
+      "input": "   ",
+      "output": null
+    },
+    {
+      "input": "8",
+      "output": "08:00"
+    },
+    {
+      "input": "08",
+      "output": "08:00"
+    },
+    {
+      "input": "830",
+      "output": "08:30"
+    },
+    {
+      "input": "0830",
+      "output": "08:30"
+    },
+    {
+      "input": "8.30",
+      "output": "08:30"
+    },
+    {
+      "input": "8:3",
+      "output": "08:03"
+    },
+    {
+      "input": "08:30",
+      "output": "08:30"
+    },
+    {
+      "input": "invalid",
+      "output": null
+    },
+    {
+      "input": "24:00",
+      "output": null
+    },
+    {
+      "input": "-1:00",
+      "output": null
+    },
+    {
+      "input": "08:60",
+      "output": null
+    }
+  ]
+}

@@ -1,0 +1,8402 @@
+use std::{path::PathBuf, sync::Arc};
+
+use chrono::{Datelike, Duration};
+use dagsverk_core::{
+    calculations::{calculate_daily_pay, normalize_time, worked_minutes},
+    i18n::translate,
+    models::{
+        AppPreferences, AppSettings, CompensationRateType, CompensationRuleType,
+        CurrencyPreference, ExportLanguagePreference, HourlyPayBasis, LanguagePreference, Minutes,
+        Money, MonthViewPreference, ObOvertimeCombinationMode, OvertimeCompensationMode,
+        OvertimeDayCategory, OvertimeRateBand, OvertimeThresholdMode, Project, ProjectId,
+        SalaryType, TaxMode, ThemePreference, WorkEntryStatus, Workspace, WorkspaceId,
+        WorkspaceType, YearMonth,
+    },
+};
+use dagsverk_data::DataMaintenance;
+use dagsverk_export::{export_ods, export_xlsx};
+use dagsverk_ui::{
+    m3::{
+        M3ChoiceEvent, M3ChoiceGroup, M3ChoiceKind, M3ColorScheme, M3ExpansionPanel,
+        M3ExpansionPanelEvent, M3Select, M3SelectEvent, M3Slider, M3SliderEvent, M3SnackbarEvent,
+        M3SnackbarHost, M3Switch, M3SwitchEvent, ResolvedTheme as UiTheme, UiScale, m3_icon,
+        m3_icon_colored, m3_icon_filled, m3_state_layer, m3_tooltip, menu_elevation,
+        side_sheet_elevation, workspace_menu_elevation,
+    },
+    text_input::{TextInput, TextInputEvent},
+    views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
+};
+use gpui::{
+    App, AppContext, BoxShadow, Context, Corner, ElementId, Entity, FocusHandle, Focusable,
+    KeyBinding, MouseButton, Pixels, Render, SharedString, Stateful, Window, WindowAppearance,
+    actions, anchored, deferred, div, point, prelude::*, px, relative,
+};
+use rust_decimal::{Decimal, prelude::ToPrimitive};
+
+use crate::{
+    platform::{FileDialogService, OpenFileRequest, SaveFileRequest, ShellService},
+    startup::VisualState,
+    state::{AppModel, ResolvedTheme, Route},
+};
+
+actions!(
+    dagsverk,
+    [
+        ShowLedger,
+        ShowCalendar,
+        ShowSettings,
+        PreviousMonth,
+        NextMonth,
+        StartCatchUp,
+        ExportReport,
+        SaveActive,
+        CloseSurface,
+        Tab,
+        TabPrevious
+    ]
+);
+
+#[derive(Clone, Copy)]
+enum ExportFormat {
+    Xlsx,
+    Ods,
+}
+
+const CURRENCY_OPTIONS: [(&str, CurrencyPreference); 6] = [
+    ("SEK (kr)", CurrencyPreference::Sek),
+    ("EUR (€)", CurrencyPreference::Eur),
+    ("USD ($)", CurrencyPreference::Usd),
+    ("GBP (£)", CurrencyPreference::Gbp),
+    ("NOK (kr)", CurrencyPreference::Nok),
+    ("DKK (kr)", CurrencyPreference::Dkk),
+];
+const THEME_OPTIONS: [ThemePreference; 3] = [
+    ThemePreference::System,
+    ThemePreference::Light,
+    ThemePreference::Dark,
+];
+const LANGUAGE_OPTIONS: [LanguagePreference; 3] = [
+    LanguagePreference::System,
+    LanguagePreference::English,
+    LanguagePreference::Swedish,
+];
+const INTERFACE_SCALE_OPTIONS: [i32; 6] = [80, 90, 100, 110, 125, 150];
+const EXPORT_LANGUAGE_OPTIONS: [ExportLanguagePreference; 3] = [
+    ExportLanguagePreference::System,
+    ExportLanguagePreference::English,
+    ExportLanguagePreference::Swedish,
+];
+const SALARY_TYPE_OPTIONS: [SalaryType; 2] = [SalaryType::Hourly, SalaryType::Monthly];
+const HOURLY_PAY_BASIS_OPTIONS: [HourlyPayBasis; 2] = [
+    HourlyPayBasis::DailyRegularHours,
+    HourlyPayBasis::MonthlyExpectedHours,
+];
+const TAX_MODE_OPTIONS: [TaxMode; 4] = [
+    TaxMode::Disabled,
+    TaxMode::PrimaryIncomeTaxTable,
+    TaxMode::SecondaryIncomeThirtyPercent,
+    TaxMode::ManualMonthlyDeduction,
+];
+const OVERTIME_MODE_OPTIONS: [OvertimeCompensationMode; 2] = [
+    OvertimeCompensationMode::CompTime,
+    OvertimeCompensationMode::Paid,
+];
+const OVERTIME_THRESHOLD_OPTIONS: [OvertimeThresholdMode; 2] = [
+    OvertimeThresholdMode::FixedDailyHours,
+    OvertimeThresholdMode::ScheduledHours,
+];
+const OB_COMBINATION_OPTIONS: [ObOvertimeCombinationMode; 2] = [
+    ObOvertimeCombinationMode::ExcludeOb,
+    ObOvertimeCombinationMode::IncludeOb,
+];
+const RATE_TYPE_OPTIONS: [CompensationRateType; 3] = [
+    CompensationRateType::HourlyPremiumPercent,
+    CompensationRateType::FixedHourlyAmount,
+    CompensationRateType::FullTimeMonthlySalaryDivisor,
+];
+const RULE_TYPE_OPTIONS: [CompensationRuleType; 2] =
+    [CompensationRuleType::Overtime, CompensationRuleType::Ob];
+const OVERTIME_DAY_OPTIONS: [OvertimeDayCategory; 14] = [
+    OvertimeDayCategory::AllDays,
+    OvertimeDayCategory::ScheduledWorkdays,
+    OvertimeDayCategory::NonWorkdays,
+    OvertimeDayCategory::Monday,
+    OvertimeDayCategory::Tuesday,
+    OvertimeDayCategory::Wednesday,
+    OvertimeDayCategory::Thursday,
+    OvertimeDayCategory::Friday,
+    OvertimeDayCategory::Saturday,
+    OvertimeDayCategory::Sunday,
+    OvertimeDayCategory::PublicHolidays,
+    OvertimeDayCategory::ScheduledWeekdays,
+    OvertimeDayCategory::Weekends,
+    OvertimeDayCategory::MajorHolidays,
+];
+
+trait ShellFocusable {
+    fn m3_focusable(self, enabled: bool, color: gpui::Hsla, spread: Pixels) -> Self;
+}
+
+impl ShellFocusable for Stateful<gpui::Div> {
+    fn m3_focusable(self, enabled: bool, color: gpui::Hsla, spread: Pixels) -> Self {
+        self.tab_index(0).tab_stop(enabled).focus(move |style| {
+            style.shadow(vec![BoxShadow {
+                color: color.opacity(0.12),
+                offset: point(px(0.0), px(0.0)),
+                blur_radius: px(0.0),
+                spread_radius: spread,
+            }])
+        })
+    }
+}
+
+impl ExportFormat {
+    const fn extension(self) -> &'static str {
+        match self {
+            Self::Xlsx => "xlsx",
+            Self::Ods => "ods",
+        }
+    }
+}
+
+struct SettingsInputs {
+    opening_balance: Entity<TextInput>,
+    expected_hours: Entity<TextInput>,
+    default_start: Entity<TextInput>,
+    default_end: Entity<TextInput>,
+    default_lunch: Entity<TextInput>,
+    overtime_threshold: Entity<TextInput>,
+    default_rate_value: Entity<TextInput>,
+    hourly_rate: Entity<TextInput>,
+    monthly_salary: Entity<TextInput>,
+    employment_percent: Entity<TextInput>,
+    tax_year: Entity<TextInput>,
+    tax_table: Entity<TextInput>,
+    tax_column: Entity<TextInput>,
+    manual_tax: Entity<TextInput>,
+}
+
+struct ApplicationSelects {
+    theme: Entity<M3Select>,
+    language: Entity<M3Select>,
+    scale: Entity<M3Select>,
+    export_language: Entity<M3Select>,
+}
+
+struct SalaryTaxSelects {
+    salary_type: Entity<M3Select>,
+    hourly_pay_basis: Entity<M3Select>,
+    tax_mode: Entity<M3Select>,
+}
+
+struct OvertimeSelects {
+    mode: Entity<M3Select>,
+    threshold: Entity<M3Select>,
+    ob_combination: Entity<M3Select>,
+    default_rate: Entity<M3Select>,
+}
+
+impl OvertimeSelects {
+    fn new(settings: &AppSettings, cx: &mut Context<AppShell>) -> Self {
+        let overtime = &settings.overtime_compensation;
+        Self {
+            mode: cx.new(|cx| {
+                M3Select::new(
+                    "Compensation mode",
+                    ["Comp time", "Direct salary"],
+                    option_index(&OVERTIME_MODE_OPTIONS, overtime.mode),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            threshold: cx.new(|cx| {
+                M3Select::new(
+                    "Overtime threshold",
+                    ["Fixed daily hours", "Scheduled hours"],
+                    option_index(&OVERTIME_THRESHOLD_OPTIONS, overtime.threshold_mode),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            ob_combination: cx.new(|cx| {
+                M3Select::new(
+                    "OB during overtime",
+                    ["Exclude", "Include"],
+                    option_index(&OB_COMBINATION_OPTIONS, overtime.ob_overtime_combination),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            default_rate: cx.new(|cx| {
+                M3Select::new(
+                    "Default paid-overtime rate",
+                    ["Premium percent", "Fixed amount", "Monthly divisor"],
+                    option_index(&RATE_TYPE_OPTIONS, overtime.default_rate_type),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+        }
+    }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for select in [
+            &self.mode,
+            &self.threshold,
+            &self.ob_combination,
+            &self.default_rate,
+        ] {
+            select.update(cx, |select, cx| select.set_scale(scale, cx));
+        }
+    }
+
+    fn set_colors(&self, colors: M3ColorScheme, cx: &mut Context<AppShell>) {
+        for select in [
+            &self.mode,
+            &self.threshold,
+            &self.ob_combination,
+            &self.default_rate,
+        ] {
+            select.update(cx, |select, cx| select.set_colors(colors, cx));
+        }
+    }
+}
+
+impl SalaryTaxSelects {
+    fn new(settings: &AppSettings, cx: &mut Context<AppShell>) -> Self {
+        Self {
+            salary_type: cx.new(|cx| {
+                M3Select::new(
+                    "Salary model",
+                    ["Hourly", "Monthly"],
+                    option_index(&SALARY_TYPE_OPTIONS, settings.salary.salary_type),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            hourly_pay_basis: cx.new(|cx| {
+                M3Select::new(
+                    "Hourly pay basis",
+                    ["Regular hours per day", "Monthly expected hours"],
+                    option_index(&HOURLY_PAY_BASIS_OPTIONS, settings.salary.hourly_pay_basis),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            tax_mode: cx.new(|cx| {
+                M3Select::new(
+                    "Tax engine mode",
+                    ["Disabled", "Primary table", "Secondary 30%", "Manual"],
+                    option_index(&TAX_MODE_OPTIONS, settings.tax_settings.mode),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+        }
+    }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for select in [&self.salary_type, &self.hourly_pay_basis, &self.tax_mode] {
+            select.update(cx, |select, cx| select.set_scale(scale, cx));
+        }
+    }
+
+    fn set_colors(&self, colors: M3ColorScheme, cx: &mut Context<AppShell>) {
+        for select in [&self.salary_type, &self.hourly_pay_basis, &self.tax_mode] {
+            select.update(cx, |select, cx| select.set_colors(colors, cx));
+        }
+    }
+}
+
+impl ApplicationSelects {
+    fn new(
+        preferences: &AppPreferences,
+        settings: &AppSettings,
+        cx: &mut Context<AppShell>,
+    ) -> Self {
+        let theme = cx.new(|cx| {
+            M3Select::new(
+                "Theme",
+                ["System", "Light", "Dark"],
+                option_index(&THEME_OPTIONS, preferences.theme_preference),
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let language = cx.new(|cx| {
+            M3Select::new(
+                "Language",
+                ["System", "English", "Swedish"],
+                option_index(&LANGUAGE_OPTIONS, preferences.language_preference),
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let scale = cx.new(|cx| {
+            M3Select::new(
+                "Interface scale",
+                INTERFACE_SCALE_OPTIONS.map(|value| format!("{value}%")),
+                option_index(
+                    &INTERFACE_SCALE_OPTIONS,
+                    preferences.interface_scale_percent,
+                ),
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let export_language = cx.new(|cx| {
+            M3Select::new(
+                "Export language",
+                ["System", "English", "Swedish"],
+                option_index(
+                    &EXPORT_LANGUAGE_OPTIONS,
+                    settings.export_language_preference,
+                ),
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        Self {
+            theme,
+            language,
+            scale,
+            export_language,
+        }
+    }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for select in [
+            &self.theme,
+            &self.language,
+            &self.scale,
+            &self.export_language,
+        ] {
+            select.update(cx, |select, cx| select.set_scale(scale, cx));
+        }
+    }
+
+    fn set_colors(&self, colors: M3ColorScheme, cx: &mut Context<AppShell>) {
+        for select in [
+            &self.theme,
+            &self.language,
+            &self.scale,
+            &self.export_language,
+        ] {
+            select.update(cx, |select, cx| select.set_colors(colors, cx));
+        }
+    }
+}
+
+struct RateBandInputs {
+    name: Entity<TextInput>,
+    start: Entity<TextInput>,
+    end: Entity<TextInput>,
+    value: Entity<TextInput>,
+    rule_type: Entity<M3Select>,
+    day_category: Entity<M3Select>,
+    rate_type: Entity<M3Select>,
+    expansion: Entity<M3ExpansionPanel>,
+}
+
+impl RateBandInputs {
+    fn new(band: &OvertimeRateBand, cx: &mut Context<AppShell>) -> Self {
+        let fields = Self {
+            name: cx.new(|cx| TextInput::new(cx, "Rule name")),
+            start: cx.new(|cx| TextInput::new(cx, "Start time")),
+            end: cx.new(|cx| TextInput::new(cx, "End time")),
+            value: cx.new(|cx| TextInput::new(cx, "Rate value")),
+            rule_type: cx.new(|cx| {
+                M3Select::new(
+                    "Rule type",
+                    ["Overtime", "OB"],
+                    option_index(&RULE_TYPE_OPTIONS, band.compensation_type),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            day_category: cx.new(|cx| {
+                M3Select::new(
+                    "Day category",
+                    OVERTIME_DAY_OPTIONS.map(overtime_day_category_label),
+                    option_index(&OVERTIME_DAY_OPTIONS, band.day_category),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            rate_type: cx.new(|cx| {
+                M3Select::new(
+                    "Rate type",
+                    ["Premium percent", "Fixed amount", "Monthly divisor"],
+                    option_index(&RATE_TYPE_OPTIONS, band.rate_type),
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+            expansion: cx.new(|cx| {
+                M3ExpansionPanel::new(
+                    ("rate-band-expansion", uuid::Uuid::new_v4().as_u64_pair().0),
+                    band.name.clone(),
+                    "",
+                    M3ColorScheme::light(),
+                    cx,
+                )
+            }),
+        };
+        fields
+            .expansion
+            .update(cx, |panel, cx| panel.set_header_only(true, cx));
+        fields
+            .name
+            .update(cx, |input, cx| input.set_text(band.name.clone(), cx));
+        fields.start.update(cx, |input, cx| {
+            input.set_text(band.start_time.to_string(), cx)
+        });
+        fields.end.update(cx, |input, cx| {
+            input.set_text(band.end_time.to_string(), cx)
+        });
+        fields.value.update(cx, |input, cx| {
+            input.set_text(band.rate_value.to_string(), cx)
+        });
+        fields.subscribe(cx);
+        fields
+    }
+
+    fn subscribe(&self, cx: &mut Context<AppShell>) {
+        cx.subscribe(
+            &self.rule_type,
+            |shell, emitter, event: &M3SelectEvent, cx| {
+                let Some(index) = shell
+                    .rate_band_inputs
+                    .iter()
+                    .position(|inputs| inputs.rule_type == emitter)
+                else {
+                    return;
+                };
+                if let (Some(band), Some(value)) = (
+                    shell
+                        .settings_draft
+                        .overtime_compensation
+                        .rate_bands
+                        .get_mut(index),
+                    RULE_TYPE_OPTIONS.get(event.0),
+                ) {
+                    band.compensation_type = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &self.day_category,
+            |shell, emitter, event: &M3SelectEvent, cx| {
+                let Some(index) = shell
+                    .rate_band_inputs
+                    .iter()
+                    .position(|inputs| inputs.day_category == emitter)
+                else {
+                    return;
+                };
+                if let (Some(band), Some(value)) = (
+                    shell
+                        .settings_draft
+                        .overtime_compensation
+                        .rate_bands
+                        .get_mut(index),
+                    OVERTIME_DAY_OPTIONS.get(event.0),
+                ) {
+                    band.day_category = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &self.rate_type,
+            |shell, emitter, event: &M3SelectEvent, cx| {
+                let Some(index) = shell
+                    .rate_band_inputs
+                    .iter()
+                    .position(|inputs| inputs.rate_type == emitter)
+                else {
+                    return;
+                };
+                if let (Some(band), Some(value)) = (
+                    shell
+                        .settings_draft
+                        .overtime_compensation
+                        .rate_bands
+                        .get_mut(index),
+                    RATE_TYPE_OPTIONS.get(event.0),
+                ) {
+                    band.rate_type = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &self.expansion,
+            |shell, emitter, event: &M3ExpansionPanelEvent, cx| {
+                if event.0 {
+                    let others = shell
+                        .rate_band_inputs
+                        .iter()
+                        .map(|inputs| inputs.expansion.clone())
+                        .filter(|panel| *panel != emitter)
+                        .collect::<Vec<_>>();
+                    for panel in others {
+                        panel.update(cx, |panel, cx| panel.set_expanded(false, cx));
+                    }
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+    }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for input in [&self.name, &self.start, &self.end, &self.value] {
+            input.update(cx, |input, cx| input.set_scale(scale, cx));
+        }
+        for select in [&self.rule_type, &self.day_category, &self.rate_type] {
+            select.update(cx, |select, cx| select.set_scale(scale, cx));
+        }
+        self.expansion
+            .update(cx, |panel, cx| panel.set_scale(scale, cx));
+    }
+
+    fn set_colors(&self, colors: M3ColorScheme, cx: &mut Context<AppShell>) {
+        for input in [&self.name, &self.start, &self.end, &self.value] {
+            input.update(cx, |input, cx| input.set_colors(colors, cx));
+        }
+        for select in [&self.rule_type, &self.day_category, &self.rate_type] {
+            select.update(cx, |select, cx| select.set_colors(colors, cx));
+        }
+        self.expansion
+            .update(cx, |panel, cx| panel.set_colors(colors, cx));
+    }
+}
+
+impl SettingsInputs {
+    fn new(settings: &AppSettings, cx: &mut Context<AppShell>) -> Self {
+        let inputs = Self {
+            opening_balance: cx.new(|cx| TextInput::new(cx, "Starting time balance")),
+            expected_hours: cx.new(|cx| TextInput::new(cx, "Hours per workday")),
+            default_start: cx.new(|cx| TextInput::new(cx, "Default start")),
+            default_end: cx.new(|cx| TextInput::new(cx, "Default end")),
+            default_lunch: cx.new(|cx| TextInput::new(cx, "Lunch minutes")),
+            overtime_threshold: cx.new(|cx| TextInput::new(cx, "Daily threshold hours")),
+            default_rate_value: cx.new(|cx| TextInput::new(cx, "Default rate value")),
+            hourly_rate: cx.new(|cx| TextInput::new(cx, "Hourly rate")),
+            monthly_salary: cx.new(|cx| TextInput::new(cx, "Monthly salary")),
+            employment_percent: cx.new(|cx| TextInput::new(cx, "Employment percent")),
+            tax_year: cx.new(|cx| TextInput::new(cx, "Tax year")),
+            tax_table: cx.new(|cx| TextInput::new(cx, "Tax table")),
+            tax_column: cx.new(|cx| TextInput::new(cx, "Tax column")),
+            manual_tax: cx.new(|cx| TextInput::new(cx, "Manual monthly deduction")),
+        };
+        inputs
+            .opening_balance
+            .update(cx, |input, cx| input.set_suffix("hours", cx));
+        inputs.expected_hours.update(cx, |input, cx| {
+            input.set_leading_icon("timer", cx);
+            input.set_suffix("hours", cx);
+        });
+        inputs
+            .default_start
+            .update(cx, |input, cx| input.set_leading_icon("schedule", cx));
+        inputs
+            .default_end
+            .update(cx, |input, cx| input.set_leading_icon("update", cx));
+        inputs.default_lunch.update(cx, |input, cx| {
+            input.set_leading_icon("restaurant", cx);
+            input.set_suffix("mins", cx);
+        });
+        inputs
+            .overtime_threshold
+            .update(cx, |input, cx| input.set_suffix("hours", cx));
+        for input in [&inputs.hourly_rate, &inputs.monthly_salary] {
+            input.update(cx, |input, cx| input.set_leading_icon("payments", cx));
+        }
+        inputs
+            .employment_percent
+            .update(cx, |input, cx| input.set_suffix("%", cx));
+        inputs
+            .tax_table
+            .update(cx, |input, cx| input.set_leading_icon("table_chart", cx));
+        inputs.sync(settings, cx);
+        inputs
+    }
+
+    fn sync(&self, settings: &AppSettings, cx: &mut Context<AppShell>) {
+        let values = [
+            (
+                &self.opening_balance,
+                format_hours_input(settings.opening_balance_minutes.value()),
+            ),
+            (
+                &self.expected_hours,
+                settings.expected_hours.hours_per_workday.to_string(),
+            ),
+            (&self.default_start, settings.default_start_time.to_string()),
+            (&self.default_end, settings.default_end_time.to_string()),
+            (
+                &self.default_lunch,
+                settings.default_lunch_minutes.value().to_string(),
+            ),
+            (
+                &self.overtime_threshold,
+                settings
+                    .overtime_compensation
+                    .daily_threshold_hours
+                    .to_string(),
+            ),
+            (
+                &self.default_rate_value,
+                settings
+                    .overtime_compensation
+                    .default_rate_value
+                    .to_string(),
+            ),
+            (
+                &self.hourly_rate,
+                settings.salary.hourly_rate.decimal().to_string(),
+            ),
+            (
+                &self.monthly_salary,
+                settings.salary.monthly_salary.decimal().to_string(),
+            ),
+            (
+                &self.employment_percent,
+                settings.salary.employment_percent.to_string(),
+            ),
+            (&self.tax_year, settings.tax_settings.tax_year.to_string()),
+            (
+                &self.tax_table,
+                settings.tax_settings.table_number.to_string(),
+            ),
+            (&self.tax_column, settings.tax_settings.column.to_string()),
+            (
+                &self.manual_tax,
+                settings
+                    .tax_settings
+                    .manual_monthly_deduction
+                    .map_or_else(String::new, |money| money.decimal().to_string()),
+            ),
+        ];
+        for (input, value) in values {
+            input.update(cx, |input, cx| input.set_text(value, cx));
+        }
+    }
+
+    fn set_scale(&self, scale: UiScale, cx: &mut Context<AppShell>) {
+        for input in [
+            &self.opening_balance,
+            &self.expected_hours,
+            &self.default_start,
+            &self.default_end,
+            &self.default_lunch,
+            &self.overtime_threshold,
+            &self.default_rate_value,
+            &self.hourly_rate,
+            &self.monthly_salary,
+            &self.employment_percent,
+            &self.tax_year,
+            &self.tax_table,
+            &self.tax_column,
+            &self.manual_tax,
+        ] {
+            input.update(cx, |input, cx| input.set_scale(scale, cx));
+        }
+    }
+
+    fn set_colors(&self, colors: M3ColorScheme, cx: &mut Context<AppShell>) {
+        for input in [
+            &self.opening_balance,
+            &self.expected_hours,
+            &self.default_start,
+            &self.default_end,
+            &self.default_lunch,
+            &self.overtime_threshold,
+            &self.default_rate_value,
+            &self.hourly_rate,
+            &self.monthly_salary,
+            &self.employment_percent,
+            &self.tax_year,
+            &self.tax_table,
+            &self.tax_column,
+            &self.manual_tax,
+        ] {
+            input.update(cx, |input, cx| input.set_colors(colors, cx));
+        }
+    }
+}
+
+pub struct AppShell {
+    model: AppModel,
+    services: AppShellServices,
+    month_view: Entity<MonthView>,
+    start_input: Entity<TextInput>,
+    end_input: Entity<TextInput>,
+    notes_input: Entity<TextInput>,
+    project_select: Entity<M3Select>,
+    reason_select: Entity<M3Select>,
+    settings_project_select: Entity<M3Select>,
+    currency_select: Entity<M3Select>,
+    application_selects: ApplicationSelects,
+    salary_tax_selects: SalaryTaxSelects,
+    overtime_selects: OvertimeSelects,
+    scheduled_input: Entity<TextInput>,
+    scheduled_override_switch: Entity<M3Switch>,
+    exclude_holidays_switch: Entity<M3Switch>,
+    settings_tabs: Entity<M3ChoiceGroup>,
+    snackbar: Entity<M3SnackbarHost>,
+    project_name_input: Entity<TextInput>,
+    project_color_input: Entity<TextInput>,
+    workspace_name_input: Entity<TextInput>,
+    workspace_worker_input: Entity<TextInput>,
+    workspace_organization_input: Entity<TextInput>,
+    workspace_color_input: Entity<TextInput>,
+    color_hue_slider: Entity<M3Slider>,
+    color_saturation_slider: Entity<M3Slider>,
+    color_lightness_slider: Entity<M3Slider>,
+    settings_inputs: SettingsInputs,
+    rate_band_inputs: Vec<RateBandInputs>,
+    focus: FocusHandle,
+    sidebar_collapsed: bool,
+    confirm_reset: bool,
+    confirm_project_delete: Option<ProjectId>,
+    manage_workspaces: bool,
+    confirm_workspace_delete: Option<WorkspaceId>,
+    new_workspace_type: WorkspaceType,
+    settings_tab: usize,
+    settings_draft: AppSettings,
+    preferences_draft: AppPreferences,
+    pending_currency: Option<CurrencyPreference>,
+    maintenance_busy: bool,
+    confirm_restore: Option<PathBuf>,
+    confirm_import: Option<PathBuf>,
+    last_backup: Option<PathBuf>,
+    notice: Option<String>,
+    month_actions_open: bool,
+    export_menu_open: bool,
+    month_menu_open: bool,
+    workspace_menu_open: bool,
+    color_picker_target: Option<ColorPickerTarget>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum ColorPickerTarget {
+    NewProject,
+    Project(ProjectId),
+    NewWorkspace,
+    Workspace(WorkspaceId),
+}
+
+pub struct AppShellServices {
+    pub data: Arc<dyn DataMaintenance>,
+    pub file_dialog: Arc<dyn FileDialogService>,
+    pub shell: Arc<dyn ShellService>,
+}
+
+impl AppShell {
+    pub fn register_key_bindings(cx: &mut App) {
+        M3Select::register_key_bindings(cx);
+        cx.bind_keys([
+            KeyBinding::new("tab", Tab, None),
+            KeyBinding::new("shift-tab", TabPrevious, None),
+            KeyBinding::new("ctrl-1", ShowLedger, None),
+            KeyBinding::new("ctrl-2", ShowCalendar, None),
+            KeyBinding::new("ctrl-,", ShowSettings, None),
+            KeyBinding::new("pageup", PreviousMonth, None),
+            KeyBinding::new("pagedown", NextMonth, None),
+            KeyBinding::new("ctrl-m", StartCatchUp, None),
+            KeyBinding::new("ctrl-e", ExportReport, None),
+            KeyBinding::new("ctrl-s", SaveActive, None),
+            KeyBinding::new("escape", CloseSurface, None),
+        ]);
+    }
+
+    pub fn apply_visual_state(&mut self, state: VisualState, cx: &mut Context<Self>) {
+        let dark = matches!(
+            state,
+            VisualState::LedgerDark
+                | VisualState::CalendarDark
+                | VisualState::EditorDark
+                | VisualState::SettingsDark
+                | VisualState::WorkspacesDark
+        );
+        self.model.preferences.theme_preference = if dark {
+            ThemePreference::Dark
+        } else {
+            ThemePreference::Light
+        };
+        self.model.resolved_theme = if dark {
+            ResolvedTheme::Dark
+        } else {
+            ResolvedTheme::Light
+        };
+        self.model.route = match state {
+            VisualState::Projects | VisualState::ColorPicker | VisualState::ConfirmationDialog => {
+                Route::Projects
+            }
+            VisualState::SettingsGeneral
+            | VisualState::SettingsOvertime
+            | VisualState::SettingsDark
+            | VisualState::SelectPanel => Route::Settings,
+            VisualState::Backups => Route::DataBackups,
+            _ => Route::Timesheet,
+        };
+        self.model.active_view =
+            if matches!(state, VisualState::Calendar | VisualState::CalendarDark) {
+                MonthViewPreference::Calendar
+            } else {
+                MonthViewPreference::Ledger
+            };
+        self.settings_tab = usize::from(matches!(state, VisualState::SettingsOvertime)) * 2;
+        self.settings_tabs
+            .update(cx, |tabs, cx| tabs.set_selected(self.settings_tab, cx));
+        self.manage_workspaces = matches!(
+            state,
+            VisualState::Workspaces | VisualState::WorkspacesDark | VisualState::Snackbar
+        );
+        self.month_menu_open = matches!(state, VisualState::MonthMenu);
+        self.month_actions_open = matches!(state, VisualState::MonthActions);
+        self.workspace_menu_open =
+            matches!(state, VisualState::WorkspaceMenu | VisualState::Snackbar);
+        self.color_picker_target =
+            matches!(state, VisualState::ColorPicker).then_some(ColorPickerTarget::NewProject);
+        self.confirm_project_delete = matches!(state, VisualState::ConfirmationDialog)
+            .then(|| {
+                self.model
+                    .projects
+                    .iter()
+                    .find(|project| project.name == "Client A")
+                    .or_else(|| self.model.projects.first())
+                    .map(|project| project.id.clone())
+            })
+            .flatten();
+        self.notice = matches!(state, VisualState::Snackbar)
+            .then(|| self.text("Workspace created.").to_string());
+        self.currency_select.update(cx, |select, cx| {
+            select.set_open(matches!(state, VisualState::SelectPanel), cx)
+        });
+        if matches!(state, VisualState::Editor | VisualState::EditorDark)
+            && let Ok(date) = "2026-08-04".parse()
+        {
+            self.model.open_editor(date);
+            self.sync_editor_inputs(cx);
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    pub fn apply_visual_scale(&mut self, percent: u16, cx: &mut Context<Self>) {
+        self.model.preferences.interface_scale_percent = i32::from(percent);
+        self.model.interface_scale = f32::from(percent) / 100.0;
+        self.sync_control_scales(cx);
+        self.sync_editor_inputs(cx);
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    pub fn new(
+        mut model: AppModel,
+        services: AppShellServices,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        window.set_window_title("Dagsverk GPUI Preview");
+        model.set_system_dark(matches!(
+            window.appearance(),
+            WindowAppearance::Dark | WindowAppearance::VibrantDark
+        ));
+        let month_view = cx.new(|_| MonthView::new(month_view_data(&model)));
+        let start_input = cx.new(|cx| TextInput::new(cx, "Start time"));
+        let end_input = cx.new(|cx| TextInput::new(cx, "End time"));
+        let notes_input = cx.new(|cx| TextInput::new_multiline(cx, "Notes (Optional)"));
+        start_input.update(cx, |input, cx| input.set_leading_icon("schedule", cx));
+        end_input.update(cx, |input, cx| input.set_leading_icon("update", cx));
+        notes_input.update(cx, |input, cx| input.set_leading_icon("edit_note", cx));
+        let project_options = editor_project_options(&model);
+        let selected_project = model
+            .editor
+            .draft
+            .as_ref()
+            .and_then(|draft| draft.project_name.as_ref())
+            .and_then(|selected| project_options.iter().position(|name| name == selected))
+            .map_or(0, |index| index + 1);
+        let project_select = cx.new(|cx| {
+            M3Select::new(
+                "Project",
+                std::iter::once("No project".to_owned()).chain(project_options),
+                selected_project,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        project_select.update(cx, |select, cx| select.set_leading_icon("folder", cx));
+        let reason_select = cx.new(|cx| {
+            M3Select::new(
+                "Day Off Type",
+                DAY_OFF_REASONS,
+                0,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        reason_select.update(cx, |select, cx| select.set_leading_icon("beach_access", cx));
+        let settings_project_select = cx.new(|cx| {
+            M3Select::new(
+                "Default Project",
+                [model.settings.default_project.clone()],
+                0,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        settings_project_select.update(cx, |select, cx| select.set_leading_icon("folder", cx));
+        let currency_selected = CURRENCY_OPTIONS
+            .iter()
+            .position(|(_, value)| *value == model.settings.currency_preference)
+            .unwrap_or(0);
+        let currency_select = cx.new(|cx| {
+            M3Select::new(
+                "Currency",
+                CURRENCY_OPTIONS.map(|(label, _)| label),
+                currency_selected,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let application_selects = ApplicationSelects::new(&model.preferences, &model.settings, cx);
+        let salary_tax_selects = SalaryTaxSelects::new(&model.settings, cx);
+        let overtime_selects = OvertimeSelects::new(&model.settings, cx);
+        let scheduled_input = cx.new(|cx| TextInput::new(cx, "Scheduled hours"));
+        scheduled_input.update(cx, |input, cx| input.set_suffix("hours", cx));
+        let scheduled_override_switch = cx.new(|cx| {
+            M3Switch::new(
+                "scheduled-override-switch",
+                false,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let exclude_holidays_switch = cx.new(|cx| {
+            M3Switch::new(
+                "exclude-holidays-switch",
+                model.settings.expected_hours.exclude_public_holidays,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let snackbar = cx.new(|cx| M3SnackbarHost::new(M3ColorScheme::light(), cx));
+        let settings_tabs = cx.new(|cx| {
+            M3ChoiceGroup::new(
+                "settings-tabs",
+                [
+                    "General",
+                    "Schedule",
+                    "Overtime & OB",
+                    "Salary & Tax",
+                    "Application",
+                ],
+                0,
+                M3ChoiceKind::Tabs,
+                M3ColorScheme::light(),
+                cx,
+            )
+        });
+        let project_name_input = cx.new(|cx| TextInput::new(cx, "Project name"));
+        let project_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
+        project_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
+        let workspace_name_input = cx.new(|cx| TextInput::new(cx, "Workspace name"));
+        let workspace_worker_input = cx.new(|cx| TextInput::new(cx, "Worker name"));
+        let workspace_organization_input = cx.new(|cx| TextInput::new(cx, "Organization"));
+        let workspace_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
+        workspace_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
+        let (hue, saturation, lightness) = hex_to_hsl("#5F875F").unwrap_or((120, 25, 45));
+        let color_hue_slider = cx.new(|cx| M3Slider::new(hue, 0, 359, M3ColorScheme::light(), cx));
+        let color_saturation_slider =
+            cx.new(|cx| M3Slider::new(saturation, 0, 100, M3ColorScheme::light(), cx));
+        let color_lightness_slider =
+            cx.new(|cx| M3Slider::new(lightness, 10, 90, M3ColorScheme::light(), cx));
+        if !model.preferences.has_completed_setup
+            && let Some(workspace) = model.active_workspace()
+        {
+            workspace_name_input.update(cx, |input, cx| input.set_text(workspace.name.clone(), cx));
+            workspace_worker_input.update(cx, |input, cx| {
+                input.set_text(workspace.worker_name.clone().unwrap_or_default(), cx)
+            });
+            workspace_organization_input.update(cx, |input, cx| {
+                input.set_text(workspace.organization_name.clone().unwrap_or_default(), cx)
+            });
+        }
+        let settings_inputs = SettingsInputs::new(&model.settings, cx);
+        let rate_band_inputs = model
+            .settings
+            .overtime_compensation
+            .rate_bands
+            .iter()
+            .map(|band| RateBandInputs::new(band, cx))
+            .collect();
+        let settings_draft = model.settings.clone();
+        let preferences_draft = model.preferences.clone();
+        let focus = cx.focus_handle();
+        window.focus(&focus);
+        cx.subscribe(&month_view, |shell, _, event: &MonthViewEvent, cx| {
+            shell.model.open_editor(event.0);
+            shell.sync_editor_inputs(cx);
+            shell.refresh_month_view(cx);
+        })
+        .detach();
+        cx.subscribe(&start_input, |shell, _, event: &TextInputEvent, cx| {
+            let TextInputEvent::Changed(value) = event;
+            if let Some(time) = normalize_time(value)
+                && let Some(draft) = shell.model.editor.draft.as_mut()
+            {
+                draft.start_time = Some(time);
+                shell.model.editor.validation_error = None;
+                shell
+                    .start_input
+                    .update(cx, |input, cx| input.set_error(None, cx));
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&end_input, |shell, _, event: &TextInputEvent, cx| {
+            let TextInputEvent::Changed(value) = event;
+            if let Some(time) = normalize_time(value)
+                && let Some(draft) = shell.model.editor.draft.as_mut()
+            {
+                draft.end_time = Some(time);
+                shell.model.editor.validation_error = None;
+                shell
+                    .end_input
+                    .update(cx, |input, cx| input.set_error(None, cx));
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&scheduled_input, |shell, _, event: &TextInputEvent, cx| {
+            let TextInputEvent::Changed(value) = event;
+            if let Ok(minutes) = parse_scheduled_minutes(value)
+                && let Some(draft) = shell.model.editor.draft.as_mut()
+                && draft.scheduled_minutes_override.is_some()
+            {
+                draft.scheduled_minutes_override = Some(minutes);
+                shell.model.editor.validation_error = None;
+                shell
+                    .scheduled_input
+                    .update(cx, |input, cx| input.set_error(None, cx));
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(
+            &scheduled_override_switch,
+            |shell, _, event: &M3SwitchEvent, cx| {
+                if let Some(draft) = shell.model.editor.draft.as_mut() {
+                    draft.scheduled_minutes_override =
+                        if event.0 { Some(Minutes::ZERO) } else { None };
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &exclude_holidays_switch,
+            |shell, _, event: &M3SwitchEvent, cx| {
+                shell.settings_draft.expected_hours.exclude_public_holidays = event.0;
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(&snackbar, |shell, _, _: &M3SnackbarEvent, cx| {
+            shell.notice = None;
+            shell.model.transient_error = None;
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&settings_tabs, |shell, _, event: &M3ChoiceEvent, cx| {
+            shell.settings_tab = event.0;
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&notes_input, |shell, _, event: &TextInputEvent, cx| {
+            let TextInputEvent::Changed(value) = event;
+            if let Some(draft) = shell.model.editor.draft.as_mut() {
+                let value = value.trim();
+                draft.notes = (!value.is_empty()).then(|| value.to_owned());
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&project_name_input, |_, _, _: &TextInputEvent, cx| {
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&workspace_name_input, |_, _, _: &TextInputEvent, cx| {
+            cx.notify();
+        })
+        .detach();
+        for slider in [
+            &color_hue_slider,
+            &color_saturation_slider,
+            &color_lightness_slider,
+        ] {
+            cx.subscribe(slider, |shell, _, _: &M3SliderEvent, cx| {
+                shell.apply_custom_picker_color(cx);
+            })
+            .detach();
+        }
+        cx.subscribe(&project_select, |shell, _, event: &M3SelectEvent, cx| {
+            let options = editor_project_options(&shell.model);
+            if let Some(draft) = shell.model.editor.draft.as_mut() {
+                draft.project_name = event
+                    .0
+                    .checked_sub(1)
+                    .and_then(|index| options.get(index).cloned());
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(&reason_select, |shell, _, event: &M3SelectEvent, cx| {
+            if let Some(reason) = DAY_OFF_REASONS.get(event.0) {
+                shell
+                    .notes_input
+                    .update(cx, |input, cx| input.set_text(*reason, cx));
+                if let Some(draft) = shell.model.editor.draft.as_mut() {
+                    draft.notes = Some((*reason).to_owned());
+                }
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(
+            &settings_project_select,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(project) = shell
+                    .model
+                    .projects
+                    .iter()
+                    .filter(|project| project.is_active)
+                    .nth(event.0)
+                {
+                    shell.settings_draft.default_project = project.name.clone();
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(&currency_select, |shell, _, event: &M3SelectEvent, cx| {
+            if let Some((_, currency)) = CURRENCY_OPTIONS.get(event.0)
+                && shell.settings_draft.currency_preference != *currency
+            {
+                shell.pending_currency = Some(*currency);
+            }
+            cx.notify();
+        })
+        .detach();
+        cx.subscribe(
+            &application_selects.theme,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = THEME_OPTIONS.get(event.0) {
+                    shell.preferences_draft.theme_preference = *value;
+                    shell.model.preview_theme(*value);
+                    shell.sync_control_scales(cx);
+                    shell.refresh_month_view(cx);
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &application_selects.language,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = LANGUAGE_OPTIONS.get(event.0) {
+                    shell.preferences_draft.language_preference = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &application_selects.scale,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = INTERFACE_SCALE_OPTIONS.get(event.0) {
+                    shell.preferences_draft.interface_scale_percent = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &application_selects.export_language,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = EXPORT_LANGUAGE_OPTIONS.get(event.0) {
+                    shell.settings_draft.export_language_preference = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &salary_tax_selects.salary_type,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = SALARY_TYPE_OPTIONS.get(event.0) {
+                    shell.settings_draft.salary.salary_type = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &salary_tax_selects.hourly_pay_basis,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = HOURLY_PAY_BASIS_OPTIONS.get(event.0) {
+                    shell.settings_draft.salary.hourly_pay_basis = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &salary_tax_selects.tax_mode,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = TAX_MODE_OPTIONS.get(event.0) {
+                    shell.settings_draft.tax_settings.mode = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &overtime_selects.mode,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = OVERTIME_MODE_OPTIONS.get(event.0) {
+                    shell.settings_draft.overtime_compensation.mode = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &overtime_selects.threshold,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = OVERTIME_THRESHOLD_OPTIONS.get(event.0) {
+                    shell.settings_draft.overtime_compensation.threshold_mode = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &overtime_selects.ob_combination,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = OB_COMBINATION_OPTIONS.get(event.0) {
+                    shell
+                        .settings_draft
+                        .overtime_compensation
+                        .ob_overtime_combination = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.subscribe(
+            &overtime_selects.default_rate,
+            |shell, _, event: &M3SelectEvent, cx| {
+                if let Some(value) = RATE_TYPE_OPTIONS.get(event.0) {
+                    shell.settings_draft.overtime_compensation.default_rate_type = *value;
+                }
+                cx.notify();
+            },
+        )
+        .detach();
+        cx.observe_window_appearance(window, |shell, window, cx| {
+            shell.model.set_system_dark(matches!(
+                window.appearance(),
+                WindowAppearance::Dark | WindowAppearance::VibrantDark
+            ));
+            shell.sync_control_scales(cx);
+            shell.refresh_month_view(cx);
+        })
+        .detach();
+        let mut shell = Self {
+            model,
+            services,
+            month_view,
+            start_input,
+            end_input,
+            notes_input,
+            project_select,
+            reason_select,
+            settings_project_select,
+            currency_select,
+            application_selects,
+            salary_tax_selects,
+            overtime_selects,
+            scheduled_input,
+            scheduled_override_switch,
+            exclude_holidays_switch,
+            settings_tabs,
+            snackbar,
+            project_name_input,
+            project_color_input,
+            workspace_name_input,
+            workspace_worker_input,
+            workspace_organization_input,
+            workspace_color_input,
+            color_hue_slider,
+            color_saturation_slider,
+            color_lightness_slider,
+            settings_inputs,
+            rate_band_inputs,
+            focus,
+            sidebar_collapsed: false,
+            confirm_reset: false,
+            confirm_project_delete: None,
+            manage_workspaces: false,
+            confirm_workspace_delete: None,
+            new_workspace_type: WorkspaceType::Employment,
+            settings_tab: 0,
+            settings_draft,
+            preferences_draft,
+            pending_currency: None,
+            maintenance_busy: false,
+            confirm_restore: None,
+            confirm_import: None,
+            last_backup: None,
+            notice: None,
+            month_actions_open: false,
+            export_menu_open: false,
+            month_menu_open: false,
+            workspace_menu_open: false,
+            color_picker_target: None,
+        };
+        shell.sync_control_scales(cx);
+        shell.sync_color_sliders("#5F875F", cx);
+        shell
+    }
+
+    fn colors(&self) -> M3ColorScheme {
+        M3ColorScheme::resolve(match self.model.resolved_theme {
+            ResolvedTheme::Light => UiTheme::Light,
+            ResolvedTheme::Dark => UiTheme::Dark,
+        })
+    }
+
+    fn text(&self, key: &str) -> SharedString {
+        translate(self.ui_language(), key).into_owned().into()
+    }
+
+    fn message(&self, key: &str) -> String {
+        translate(self.ui_language(), key).into_owned()
+    }
+
+    fn message_with(&self, key: &str, value: impl std::fmt::Display) -> String {
+        self.message(key).replace("{0}", &value.to_string())
+    }
+
+    fn localized_error(&self, error: impl std::fmt::Display) -> String {
+        self.message(&error.to_string())
+    }
+
+    fn ui_language(&self) -> LanguagePreference {
+        match self.model.language {
+            crate::state::Language::English => LanguagePreference::English,
+            crate::state::Language::Swedish => LanguagePreference::Swedish,
+        }
+    }
+
+    fn set_route(&mut self, route: Route, cx: &mut Context<Self>) {
+        if route == Route::Settings && self.model.route != Route::Settings {
+            self.settings_draft = self.model.settings.clone();
+            self.preferences_draft = self.model.preferences.clone();
+            self.settings_inputs.sync(&self.settings_draft, cx);
+            self.sync_rate_band_inputs(cx);
+            self.sync_setting_switches(cx);
+        }
+        self.model.route = route;
+        self.model.close_catch_up();
+        self.month_actions_open = false;
+        self.export_menu_open = false;
+        self.month_menu_open = false;
+        self.workspace_menu_open = false;
+        self.color_picker_target = None;
+        cx.notify();
+    }
+
+    fn set_view(&mut self, view: MonthViewPreference, cx: &mut Context<Self>) {
+        if let Err(error) = self.model.set_view(view) {
+            self.model.transient_error = Some(self.localized_error(error));
+        } else {
+            self.model.route = Route::Timesheet;
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn toggle_theme(&mut self, cx: &mut Context<Self>) {
+        if let Err(error) = self.model.toggle_theme() {
+            self.model.transient_error = Some(self.localized_error(error));
+        } else {
+            self.preferences_draft.theme_preference = self.model.preferences.theme_preference;
+            self.sync_control_scales(cx);
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn refresh_month_view(&mut self, cx: &mut Context<Self>) {
+        let data = month_view_data(&self.model);
+        self.month_view
+            .update(cx, |month_view, cx| month_view.set_data(data, cx));
+    }
+
+    fn sync_control_scales(&mut self, cx: &mut Context<Self>) {
+        let scale = interface_scale(&self.model);
+        let colors = self.colors();
+        for input in [
+            &self.start_input,
+            &self.end_input,
+            &self.notes_input,
+            &self.scheduled_input,
+            &self.project_name_input,
+            &self.project_color_input,
+            &self.workspace_name_input,
+            &self.workspace_worker_input,
+            &self.workspace_organization_input,
+            &self.workspace_color_input,
+        ] {
+            input.update(cx, |input, cx| {
+                input.set_scale(scale, cx);
+                input.set_colors(colors, cx);
+            });
+        }
+        for input in [
+            &self.workspace_name_input,
+            &self.workspace_worker_input,
+            &self.workspace_organization_input,
+            &self.workspace_color_input,
+        ] {
+            input.update(cx, |input, cx| {
+                input.set_label_background(colors.surface_container_high, cx)
+            });
+        }
+        for select in [
+            &self.project_select,
+            &self.reason_select,
+            &self.settings_project_select,
+            &self.currency_select,
+        ] {
+            select.update(cx, |select, cx| {
+                select.set_scale(scale, cx);
+                select.set_colors(colors, cx);
+            });
+        }
+        for switch in [
+            &self.scheduled_override_switch,
+            &self.exclude_holidays_switch,
+        ] {
+            switch.update(cx, |switch, cx| {
+                switch.set_scale(scale, cx);
+                switch.set_colors(colors, cx);
+            });
+        }
+        for slider in [
+            &self.color_hue_slider,
+            &self.color_saturation_slider,
+            &self.color_lightness_slider,
+        ] {
+            slider.update(cx, |slider, cx| {
+                slider.set_scale(scale, cx);
+                slider.set_colors(colors, cx);
+            });
+        }
+        self.settings_tabs.update(cx, |tabs, cx| {
+            tabs.set_scale(scale, cx);
+            tabs.set_colors(colors, cx);
+        });
+        self.application_selects.set_scale(scale, cx);
+        self.application_selects.set_colors(colors, cx);
+        self.salary_tax_selects.set_scale(scale, cx);
+        self.salary_tax_selects.set_colors(colors, cx);
+        self.overtime_selects.set_scale(scale, cx);
+        self.overtime_selects.set_colors(colors, cx);
+        self.settings_inputs.set_scale(scale, cx);
+        self.settings_inputs.set_colors(colors, cx);
+        for inputs in &self.rate_band_inputs {
+            inputs.set_scale(scale, cx);
+            inputs.set_colors(colors, cx);
+        }
+    }
+
+    fn sync_editor_inputs(&mut self, cx: &mut Context<Self>) {
+        let Some(draft) = self.model.editor.draft.as_ref() else {
+            return;
+        };
+        let colors = self.colors();
+        let scale = interface_scale(&self.model);
+        let start = draft
+            .start_time
+            .unwrap_or(self.model.settings.default_start_time)
+            .to_string();
+        let end = draft
+            .end_time
+            .unwrap_or(self.model.settings.default_end_time)
+            .to_string();
+        self.start_input.update(cx, |input, cx| {
+            input.set_text(start, cx);
+            input.set_colors(colors, cx);
+            input.set_scale(scale, cx);
+            input.set_error(None, cx);
+        });
+        self.end_input.update(cx, |input, cx| {
+            input.set_text(end, cx);
+            input.set_colors(colors, cx);
+            input.set_scale(scale, cx);
+            input.set_error(None, cx);
+        });
+        let notes = draft.notes.clone().unwrap_or_default();
+        self.notes_input.update(cx, |input, cx| {
+            input.set_text(notes, cx);
+            input.set_colors(colors, cx);
+            input.set_scale(scale, cx);
+        });
+        let project_options = editor_project_options(&self.model);
+        let selected_project = draft
+            .project_name
+            .as_ref()
+            .and_then(|selected| project_options.iter().position(|name| name == selected))
+            .map_or(0, |index| index + 1);
+        self.project_select.update(cx, |select, cx| {
+            select.set_options(
+                std::iter::once("No project".to_owned()).chain(project_options),
+                selected_project,
+                cx,
+            );
+            select.set_colors(colors, cx);
+            select.set_scale(scale, cx);
+        });
+        let selected_reason = draft
+            .notes
+            .as_deref()
+            .and_then(|reason| {
+                DAY_OFF_REASONS
+                    .iter()
+                    .position(|candidate| *candidate == reason)
+            })
+            .unwrap_or(0);
+        self.reason_select.update(cx, |select, cx| {
+            select.set_options(DAY_OFF_REASONS, selected_reason, cx);
+            select.set_colors(colors, cx);
+            select.set_scale(scale, cx);
+        });
+        let scheduled = draft.scheduled_minutes_override.map_or_else(
+            || {
+                self.model
+                    .settings
+                    .expected_hours
+                    .hours_per_workday
+                    .to_string()
+            },
+            |minutes| format_hours_input(minutes.value()),
+        );
+        self.scheduled_input.update(cx, |input, cx| {
+            input.set_text(scheduled, cx);
+            input.set_colors(colors, cx);
+            input.set_scale(scale, cx);
+            input.set_error(None, cx);
+        });
+        self.scheduled_override_switch.update(cx, |switch, cx| {
+            switch.set_checked(draft.scheduled_minutes_override.is_some(), cx);
+            switch.set_colors(colors, cx);
+            switch.set_scale(scale, cx);
+        });
+    }
+
+    fn save_editor(&mut self, cx: &mut Context<Self>) {
+        let Some(mut draft) = self.model.editor.draft.clone() else {
+            return;
+        };
+        if draft.status == WorkEntryStatus::Worked {
+            let start = normalize_time(self.start_input.read(cx).text());
+            let end = normalize_time(self.end_input.read(cx).text());
+            let (Some(start), Some(end)) = (start, end) else {
+                let message = self.message("Enter a valid time.");
+                self.start_input.update(cx, |input, cx| {
+                    input.set_error(start.is_none().then(|| message.clone().into()), cx)
+                });
+                self.end_input.update(cx, |input, cx| {
+                    input.set_error(end.is_none().then(|| message.clone().into()), cx)
+                });
+                self.model.editor.validation_error = None;
+                cx.notify();
+                return;
+            };
+            draft.start_time = Some(start);
+            draft.end_time = Some(end);
+        } else if draft.status == WorkEntryStatus::Off {
+            draft.start_time = None;
+            draft.end_time = None;
+            draft.lunch_minutes = Minutes::ZERO;
+            draft.project_name = None;
+        }
+        let notes = self.notes_input.read(cx).text().trim().to_owned();
+        draft.notes = (!notes.is_empty()).then_some(notes);
+        if draft.scheduled_minutes_override.is_some() {
+            match parse_scheduled_minutes(self.scheduled_input.read(cx).text()) {
+                Ok(minutes) => draft.scheduled_minutes_override = Some(minutes),
+                Err(message) => {
+                    let message = self.message(message);
+                    self.scheduled_input
+                        .update(cx, |input, cx| input.set_error(Some(message.into()), cx));
+                    self.model.editor.validation_error = None;
+                    cx.notify();
+                    return;
+                }
+            }
+        }
+        let catch_up_template = self.model.catch_up.is_some().then(|| draft.clone());
+        match self.model.save_entry(draft) {
+            Ok(()) => {
+                if self.model.catch_up.is_some() {
+                    self.model.move_catch_up(1);
+                    if let (Some(next), Some(template)) =
+                        (self.model.editor.draft.as_mut(), catch_up_template)
+                    {
+                        next.status = template.status;
+                        next.start_time = template.start_time;
+                        next.end_time = template.end_time;
+                        next.lunch_minutes = template.lunch_minutes;
+                        next.project_name = template.project_name;
+                        next.scheduled_minutes_override = template.scheduled_minutes_override;
+                    }
+                    self.sync_editor_inputs(cx);
+                } else {
+                    self.model.close_editor();
+                }
+                self.refresh_month_view(cx);
+            }
+            Err(error) => self.model.editor.validation_error = Some(self.localized_error(error)),
+        }
+        cx.notify();
+    }
+
+    fn copy_editor_entry(
+        &mut self,
+        source: Option<dagsverk_core::models::WorkEntry>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(source) = source.filter(|entry| entry.status == WorkEntryStatus::Worked) else {
+            self.model.editor.validation_error =
+                Some(self.message("No completed day is available to copy."));
+            cx.notify();
+            return;
+        };
+        if let Some(draft) = self.model.editor.draft.as_mut() {
+            draft.status = WorkEntryStatus::Worked;
+            draft.start_time = source.start_time;
+            draft.end_time = source.end_time;
+            draft.lunch_minutes = source.lunch_minutes;
+            draft.project_name = source.project_name;
+            draft.scheduled_minutes_override = source.scheduled_minutes_override;
+        }
+        self.model.editor.validation_error = None;
+        self.sync_editor_inputs(cx);
+        cx.notify();
+    }
+
+    fn copy_previous(&mut self, cx: &mut Context<Self>) {
+        let Some(date) = self.model.selected_date else {
+            return;
+        };
+        let source = self
+            .model
+            .entries
+            .iter()
+            .filter(|entry| entry.date < date && entry.status == WorkEntryStatus::Worked)
+            .max_by_key(|entry| entry.date)
+            .cloned();
+        self.copy_editor_entry(source, cx);
+    }
+
+    fn copy_last_week(&mut self, cx: &mut Context<Self>) {
+        let Some(date) = self.model.selected_date else {
+            return;
+        };
+        let previous =
+            dagsverk_core::models::IsoDate::new(date.as_naive_date() - Duration::days(7));
+        let source = self
+            .model
+            .entries
+            .iter()
+            .find(|entry| entry.date == previous)
+            .cloned();
+        self.copy_editor_entry(source, cx);
+    }
+
+    fn load_month(&mut self, key: crate::state::LoadKey, cx: &mut Context<Self>) {
+        match self.model.load_for_key(&key) {
+            Ok(data) => {
+                self.model.apply_load(&key, data);
+                self.model.transient_error = None;
+                self.refresh_month_view(cx);
+            }
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        cx.notify();
+    }
+
+    fn previous_month(&mut self, _: &PreviousMonth, _: &mut Window, cx: &mut Context<Self>) {
+        let key = self.model.previous_month();
+        self.load_month(key, cx);
+    }
+
+    fn next_month(&mut self, _: &NextMonth, _: &mut Window, cx: &mut Context<Self>) {
+        let key = self.model.next_month();
+        self.load_month(key, cx);
+    }
+
+    fn start_catch_up(&mut self, _: &StartCatchUp, _: &mut Window, cx: &mut Context<Self>) {
+        self.model.start_catch_up();
+        cx.notify();
+    }
+
+    fn save_active(&mut self, _: &SaveActive, _: &mut Window, cx: &mut Context<Self>) {
+        if self.model.route == Route::Settings {
+            self.save_settings(cx);
+        } else {
+            self.save_editor(cx);
+        }
+    }
+
+    fn export_action(&mut self, _: &ExportReport, _: &mut Window, cx: &mut Context<Self>) {
+        if !self.maintenance_busy && !self.model.entries.is_empty() {
+            self.export_menu_open = true;
+            cx.notify();
+        }
+    }
+
+    fn close_surface(&mut self, _: &CloseSurface, _: &mut Window, cx: &mut Context<Self>) {
+        if self.month_actions_open
+            || self.export_menu_open
+            || self.month_menu_open
+            || self.workspace_menu_open
+            || self.color_picker_target.is_some()
+        {
+            self.month_actions_open = false;
+            self.export_menu_open = false;
+            self.month_menu_open = false;
+            self.workspace_menu_open = false;
+            self.color_picker_target = None;
+            cx.notify();
+            return;
+        }
+        if self.confirm_restore.take().is_some() {
+            cx.notify();
+            return;
+        }
+        if self.confirm_import.take().is_some() {
+            cx.notify();
+            return;
+        }
+        if self.confirm_reset {
+            self.confirm_reset = false;
+            cx.notify();
+            return;
+        }
+        if self.confirm_project_delete.take().is_some() {
+            cx.notify();
+            return;
+        }
+        if self.confirm_workspace_delete.take().is_some() {
+            cx.notify();
+            return;
+        }
+        if self.pending_currency.take().is_some() {
+            cx.notify();
+            return;
+        }
+        if self.manage_workspaces {
+            self.manage_workspaces = false;
+            cx.notify();
+            return;
+        }
+        self.model.close_catch_up();
+        cx.notify();
+    }
+
+    fn fill_month(&mut self, cx: &mut Context<Self>) {
+        match self.model.fill_normal_workdays() {
+            Ok(count) => self.notice = Some(self.message_with("{0} normal workdays added.", count)),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn copy_month(&mut self, cx: &mut Context<Self>) {
+        let count = self.model.copy_month();
+        self.notice = Some(self.message_with(
+            "{0} copied. Open another month and choose Paste month.",
+            count,
+        ));
+        cx.notify();
+    }
+
+    fn paste_month(&mut self, cx: &mut Context<Self>) {
+        match self.model.paste_month() {
+            Ok(count) => self.notice = Some(self.message_with("{0} entries pasted.", count)),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn reset_month(&mut self, cx: &mut Context<Self>) {
+        match self.model.reset_month() {
+            Ok(()) => self.notice = Some(self.message("Month reset.")),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        self.confirm_reset = false;
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn add_project(&mut self, cx: &mut Context<Self>) {
+        let name = self.project_name_input.read(cx).text().trim().to_owned();
+        let color = self.project_color_input.read(cx).text().trim().to_owned();
+        if name.is_empty() || !is_hex_color(&color) {
+            self.model.transient_error =
+                Some(self.message("Enter a project name and a six-digit hex color."));
+            cx.notify();
+            return;
+        }
+        let id = match ProjectId::new(uuid::Uuid::new_v4().to_string()) {
+            Ok(id) => id,
+            Err(error) => {
+                self.model.transient_error = Some(self.localized_error(error));
+                cx.notify();
+                return;
+            }
+        };
+        let project = Project {
+            workspace_id: Some(self.model.active_workspace_id.clone()),
+            id,
+            name,
+            color: Some(color),
+            is_active: true,
+            is_default: self.model.projects.is_empty(),
+        };
+        match self.model.save_project(project) {
+            Ok(()) => {
+                self.project_name_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.notice = Some(self.message("Project added."));
+            }
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn set_default_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
+        match self.model.set_default_project(id) {
+            Ok(()) => self.notice = Some(self.message("Default project changed.")),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        cx.notify();
+    }
+
+    fn toggle_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
+        let Some(mut project) = self
+            .model
+            .projects
+            .iter()
+            .find(|project| &project.id == id)
+            .cloned()
+        else {
+            return;
+        };
+        project.is_active = !project.is_active;
+        match self.model.save_project(project) {
+            Ok(()) => self.notice = Some(self.message("Project updated.")),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn update_project_color(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
+        let color = self.project_color_input.read(cx).text().trim().to_owned();
+        if !is_hex_color(&color) {
+            self.model.transient_error = Some(self.message("Enter a six-digit hex color."));
+            cx.notify();
+            return;
+        }
+        let Some(mut project) = self
+            .model
+            .projects
+            .iter()
+            .find(|project| &project.id == id)
+            .cloned()
+        else {
+            return;
+        };
+        project.color = Some(color);
+        match self.model.save_project(project) {
+            Ok(()) => self.notice = Some(self.message("Project color updated.")),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn delete_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
+        match self.model.delete_project(id) {
+            Ok(()) => self.notice = Some(self.message("Project deleted.")),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        self.confirm_project_delete = None;
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn create_workspace(&mut self, cx: &mut Context<Self>) {
+        let name = self.workspace_name_input.read(cx).text().trim().to_owned();
+        let color = self.workspace_color_input.read(cx).text().trim().to_owned();
+        if name.is_empty() || !is_hex_color(&color) {
+            self.model.transient_error =
+                Some(self.message("Enter a workspace name and a six-digit hex color."));
+            cx.notify();
+            return;
+        }
+        let worker = nonempty(self.workspace_worker_input.read(cx).text());
+        let organization = nonempty(self.workspace_organization_input.read(cx).text());
+        match self.model.create_workspace(
+            name,
+            color,
+            self.new_workspace_type,
+            worker,
+            organization,
+        ) {
+            Ok(_) => {
+                self.workspace_name_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.notice = Some(self.message("Workspace created."));
+            }
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        cx.notify();
+    }
+
+    fn save_setup(&mut self, cx: &mut Context<Self>) {
+        let name = self.workspace_name_input.read(cx).text().trim().to_owned();
+        if name.is_empty() {
+            self.model.transient_error = Some(self.message("Enter a workspace name."));
+            cx.notify();
+            return;
+        }
+        let hours = parse_non_negative_decimal(self.settings_inputs.expected_hours.read(cx).text());
+        let salary_input = if self.settings_draft.salary.salary_type == SalaryType::Hourly {
+            &self.settings_inputs.hourly_rate
+        } else {
+            &self.settings_inputs.monthly_salary
+        };
+        let salary = parse_non_negative_decimal(salary_input.read(cx).text());
+        let (Ok(hours), Ok(salary)) = (hours, salary) else {
+            self.model.transient_error =
+                Some(self.message("Enter valid non-negative hours and pay."));
+            cx.notify();
+            return;
+        };
+        let Some(mut workspace) = self.model.active_workspace().cloned() else {
+            self.model.transient_error = Some(self.message("The active workspace is unavailable."));
+            cx.notify();
+            return;
+        };
+        workspace.name = name;
+        workspace.workspace_type = self.new_workspace_type;
+        workspace.worker_name = nonempty(self.workspace_worker_input.read(cx).text());
+        workspace.organization_name = if self.new_workspace_type == WorkspaceType::Personal {
+            None
+        } else {
+            nonempty(self.workspace_organization_input.read(cx).text())
+        };
+        let mut settings = self.model.settings.clone();
+        settings.expected_hours.hours_per_workday = hours;
+        settings.salary.salary_type = self.settings_draft.salary.salary_type;
+        if settings.salary.salary_type == SalaryType::Hourly {
+            settings.salary.hourly_rate = Money::new(salary);
+        } else {
+            settings.salary.monthly_salary = Money::new(salary);
+        }
+        let mut preferences = self.model.preferences.clone();
+        preferences.language_preference = self.preferences_draft.language_preference;
+        preferences.has_completed_setup = true;
+
+        let result = self
+            .model
+            .save_workspace(workspace)
+            .and_then(|()| self.model.update_settings(settings))
+            .and_then(|()| self.model.update_preferences(preferences));
+        match result {
+            Ok(()) => {
+                self.settings_draft = self.model.settings.clone();
+                self.preferences_draft = self.model.preferences.clone();
+                self.workspace_name_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.workspace_worker_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.workspace_organization_input
+                    .update(cx, |input, cx| input.set_text("", cx));
+                self.notice = Some(self.message("Setup complete."));
+                self.refresh_month_view(cx);
+            }
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        cx.notify();
+    }
+
+    fn switch_workspace(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
+        match self.model.switch_workspace(id) {
+            Ok(()) => {
+                self.notice = Some(self.message("Workspace changed."));
+                self.manage_workspaces = false;
+                self.workspace_menu_open = false;
+            }
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn update_workspace_color(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
+        let color = self.workspace_color_input.read(cx).text().trim().to_owned();
+        if !is_hex_color(&color) {
+            self.model.transient_error = Some(self.message("Enter a six-digit hex color."));
+            cx.notify();
+            return;
+        }
+        let Some(mut workspace) = self
+            .model
+            .workspaces
+            .iter()
+            .find(|workspace| &workspace.id == id)
+            .cloned()
+        else {
+            return;
+        };
+        workspace.color = color;
+        match self.model.save_workspace(workspace) {
+            Ok(()) => self.notice = Some(self.message("Workspace color updated.")),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        cx.notify();
+    }
+
+    fn open_color_picker(
+        &mut self,
+        target: ColorPickerTarget,
+        selected: &str,
+        cx: &mut Context<Self>,
+    ) {
+        if self.color_picker_target.as_ref() == Some(&target) {
+            self.color_picker_target = None;
+        } else {
+            self.sync_color_sliders(selected, cx);
+            self.color_picker_target = Some(target);
+        }
+        cx.notify();
+    }
+
+    fn sync_color_sliders(&mut self, color: &str, cx: &mut Context<Self>) {
+        let Some((hue, saturation, lightness)) = hex_to_hsl(color) else {
+            return;
+        };
+        self.color_hue_slider
+            .update(cx, |slider, cx| slider.set_value(hue, cx));
+        self.color_saturation_slider
+            .update(cx, |slider, cx| slider.set_value(saturation, cx));
+        self.color_lightness_slider.update(cx, |slider, cx| {
+            slider.set_value(lightness.clamp(10, 90), cx)
+        });
+        self.sync_color_slider_tracks(cx);
+    }
+
+    fn sync_color_slider_tracks(&mut self, cx: &mut Context<Self>) {
+        let hue = self.color_hue_slider.read(cx).value();
+        let saturation = self.color_saturation_slider.read(cx).value();
+        self.color_hue_slider.update(cx, |slider, cx| {
+            slider.set_track_colors(
+                [
+                    gpui::red(),
+                    gpui::yellow(),
+                    gpui::green(),
+                    gpui::rgb(0x00FFFF).into(),
+                    gpui::blue(),
+                    gpui::rgb(0xFF00FF).into(),
+                    gpui::red(),
+                ],
+                cx,
+            )
+        });
+        self.color_saturation_slider.update(cx, |slider, cx| {
+            slider.set_track_colors(
+                [
+                    gpui::hsla(hue as f32 / 360.0, 0.0, 0.5, 1.0),
+                    gpui::hsla(hue as f32 / 360.0, 1.0, 0.5, 1.0),
+                ],
+                cx,
+            )
+        });
+        self.color_lightness_slider.update(cx, |slider, cx| {
+            slider.set_track_colors(
+                [
+                    gpui::hsla(hue as f32 / 360.0, saturation as f32 / 100.0, 0.1, 1.0),
+                    gpui::hsla(hue as f32 / 360.0, saturation as f32 / 100.0, 0.5, 1.0),
+                    gpui::hsla(hue as f32 / 360.0, saturation as f32 / 100.0, 0.9, 1.0),
+                ],
+                cx,
+            )
+        });
+    }
+
+    fn apply_custom_picker_color(&mut self, cx: &mut Context<Self>) {
+        if self.color_picker_target.is_none() {
+            return;
+        }
+        self.sync_color_slider_tracks(cx);
+        let color = hsl_to_hex(
+            self.color_hue_slider.read(cx).value(),
+            self.color_saturation_slider.read(cx).value(),
+            self.color_lightness_slider.read(cx).value(),
+        );
+        self.apply_picker_color(&color, false, cx);
+    }
+
+    fn apply_picker_color(&mut self, color: &str, close: bool, cx: &mut Context<Self>) {
+        let Some(target) = self.color_picker_target.clone() else {
+            return;
+        };
+        if close {
+            self.color_picker_target = None;
+        }
+        match target {
+            ColorPickerTarget::NewProject => self
+                .project_color_input
+                .update(cx, |input, cx| input.set_text(color.to_owned(), cx)),
+            ColorPickerTarget::NewWorkspace => self
+                .workspace_color_input
+                .update(cx, |input, cx| input.set_text(color.to_owned(), cx)),
+            ColorPickerTarget::Project(id) => {
+                self.project_color_input
+                    .update(cx, |input, cx| input.set_text(color.to_owned(), cx));
+                self.update_project_color(&id, cx);
+            }
+            ColorPickerTarget::Workspace(id) => {
+                self.workspace_color_input
+                    .update(cx, |input, cx| input.set_text(color.to_owned(), cx));
+                self.update_workspace_color(&id, cx);
+            }
+        }
+        cx.notify();
+    }
+
+    fn delete_workspace(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
+        match self.model.delete_workspace(id) {
+            Ok(()) => self.notice = Some(self.message("Workspace deleted.")),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
+        }
+        self.confirm_workspace_delete = None;
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn save_settings(&mut self, cx: &mut Context<Self>) {
+        let result = self.parse_settings_inputs(cx);
+        let Ok(mut settings) = result else {
+            self.model.transient_error = result.err().map(|error| self.message(error));
+            cx.notify();
+            return;
+        };
+        settings.workspace_id = Some(self.model.active_workspace_id.clone());
+        if let Err(error) = self.model.update_settings(settings.clone()) {
+            self.model.transient_error = Some(self.localized_error(error));
+            cx.notify();
+            return;
+        }
+        if let Err(error) = self
+            .model
+            .update_preferences(self.preferences_draft.clone())
+        {
+            self.model.transient_error = Some(self.localized_error(error));
+            cx.notify();
+            return;
+        }
+        self.settings_draft = settings;
+        self.preferences_draft = self.model.preferences.clone();
+        self.sync_control_scales(cx);
+        self.notice = Some(self.message("Settings saved successfully"));
+        self.refresh_month_view(cx);
+        cx.notify();
+    }
+
+    fn parse_settings_inputs(&self, cx: &Context<Self>) -> Result<AppSettings, &'static str> {
+        let mut settings = self.settings_draft.clone();
+        let opening =
+            parse_non_negative_decimal(self.settings_inputs.opening_balance.read(cx).text())?;
+        settings.opening_balance_minutes = Minutes::new(
+            (opening * Decimal::from(60))
+                .round()
+                .to_i64()
+                .ok_or("Starting balance is too large.")?,
+        );
+        settings.expected_hours.hours_per_workday =
+            parse_non_negative_decimal(self.settings_inputs.expected_hours.read(cx).text())?;
+        settings.default_start_time =
+            normalize_time(self.settings_inputs.default_start.read(cx).text())
+                .ok_or("Default start time is invalid.")?;
+        settings.default_end_time =
+            normalize_time(self.settings_inputs.default_end.read(cx).text())
+                .ok_or("Default end time is invalid.")?;
+        settings.default_lunch_minutes = Minutes::new(parse_non_negative_i64(
+            self.settings_inputs.default_lunch.read(cx).text(),
+        )?);
+        settings.overtime_compensation.daily_threshold_hours =
+            parse_non_negative_decimal(self.settings_inputs.overtime_threshold.read(cx).text())?;
+        settings.overtime_compensation.default_rate_value =
+            parse_non_negative_decimal(self.settings_inputs.default_rate_value.read(cx).text())?;
+        if settings.overtime_compensation.rate_bands.len() != self.rate_band_inputs.len() {
+            return Err("Overtime rule fields are out of sync.");
+        }
+        for (band, inputs) in settings
+            .overtime_compensation
+            .rate_bands
+            .iter_mut()
+            .zip(&self.rate_band_inputs)
+        {
+            band.name = nonempty(inputs.name.read(cx).text()).ok_or("Enter a rule name.")?;
+            band.start_time = normalize_time(inputs.start.read(cx).text())
+                .ok_or("A rule start time is invalid.")?;
+            band.end_time =
+                normalize_time(inputs.end.read(cx).text()).ok_or("A rule end time is invalid.")?;
+            band.rate_value = parse_non_negative_decimal(inputs.value.read(cx).text())?;
+        }
+        settings.salary.hourly_rate = Money::new(parse_non_negative_decimal(
+            self.settings_inputs.hourly_rate.read(cx).text(),
+        )?);
+        settings.salary.monthly_salary = Money::new(parse_non_negative_decimal(
+            self.settings_inputs.monthly_salary.read(cx).text(),
+        )?);
+        let employment =
+            parse_non_negative_decimal(self.settings_inputs.employment_percent.read(cx).text())?;
+        if employment < Decimal::ONE || employment > Decimal::ONE_HUNDRED {
+            return Err("Employment percent must be from 1 to 100.");
+        }
+        settings.salary.employment_percent = employment;
+        settings.tax_settings.tax_year = parse_i32(self.settings_inputs.tax_year.read(cx).text())?;
+        settings.tax_settings.table_number =
+            parse_i32(self.settings_inputs.tax_table.read(cx).text())?;
+        if settings.tax_settings.table_number <= 0 {
+            return Err("Tax table must be positive.");
+        }
+        settings.tax_settings.column = parse_i32(self.settings_inputs.tax_column.read(cx).text())?;
+        if !(1..=6).contains(&settings.tax_settings.column) {
+            return Err("Tax column must be from 1 to 6.");
+        }
+        let manual = self.settings_inputs.manual_tax.read(cx).text().trim();
+        settings.tax_settings.manual_monthly_deduction = if manual.is_empty() {
+            None
+        } else {
+            Some(Money::new(parse_non_negative_decimal(manual)?))
+        };
+        if ![80, 90, 100, 110, 125, 150].contains(&self.preferences_draft.interface_scale_percent) {
+            return Err("Interface scale is invalid.");
+        }
+        Ok(settings)
+    }
+
+    fn discard_settings(&mut self, cx: &mut Context<Self>) {
+        self.settings_draft = self.model.settings.clone();
+        self.preferences_draft = self.model.preferences.clone();
+        self.model
+            .preview_theme(self.preferences_draft.theme_preference);
+        self.settings_inputs.sync(&self.settings_draft, cx);
+        self.sync_rate_band_inputs(cx);
+        self.sync_setting_switches(cx);
+        self.sync_control_scales(cx);
+        self.refresh_month_view(cx);
+        self.model.transient_error = None;
+        cx.notify();
+    }
+
+    fn sync_rate_band_inputs(&mut self, cx: &mut Context<Self>) {
+        self.rate_band_inputs = self
+            .settings_draft
+            .overtime_compensation
+            .rate_bands
+            .iter()
+            .map(|band| RateBandInputs::new(band, cx))
+            .collect();
+        let scale = interface_scale(&self.model);
+        for inputs in &self.rate_band_inputs {
+            inputs.set_scale(scale, cx);
+        }
+    }
+
+    fn sync_setting_switches(&mut self, cx: &mut Context<Self>) {
+        let checked = self.settings_draft.expected_hours.exclude_public_holidays;
+        let colors = self.colors();
+        let scale = interface_scale(&self.model);
+        self.exclude_holidays_switch.update(cx, |switch, cx| {
+            switch.set_checked(checked, cx);
+            switch.set_scale(scale, cx);
+            switch.set_colors(colors, cx);
+        });
+    }
+
+    fn navigation_item(
+        &self,
+        id: &'static str,
+        icon: &'static str,
+        label: &'static str,
+        route: Route,
+        collapsed: bool,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let scale = self.model.interface_scale.clamp(0.8, 1.5);
+        let colors = self.colors();
+        let selected = self.model.route == route;
+        let foreground = if selected {
+            colors.on_secondary_container
+        } else {
+            colors.on_surface_variant
+        };
+        let icon = if selected {
+            m3_icon_filled(icon, 22.0 * scale, foreground)
+        } else {
+            m3_icon_colored(icon, 22.0 * scale, foreground)
+        };
+        let hover_group = format!("{id}-hover");
+        div()
+            .id(id)
+            .group(hover_group.clone())
+            .m3_focusable(true, colors.primary, px(3.0 * scale))
+            .h(px(if collapsed { 64.0 } else { 52.0 } * scale))
+            .when_else(
+                collapsed,
+                |item| {
+                    item.w(px(80.0 * scale))
+                        .flex_col()
+                        .justify_center()
+                        .gap(px(2.0 * scale))
+                },
+                |item| {
+                    item.mx(px(12.0 * scale))
+                        .px(px(16.0 * scale))
+                        .gap(px(12.0 * scale))
+                },
+            )
+            .flex()
+            .items_center()
+            .when(!collapsed, |item| item.rounded(px(26.0 * scale)))
+            .cursor_pointer()
+            .bg(if selected && !collapsed {
+                colors.secondary_container
+            } else {
+                colors.surface_container_low
+            })
+            .text_color(foreground)
+            .when(!collapsed, |item| {
+                item.hover(|style| style.bg(colors.surface_container_high))
+                    .active(|style| style.bg(colors.surface_container_highest))
+            })
+            .child(
+                div()
+                    .id((id, 0_usize))
+                    .when(collapsed, |indicator| {
+                        indicator
+                            .w(px(56.0 * scale))
+                            .h(px(32.0 * scale))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(16.0 * scale))
+                            .bg(if selected {
+                                colors.secondary_container
+                            } else {
+                                colors.surface_container_low
+                            })
+                            .group_hover(hover_group, |style| {
+                                style.bg(if selected {
+                                    colors.secondary_container
+                                } else {
+                                    colors.surface_container_high
+                                })
+                            })
+                            .active(|style| style.bg(colors.surface_container_highest))
+                    })
+                    .child(icon),
+            )
+            .child(
+                div()
+                    .text_size(px(if collapsed { 12.0 } else { 14.0 } * scale))
+                    .font_weight(if selected {
+                        gpui::FontWeight::MEDIUM
+                    } else {
+                        gpui::FontWeight::NORMAL
+                    })
+                    .child(self.text(label)),
+            )
+            .on_click(cx.listener(move |shell, _, _, cx| shell.set_route(route, cx)))
+    }
+
+    fn route_content(
+        &mut self,
+        colors: M3ColorScheme,
+        pane_width: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        match self.model.route {
+            Route::Timesheet => self.timesheet(colors, cx),
+            Route::Projects => self.projects_page(colors, pane_width, cx),
+            Route::Settings => self.settings_page(colors, pane_width, cx),
+            Route::DataBackups => self.data_backups_page(colors, pane_width, cx),
+        }
+    }
+
+    fn data_backups_page(
+        &mut self,
+        colors: M3ColorScheme,
+        pane_width: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let (_, page_padding) = route_page_layout(pane_width);
+        let selected_tab = self.settings_tab;
+        let tab_labels = [
+            self.text("General"),
+            self.text("Schedule"),
+            self.text("Overtime & OB"),
+            self.text("Salary & Tax"),
+            self.text("Application"),
+        ];
+        self.settings_tabs.update(cx, |tabs, cx| {
+            tabs.set_colors(colors, cx);
+            tabs.set_selected(selected_tab, cx);
+            tabs.set_labels(tab_labels, cx);
+        });
+        let database_path = self.services.data.database_path();
+        let busy = self.maintenance_busy;
+        div()
+            .max_w(scale.px(1088.0))
+            .mx_auto()
+            .relative()
+            .pt(scale.px(24.0))
+            .px(scale.px(page_padding))
+            .pb(scale.px(48.0))
+            .flex()
+            .flex_col()
+            .gap(scale.px(24.0))
+            .child(
+                div()
+                    .text_color(colors.on_surface_variant)
+                    .child(self.text("Back up or restore your local Dagsverk database.")),
+            )
+            .child(
+                div()
+                    .p(scale.px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(16.0))
+                    .rounded(scale.px(16.0))
+                    .bg(colors.surface_container_low)
+                    .child(
+                        div()
+                            .text_size(scale.px(18.0))
+                            .child(self.text("Local data")),
+                    )
+                    .child(
+                        div()
+                            .text_size(scale.px(12.0))
+                            .text_color(colors.on_surface_variant)
+                            .child(self.text(
+                                "Your time entries, rates, and projects stay on this device.",
+                            )),
+                    )
+                    .child(
+                        div().text_color(colors.on_surface_variant).child(self.text(
+                            "Dagsverk works without an account or internet connection. It stores all records in a local SQLite database.",
+                        )),
+                    )
+                    .child(
+                        div()
+                            .p(scale.px(16.0))
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .gap(scale.px(16.0))
+                            .rounded(scale.px(12.0))
+                            .bg(colors.surface_container)
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(scale.px(4.0))
+                                    .child(
+                                        div()
+                                            .text_size(scale.px(12.0))
+                                            .child(self.text("Database location")),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(scale.px(12.0))
+                                            .text_color(colors.on_surface_variant)
+                                            .child(database_path.display().to_string()),
+                                    ),
+                            )
+                            .child(
+                                maintenance_button(
+                                    "open-data-folder",
+                                    "Open data folder",
+                                    !busy,
+                                    colors,
+                                    scale,
+                                )
+                                .when(!busy, |button| {
+                                    button.on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.open_data_folder();
+                                        cx.notify();
+                                    }))
+                                }),
+                            ),
+                    ),
+            )
+            .child(
+                div()
+                    .p(scale.px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(16.0))
+                    .rounded(scale.px(16.0))
+                    .bg(colors.surface_container_low)
+                    .child(
+                        div()
+                            .text_size(scale.px(18.0))
+                            .child(self.text("Backup and restore")),
+                    )
+                    .child(
+                        div()
+                            .text_size(scale.px(12.0))
+                            .text_color(colors.on_surface_variant)
+                            .child(self.text(
+                                "Create a portable copy or restore an earlier database.",
+                            )),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .gap(scale.px(16.0))
+                            .child(
+                                maintenance_button(
+                                    "create-backup",
+                                    "Create backup",
+                                    !busy,
+                                    colors,
+                                    scale,
+                                )
+                                .when(!busy, |button| {
+                                    button.on_click(
+                                        cx.listener(|shell, _, _, cx| shell.create_backup(cx)),
+                                    )
+                                }),
+                            )
+                            .child(
+                                maintenance_button(
+                                    "restore-database",
+                                    "Restore from backup",
+                                    !busy,
+                                    colors,
+                                    scale,
+                                )
+                                .when(!busy, |button| {
+                                    button.on_click(
+                                        cx.listener(|shell, _, _, cx| shell.choose_restore(cx)),
+                                    )
+                                }),
+                            )
+                            .child(
+                                maintenance_button(
+                                    "import-tidverk",
+                                    "Import from Tidverk",
+                                    !busy,
+                                    colors,
+                                    scale,
+                                )
+                                .when(!busy, |button| {
+                                    button.on_click(
+                                        cx.listener(|shell, _, _, cx| {
+                                            shell.choose_tidverk_import(cx)
+                                        }),
+                                    )
+                                }),
+                            ),
+                    ),
+            )
+            .when_some(self.last_backup.clone(), |page, path| {
+                page.child(format!("Last backup: {}", path.display()))
+            })
+            .when(busy, |page| {
+                page.child(
+                    div()
+                        .text_color(colors.primary)
+                        .child(self.text("Database operation in progress...")),
+                )
+            })
+    }
+
+    fn open_data_folder(&mut self) {
+        let path = self.services.data.database_path();
+        let folder = path.parent().unwrap_or(path.as_path());
+        if let Err(error) = self.services.shell.open_folder(folder) {
+            self.notice = Some(self.message_with("Could not open the data folder: {0}", error));
+        }
+    }
+
+    fn export_report(&mut self, format: ExportFormat, cx: &mut Context<Self>) {
+        if self.maintenance_busy {
+            return;
+        }
+        self.maintenance_busy = true;
+        self.notice = None;
+        let request = self.model.export_request();
+        let dialog = self.services.file_dialog.clone();
+        let extension = format.extension();
+        let dialog_title = self.message("Export Timesheet Report");
+        let filter_name = if matches!(format, ExportFormat::Xlsx) {
+            self.message("Excel Workbook")
+        } else {
+            self.message("OpenDocument Spreadsheet")
+        };
+        let safe_name: String = request
+            .employee_name
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric() || matches!(character, '_' | '-') {
+                    character
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let file_name = format!(
+            "Dagsverk_{safe_name}_{}-{:02}.{extension}",
+            request.year, request.month
+        );
+        cx.spawn(async move |this, cx| {
+            let selected = dialog
+                .choose_save_file(SaveFileRequest {
+                    title: dialog_title,
+                    file_name: Some(file_name),
+                    filters: vec![(filter_name, vec![extension.to_owned()])],
+                    directory: None,
+                })
+                .await;
+            let path = match selected {
+                Ok(Some(path)) => path,
+                Ok(None) => {
+                    let _ = this.update(cx, |shell, cx| {
+                        shell.maintenance_busy = false;
+                        cx.notify();
+                    });
+                    return;
+                }
+                Err(error) => {
+                    let _ = this.update(cx, |shell, cx| {
+                        shell.maintenance_busy = false;
+                        shell.notice =
+                            Some(shell.message_with("Could not open the file dialog: {0}", error));
+                        cx.notify();
+                    });
+                    return;
+                }
+            };
+            let output = path.clone();
+            let task = cx.background_executor().spawn(async move {
+                match format {
+                    ExportFormat::Xlsx => {
+                        export_xlsx(&request, &output, LanguagePreference::English)
+                    }
+                    ExportFormat::Ods => export_ods(&request, &output, LanguagePreference::English),
+                }
+                .map_err(|error| error.to_string())
+            });
+            let result = task.await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.maintenance_busy = false;
+                shell.notice = Some(match result {
+                    Ok(()) => shell.message_with("Report exported: {0}", path.display()),
+                    Err(error) => shell.message_with("Could not export the report: {0}", error),
+                });
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn create_backup(&mut self, cx: &mut Context<Self>) {
+        self.maintenance_busy = true;
+        self.notice = None;
+        let data = self.services.data.clone();
+        let task = cx.background_executor().spawn(async move {
+            data.create_manual_backup()
+                .map_err(|error| error.to_string())
+        });
+        cx.spawn(async move |this, cx| {
+            let result = task.await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.maintenance_busy = false;
+                match result {
+                    Ok(path) => {
+                        shell.last_backup = Some(path.clone());
+                        shell.notice =
+                            Some(shell.message_with("Backup created: {0}", path.display()));
+                    }
+                    Err(error) => {
+                        shell.notice =
+                            Some(shell.message_with("Could not create a backup: {0}", error));
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn choose_restore(&mut self, cx: &mut Context<Self>) {
+        let title = self.message("Select a Dagsverk backup");
+        self.choose_database_file(title, false, cx);
+    }
+
+    fn choose_tidverk_import(&mut self, cx: &mut Context<Self>) {
+        let title = self.message("Select a Tidverk database");
+        self.choose_database_file(title, true, cx);
+    }
+
+    fn choose_database_file(&mut self, title: String, tidverk: bool, cx: &mut Context<Self>) {
+        self.maintenance_busy = true;
+        let dialog = self.services.file_dialog.clone();
+        let filter_name = self.message("SQLite database");
+        let directory = self
+            .services
+            .data
+            .database_path()
+            .parent()
+            .map(std::path::Path::to_owned);
+        cx.spawn(async move |this, cx| {
+            let result = dialog
+                .choose_open_file(OpenFileRequest {
+                    title,
+                    filters: vec![(filter_name, vec!["db".to_owned()])],
+                    directory,
+                })
+                .await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.maintenance_busy = false;
+                match result {
+                    Ok(Some(path)) if tidverk => shell.confirm_import = Some(path),
+                    Ok(Some(path)) => shell.confirm_restore = Some(path),
+                    Ok(None) => {}
+                    Err(error) => {
+                        shell.notice =
+                            Some(shell.message_with("Could not open the file dialog: {0}", error));
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn run_restore(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.confirm_restore = None;
+        self.run_database_change(path, false, cx);
+    }
+
+    fn run_tidverk_import(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.confirm_import = None;
+        self.run_database_change(path, true, cx);
+    }
+
+    fn run_database_change(&mut self, path: PathBuf, tidverk: bool, cx: &mut Context<Self>) {
+        self.maintenance_busy = true;
+        self.notice = None;
+        let data = self.services.data.clone();
+        let task = cx.background_executor().spawn(async move {
+            if tidverk {
+                data.import_tidverk_database(&path)
+                    .map(|result| Some(result.entry_count))
+            } else {
+                data.restore(&path).map(|()| None)
+            }
+            .map_err(|error| error.to_string())
+        });
+        cx.spawn(async move |this, cx| {
+            let result = task.await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.maintenance_busy = false;
+                match result {
+                    Ok(imported_entries) => match shell.model.initialize() {
+                        Ok(()) => {
+                            shell.settings_draft = shell.model.settings.clone();
+                            shell.preferences_draft = shell.model.preferences.clone();
+                            shell.settings_inputs.sync(&shell.settings_draft, cx);
+                            shell.sync_rate_band_inputs(cx);
+                            shell.refresh_month_view(cx);
+                            shell.notice = Some(imported_entries.map_or_else(
+                                || shell.message("Database restored."),
+                                |count| {
+                                    shell.message_with("Imported {0} entries from Tidverk.", count)
+                                },
+                            ));
+                        }
+                        Err(error) => {
+                            shell.notice = Some(
+                                shell.message_with("Could not reload the database: {0}", error),
+                            );
+                        }
+                    },
+                    Err(error) => {
+                        shell.notice =
+                            Some(shell.message_with(
+                                "Could not restore or import the database: {0}",
+                                error,
+                            ));
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn projects_page(
+        &mut self,
+        colors: M3ColorScheme,
+        pane_width: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let (stacked, page_padding) = route_page_layout(pane_width);
+        let mut projects = self.model.projects.clone();
+        projects.sort_by_key(|project| (!project.is_active, !project.is_default));
+        let new_color = self.project_color_input.read(cx).text().to_owned();
+        let new_color_swatch = color_from_hex(&new_color).unwrap_or(colors.primary);
+        let can_add_project = !self.project_name_input.read(cx).text().trim().is_empty();
+        div()
+            .max_w(scale.px(1088.0))
+            .mx_auto()
+            .pt(scale.px(68.0))
+            .px(scale.px(page_padding))
+            .pb(scale.px(48.0))
+            .flex()
+            .when(stacked, |layout| layout.flex_col())
+            .when(!stacked, |layout| layout.items_start())
+            .gap(scale.px(24.0))
+            .child(
+                div()
+                    .absolute()
+                    .top(scale.px(24.0))
+                    .left(scale.px(page_padding))
+                    .text_size(scale.px(14.0))
+                    .line_height(scale.px(20.0))
+                    .text_color(colors.on_surface_variant)
+                    .child(self.text("Group time entries by client, contract, or workstream.")),
+            )
+            .child(
+                div()
+                    .when_else(
+                        stacked,
+                        |card| card.w_full(),
+                        |card| card.w(scale.px(320.0)),
+                    )
+                    .p(scale.px(24.0))
+                    .flex()
+                    .flex_col()
+                    .rounded(scale.px(16.0))
+                    .bg(colors.surface_container_low)
+                    .child(
+                        div()
+                            .mb(scale.px(16.0))
+                            .text_size(scale.px(16.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
+                            .child(self.text("Add project")),
+                    )
+                    .child(
+                        div()
+                            .mb(scale.px(24.0))
+                            .flex()
+                            .items_center()
+                            .gap(scale.px(12.0))
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .flex_1()
+                                    .child(self.project_name_input.clone()),
+                            )
+                            .child(
+                                div()
+                                    .id("new-project-color")
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
+                                    .size(scale.px(40.0))
+                                    .flex_none()
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .child(
+                                        div()
+                                            .size(scale.px(28.0))
+                                            .rounded_full()
+                                            .border_1()
+                                            .border_color(gpui::black().opacity(0.2))
+                                            .bg(new_color_swatch),
+                                    )
+                                    .tooltip(m3_tooltip("Choose project color", colors, scale))
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        let color =
+                                            shell.project_color_input.read(cx).text().to_owned();
+                                        shell.open_color_picker(
+                                            ColorPickerTarget::NewProject,
+                                            &color,
+                                            cx,
+                                        );
+                                    }))
+                                    .when(
+                                        self.color_picker_target
+                                            == Some(ColorPickerTarget::NewProject),
+                                        |trigger| {
+                                            trigger.child(
+                                                deferred(
+                                                    anchored()
+                                                        .anchor(Corner::TopLeft)
+                                                        .offset(point(
+                                                            scale.px(0.0),
+                                                            scale.px(48.0),
+                                                        ))
+                                                        .snap_to_window_with_margin(scale.px(8.0))
+                                                        .child(self.color_palette(
+                                                            &new_color, colors, scale, cx,
+                                                        )),
+                                                )
+                                                .priority(3),
+                                            )
+                                        },
+                                    ),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .id("add-project")
+                            .m3_focusable(can_add_project, colors.primary, scale.px(3.0))
+                            .h(scale.px(40.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .gap(scale.px(8.0))
+                            .rounded(scale.px(20.0))
+                            .bg(if can_add_project {
+                                colors.primary
+                            } else {
+                                colors.on_surface.opacity(0.12)
+                            })
+                            .text_color(if can_add_project {
+                                colors.on_primary
+                            } else {
+                                colors.on_surface.opacity(0.38)
+                            })
+                            .when(can_add_project, |button| {
+                                button
+                                    .cursor_pointer()
+                                    .hover(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.primary,
+                                            colors.on_primary,
+                                            0.08,
+                                        ))
+                                    })
+                                    .active(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.primary,
+                                            colors.on_primary,
+                                            0.12,
+                                        ))
+                                    })
+                                    .on_click(cx.listener(|shell, _, _, cx| shell.add_project(cx)))
+                            })
+                            .child(m3_icon_colored(
+                                "add",
+                                18.0 * scale.factor(),
+                                if can_add_project {
+                                    colors.on_primary
+                                } else {
+                                    colors.on_surface.opacity(0.38)
+                                },
+                            ))
+                            .child(self.text("Add project")),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .p(scale.px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(12.0))
+                    .rounded(scale.px(16.0))
+                    .bg(colors.surface_container_low)
+                    .child(
+                        div()
+                            .mb(scale.px(4.0))
+                            .text_size(scale.px(16.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
+                            .child(format!(
+                                "{} ({})",
+                                self.text("Active projects"),
+                                projects.len()
+                            )),
+                    )
+                    .children(projects.into_iter().enumerate().map(|(index, project)| {
+                        let default_id = project.id.clone();
+                        let toggle_id = project.id.clone();
+                        let color_id = project.id.clone();
+                        let picker_id = project.id.clone();
+                        let delete_id = project.id.clone();
+                        let color_value = project
+                            .color
+                            .clone()
+                            .unwrap_or_else(|| "#5F875F".to_owned());
+                        let picker_color_value = color_value.clone();
+                        let color = color_from_hex(&color_value).unwrap_or(colors.primary);
+                        div()
+                            .h(scale.px(64.0))
+                            .px(scale.px(16.0))
+                            .flex()
+                            .items_center()
+                            .gap(scale.px(12.0))
+                            .rounded(scale.px(12.0))
+                            .bg(colors.surface_container_low)
+                            .hover(move |style| style.bg(colors.surface_container))
+                            .child(
+                                div()
+                                    .w(scale.px(4.0))
+                                    .h(scale.px(32.0))
+                                    .rounded(scale.px(2.0))
+                                    .bg(color),
+                            )
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .flex_1()
+                                    .flex()
+                                    .flex_col()
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap(scale.px(8.0))
+                                            .child(
+                                                div()
+                                                    .truncate()
+                                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                                    .child(project.name),
+                                            )
+                                            .when(project.is_default, |line| {
+                                                line.child(
+                                                    div()
+                                                        .px(scale.px(8.0))
+                                                        .py(scale.px(4.0))
+                                                        .rounded(scale.px(10.0))
+                                                        .bg(colors.primary_container)
+                                                        .text_size(scale.px(11.0))
+                                                        .font_weight(gpui::FontWeight::MEDIUM)
+                                                        .child(self.text("Default")),
+                                                )
+                                            }),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(scale.px(12.0))
+                                            .text_color(colors.on_surface_variant)
+                                            .child(if project.is_active {
+                                                self.text("Active")
+                                            } else {
+                                                self.text("Archived")
+                                            }),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .id(("color-project", index))
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
+                                    .size(scale.px(40.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .child(
+                                        div()
+                                            .size(scale.px(28.0))
+                                            .rounded_full()
+                                            .border_1()
+                                            .border_color(gpui::black().opacity(0.2))
+                                            .bg(color),
+                                    )
+                                    .tooltip(m3_tooltip("Change project color", colors, scale))
+                                    .on_click(cx.listener(move |shell, _, _, cx| {
+                                        shell.open_color_picker(
+                                            ColorPickerTarget::Project(color_id.clone()),
+                                            &picker_color_value,
+                                            cx,
+                                        );
+                                    }))
+                                    .when(
+                                        self.color_picker_target
+                                            == Some(ColorPickerTarget::Project(picker_id)),
+                                        |trigger| {
+                                            trigger.child(
+                                                deferred(
+                                                    anchored()
+                                                        .anchor(Corner::TopRight)
+                                                        .offset(point(
+                                                            scale.px(40.0),
+                                                            scale.px(48.0),
+                                                        ))
+                                                        .snap_to_window_with_margin(scale.px(8.0))
+                                                        .child(self.color_palette(
+                                                            &color_value,
+                                                            colors,
+                                                            scale,
+                                                            cx,
+                                                        )),
+                                                )
+                                                .priority(3),
+                                            )
+                                        },
+                                    ),
+                            )
+                            .when(!project.is_default, |row| {
+                                row.child(
+                                    div()
+                                        .id(("default-project", index))
+                                        .m3_focusable(true, colors.primary, scale.px(3.0))
+                                        .h(scale.px(40.0))
+                                        .px(scale.px(12.0))
+                                        .flex()
+                                        .items_center()
+                                        .rounded(scale.px(20.0))
+                                        .cursor_pointer()
+                                        .hover(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container,
+                                                colors.on_surface,
+                                                0.08,
+                                            ))
+                                        })
+                                        .active(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container,
+                                                colors.on_surface,
+                                                0.12,
+                                            ))
+                                        })
+                                        .child(self.text("Set Default"))
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            shell.set_default_project(&default_id, cx)
+                                        })),
+                                )
+                            })
+                            .child(
+                                div()
+                                    .id(("toggle-project", index))
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
+                                    .size(scale.px(40.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
+                                    .cursor_pointer()
+                                    .hover(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.surface_container,
+                                            colors.on_surface,
+                                            0.08,
+                                        ))
+                                    })
+                                    .active(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.surface_container,
+                                            colors.on_surface,
+                                            0.12,
+                                        ))
+                                    })
+                                    .child(m3_icon(
+                                        if project.is_active {
+                                            "archive"
+                                        } else {
+                                            "unarchive"
+                                        },
+                                        20.0 * scale.factor(),
+                                        colors,
+                                    ))
+                                    .tooltip(m3_tooltip(
+                                        if project.is_active {
+                                            "Archive project"
+                                        } else {
+                                            "Restore project"
+                                        },
+                                        colors,
+                                        scale,
+                                    ))
+                                    .on_click(cx.listener(move |shell, _, _, cx| {
+                                        shell.toggle_project(&toggle_id, cx)
+                                    })),
+                            )
+                            .when(!project.is_default, |row| {
+                                row.child(
+                                    div()
+                                        .id(("delete-project", index))
+                                        .m3_focusable(true, colors.primary, scale.px(3.0))
+                                        .size(scale.px(40.0))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded_full()
+                                        .cursor_pointer()
+                                        .text_color(colors.error)
+                                        .hover(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container,
+                                                colors.error,
+                                                0.08,
+                                            ))
+                                        })
+                                        .active(move |style| {
+                                            style.bg(m3_state_layer(
+                                                colors.surface_container,
+                                                colors.error,
+                                                0.12,
+                                            ))
+                                        })
+                                        .child(m3_icon_colored(
+                                            "delete_outline",
+                                            20.0 * scale.factor(),
+                                            colors.error,
+                                        ))
+                                        .tooltip(m3_tooltip("Delete project", colors, scale))
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            shell.confirm_project_delete = Some(delete_id.clone());
+                                            cx.notify();
+                                        })),
+                                )
+                            })
+                    })),
+            )
+    }
+
+    fn workspace_dialog(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let workspaces = self.model.workspaces.clone();
+        let active = self.model.active_workspace_id.clone();
+        let can_delete = workspaces.len() > 1;
+        let new_color = self.workspace_color_input.read(cx).text().to_owned();
+        let new_color_swatch = color_from_hex(&new_color).unwrap_or(colors.primary);
+        let can_create_workspace = !self.workspace_name_input.read(cx).text().trim().is_empty()
+            && is_hex_color(&new_color);
+        let create_background = if can_create_workspace {
+            colors.primary
+        } else {
+            colors.on_surface.opacity(0.12)
+        };
+        let create_foreground = if can_create_workspace {
+            colors.on_primary
+        } else {
+            colors.on_surface.opacity(0.38)
+        };
+        div()
+            .absolute()
+            .inset_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(gpui::black().opacity(0.45))
+            .child(
+                div()
+                    .w(scale.px(760.0))
+                    .max_h(scale.px(700.0))
+                    .p(scale.px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(16.0))
+                    .rounded(scale.px(28.0))
+                    .bg(colors.surface_container_high)
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                div()
+                                    .text_size(scale.px(22.0))
+                                    .child(self.text("Manage workspaces")),
+                            )
+                            .child(
+                                div()
+                                    .id("close-workspaces")
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
+                                    .size(scale.px(40.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_highest))
+                                    .active(|style| style.bg(colors.surface_container))
+                                    .child(m3_icon("close", 24.0 * scale.factor(), colors))
+                                    .tooltip(m3_tooltip("Close", colors, scale))
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.manage_workspaces = false;
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .grid()
+                            .grid_cols(2)
+                            .gap(scale.px(16.0))
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(scale.px(10.0))
+                                    .child(self.text("Workspace name"))
+                                    .child(self.workspace_name_input.clone())
+                                    .child(self.text("Worker name"))
+                                    .child(self.workspace_worker_input.clone())
+                                    .child(self.text("Organization or client"))
+                                    .child(self.workspace_organization_input.clone()),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(scale.px(10.0))
+                                    .child(self.text("Type"))
+                                    .child(
+                                        div().flex().gap(scale.px(6.0)).children(
+                                            [
+                                                ("Employment", WorkspaceType::Employment),
+                                                ("Contract", WorkspaceType::Contract),
+                                                ("Personal", WorkspaceType::Personal),
+                                            ]
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(
+                                                |(index, (label, value))| {
+                                                    let selected = self.new_workspace_type == value;
+                                                    let background = if selected {
+                                                        colors.secondary_container
+                                                    } else {
+                                                        colors.surface_container
+                                                    };
+                                                    div()
+                                                        .id(("workspace-type", index))
+                                                        .m3_focusable(
+                                                            true,
+                                                            colors.primary,
+                                                            scale.px(3.0),
+                                                        )
+                                                        .h(scale.px(36.0))
+                                                        .px(scale.px(10.0))
+                                                        .flex()
+                                                        .items_center()
+                                                        .rounded(scale.px(18.0))
+                                                        .cursor_pointer()
+                                                        .bg(background)
+                                                        .hover(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                background,
+                                                                colors.on_surface,
+                                                                0.08,
+                                                            ))
+                                                        })
+                                                        .active(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                background,
+                                                                colors.on_surface,
+                                                                0.12,
+                                                            ))
+                                                        })
+                                                        .child(label)
+                                                        .on_click(cx.listener(
+                                                            move |shell, _, _, cx| {
+                                                                shell.new_workspace_type = value;
+                                                                cx.notify();
+                                                            },
+                                                        ))
+                                                },
+                                            ),
+                                        ),
+                                    )
+                                    .child(self.text("Accent color"))
+                                    .child(
+                                        div()
+                                            .id("new-workspace-color")
+                                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                                            .size(scale.px(40.0))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded_full()
+                                            .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .child(
+                                                div()
+                                                    .size(scale.px(28.0))
+                                                    .rounded_full()
+                                                    .border_1()
+                                                    .border_color(gpui::black().opacity(0.2))
+                                                    .bg(new_color_swatch),
+                                            )
+                                            .tooltip(m3_tooltip(
+                                                "Choose workspace color",
+                                                colors,
+                                                scale,
+                                            ))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                let color = shell
+                                                    .workspace_color_input
+                                                    .read(cx)
+                                                    .text()
+                                                    .to_owned();
+                                                shell.open_color_picker(
+                                                    ColorPickerTarget::NewWorkspace,
+                                                    &color,
+                                                    cx,
+                                                );
+                                            }))
+                                            .when(
+                                                self.color_picker_target
+                                                    == Some(ColorPickerTarget::NewWorkspace),
+                                                |trigger| {
+                                                    trigger.child(
+                                                        deferred(
+                                                            anchored()
+                                                                .anchor(Corner::TopLeft)
+                                                                .offset(point(
+                                                                    scale.px(0.0),
+                                                                    scale.px(48.0),
+                                                                ))
+                                                                .snap_to_window_with_margin(
+                                                                    scale.px(8.0),
+                                                                )
+                                                                .child(self.color_palette(
+                                                                    &new_color, colors, scale, cx,
+                                                                )),
+                                                        )
+                                                        .priority(3),
+                                                    )
+                                                },
+                                            ),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("create-workspace")
+                                            .m3_focusable(
+                                                can_create_workspace,
+                                                colors.primary,
+                                                scale.px(3.0),
+                                            )
+                                            .h(scale.px(40.0))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .gap(scale.px(8.0))
+                                            .rounded(scale.px(20.0))
+                                            .bg(create_background)
+                                            .text_color(create_foreground)
+                                            .when(can_create_workspace, |button| {
+                                                button
+                                                    .cursor_pointer()
+                                                    .hover(move |style| {
+                                                        style.bg(m3_state_layer(
+                                                            colors.primary,
+                                                            colors.on_primary,
+                                                            0.08,
+                                                        ))
+                                                    })
+                                                    .active(move |style| {
+                                                        style.bg(m3_state_layer(
+                                                            colors.primary,
+                                                            colors.on_primary,
+                                                            0.12,
+                                                        ))
+                                                    })
+                                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                                        shell.create_workspace(cx)
+                                                    }))
+                                            })
+                                            .child(m3_icon_colored(
+                                                "add",
+                                                18.0 * scale.factor(),
+                                                create_foreground,
+                                            ))
+                                            .child(self.text("Create workspace")),
+                                    ),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .id("workspace-list")
+                            .max_h(scale.px(300.0))
+                            .overflow_y_scroll()
+                            .flex()
+                            .flex_col()
+                            .gap(scale.px(8.0))
+                            .children(workspaces.into_iter().enumerate().map(
+                                |(index, workspace)| {
+                                    let switch_id = workspace.id.clone();
+                                    let color_id = workspace.id.clone();
+                                    let picker_id = workspace.id.clone();
+                                    let delete_id = workspace.id.clone();
+                                    let is_active = workspace.id == active;
+                                    let color_value = workspace.color.clone();
+                                    let picker_color_value = color_value.clone();
+                                    let swatch =
+                                        color_from_hex(&color_value).unwrap_or(colors.primary);
+                                    let subtitle = workspace
+                                        .organization_name
+                                        .clone()
+                                        .or_else(|| workspace.worker_name.clone())
+                                        .unwrap_or_else(|| self.text("Personal").to_string());
+                                    let row_background = if is_active {
+                                        colors
+                                            .surface_container
+                                            .blend(colors.primary_container.opacity(0.56))
+                                    } else {
+                                        colors.surface_container
+                                    };
+                                    div()
+                                        .h(scale.px(72.0))
+                                        .px(scale.px(20.0))
+                                        .flex()
+                                        .items_center()
+                                        .gap(scale.px(12.0))
+                                        .rounded(scale.px(12.0))
+                                        .bg(row_background)
+                                        .child(
+                                            div()
+                                                .size(scale.px(40.0))
+                                                .flex_none()
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded(scale.px(10.0))
+                                                .bg(colors
+                                                    .surface_container_high
+                                                    .blend(swatch.opacity(0.42)))
+                                                .child(m3_icon_colored(
+                                                    "business_center",
+                                                    22.0 * scale.factor(),
+                                                    colors.on_surface_variant,
+                                                )),
+                                        )
+                                        .child(
+                                            div()
+                                                .min_w_0()
+                                                .flex_1()
+                                                .flex()
+                                                .flex_col()
+                                                .child(div().truncate().child(workspace.name))
+                                                .child(
+                                                    div()
+                                                        .truncate()
+                                                        .text_size(scale.px(12.0))
+                                                        .text_color(colors.on_surface_variant)
+                                                        .child(subtitle),
+                                                ),
+                                        )
+                                        .when(is_active, |row| {
+                                            row.child(
+                                                div()
+                                                    .px(scale.px(8.0))
+                                                    .py(scale.px(4.0))
+                                                    .rounded(scale.px(10.0))
+                                                    .bg(colors.primary_container)
+                                                    .text_color(colors.on_primary_container)
+                                                    .text_size(scale.px(12.0))
+                                                    .child(self.text("Active")),
+                                            )
+                                        })
+                                        .when(!is_active, |row| {
+                                            row.child(
+                                                div()
+                                                    .id(("switch-workspace", index))
+                                                    .m3_focusable(
+                                                        true,
+                                                        colors.primary,
+                                                        scale.px(3.0),
+                                                    )
+                                                    .h(scale.px(36.0))
+                                                    .px(scale.px(12.0))
+                                                    .flex()
+                                                    .items_center()
+                                                    .rounded(scale.px(18.0))
+                                                    .cursor_pointer()
+                                                    .hover(move |style| {
+                                                        style.bg(m3_state_layer(
+                                                            colors.surface_container,
+                                                            colors.on_surface,
+                                                            0.08,
+                                                        ))
+                                                    })
+                                                    .active(move |style| {
+                                                        style.bg(m3_state_layer(
+                                                            colors.surface_container,
+                                                            colors.on_surface,
+                                                            0.12,
+                                                        ))
+                                                    })
+                                                    .child(self.text("Switch workspace"))
+                                                    .on_click(cx.listener(
+                                                        move |shell, _, _, cx| {
+                                                            shell.switch_workspace(&switch_id, cx)
+                                                        },
+                                                    )),
+                                            )
+                                        })
+                                        .child(
+                                            div()
+                                                .id(("workspace-color", index))
+                                                .m3_focusable(true, colors.primary, scale.px(3.0))
+                                                .size(scale.px(40.0))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_full()
+                                                .cursor_pointer()
+                                                .hover(|style| {
+                                                    style.bg(colors.surface_container_high)
+                                                })
+                                                .child(
+                                                    div()
+                                                        .size(scale.px(28.0))
+                                                        .rounded_full()
+                                                        .border_1()
+                                                        .border_color(gpui::black().opacity(0.2))
+                                                        .bg(swatch),
+                                                )
+                                                .tooltip(m3_tooltip(
+                                                    "Change workspace color",
+                                                    colors,
+                                                    scale,
+                                                ))
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.open_color_picker(
+                                                        ColorPickerTarget::Workspace(
+                                                            color_id.clone(),
+                                                        ),
+                                                        &picker_color_value,
+                                                        cx,
+                                                    );
+                                                }))
+                                                .when(
+                                                    self.color_picker_target
+                                                        == Some(ColorPickerTarget::Workspace(
+                                                            picker_id,
+                                                        )),
+                                                    |trigger| {
+                                                        trigger.child(
+                                                            deferred(
+                                                                anchored()
+                                                                    .anchor(Corner::TopRight)
+                                                                    .offset(point(
+                                                                        scale.px(40.0),
+                                                                        scale.px(48.0),
+                                                                    ))
+                                                                    .snap_to_window_with_margin(
+                                                                        scale.px(8.0),
+                                                                    )
+                                                                    .child(self.color_palette(
+                                                                        &color_value,
+                                                                        colors,
+                                                                        scale,
+                                                                        cx,
+                                                                    )),
+                                                            )
+                                                            .priority(3),
+                                                        )
+                                                    },
+                                                ),
+                                        )
+                                        .child(
+                                            div()
+                                                .id(("delete-workspace", index))
+                                                .m3_focusable(true, colors.primary, scale.px(3.0))
+                                                .opacity(if can_delete { 1.0 } else { 0.38 })
+                                                .text_color(colors.error)
+                                                .child(self.text("Delete"))
+                                                .when(can_delete, |button| {
+                                                    button
+                                                        .h(scale.px(40.0))
+                                                        .px(scale.px(10.0))
+                                                        .flex()
+                                                        .items_center()
+                                                        .rounded(scale.px(20.0))
+                                                        .cursor_pointer()
+                                                        .hover(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                colors.surface_container,
+                                                                colors.error,
+                                                                0.08,
+                                                            ))
+                                                        })
+                                                        .active(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                colors.surface_container,
+                                                                colors.error,
+                                                                0.12,
+                                                            ))
+                                                        })
+                                                        .on_click(cx.listener(
+                                                            move |shell, _, _, cx| {
+                                                                shell.confirm_workspace_delete =
+                                                                    Some(delete_id.clone());
+                                                                cx.notify();
+                                                            },
+                                                        ))
+                                                }),
+                                        )
+                                },
+                            )),
+                    ),
+            )
+    }
+
+    fn setup_dialog(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let salary_type = self.settings_draft.salary.salary_type;
+        let language = self.preferences_draft.language_preference;
+        div()
+            .absolute()
+            .inset_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(gpui::black().opacity(0.55))
+            .child(
+                div()
+                    .w(scale.px(720.0))
+                    .max_w(scale.px(720.0))
+                    .p(scale.px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(24.0))
+                    .rounded(scale.px(28.0))
+                    .bg(colors.surface_container_high)
+                    .child(
+                        div()
+                            .text_size(scale.px(24.0))
+                            .child(self.text("Set up Dagsverk")),
+                    )
+                    .child(self.text(
+                        "Set the identity, schedule, and pay defaults for your first workspace.",
+                    ))
+                    .child(
+                        div()
+                            .grid()
+                            .grid_cols(2)
+                            .gap(scale.px(16.0))
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(scale.px(10.0))
+                                    .child(self.text("Workspace name"))
+                                    .child(self.workspace_name_input.clone())
+                                    .child(self.text("Worker name"))
+                                    .child(self.workspace_worker_input.clone())
+                                    .when(
+                                        self.new_workspace_type != WorkspaceType::Personal,
+                                        |form| {
+                                            form.child(self.text("Organization or client"))
+                                                .child(self.workspace_organization_input.clone())
+                                        },
+                                    )
+                                    .child(self.text("Hours per workday"))
+                                    .child(self.settings_inputs.expected_hours.clone()),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(scale.px(10.0))
+                                    .child(self.text("Workspace type"))
+                                    .child(
+                                        div().flex().gap(scale.px(6.0)).children(
+                                            [
+                                                ("Employment", WorkspaceType::Employment),
+                                                ("Contract", WorkspaceType::Contract),
+                                                ("Personal", WorkspaceType::Personal),
+                                            ]
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(
+                                                |(index, (label, value))| {
+                                                    setting_chip(
+                                                        self.ui_language(),
+                                                        ("setup-workspace-type", index),
+                                                        label,
+                                                        self.new_workspace_type == value,
+                                                        colors,
+                                                        scale,
+                                                    )
+                                                    .on_click(cx.listener(
+                                                        move |shell, _, _, cx| {
+                                                            shell.new_workspace_type = value;
+                                                            cx.notify();
+                                                        },
+                                                    ))
+                                                },
+                                            ),
+                                        ),
+                                    )
+                                    .child(self.text("Interface language"))
+                                    .child(
+                                        div().flex().gap(scale.px(6.0)).children(
+                                            [
+                                                ("System", LanguagePreference::System),
+                                                ("English", LanguagePreference::English),
+                                                ("Swedish", LanguagePreference::Swedish),
+                                            ]
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(
+                                                |(index, (label, value))| {
+                                                    setting_chip(
+                                                        self.ui_language(),
+                                                        ("setup-language", index),
+                                                        label,
+                                                        language == value,
+                                                        colors,
+                                                        scale,
+                                                    )
+                                                    .on_click(cx.listener(
+                                                        move |shell, _, _, cx| {
+                                                            shell
+                                                                .preferences_draft
+                                                                .language_preference = value;
+                                                            cx.notify();
+                                                        },
+                                                    ))
+                                                },
+                                            ),
+                                        ),
+                                    )
+                                    .child(self.text("Salary Model"))
+                                    .child(
+                                        div().flex().gap(scale.px(6.0)).children(
+                                            [
+                                                ("Hourly rate", SalaryType::Hourly),
+                                                ("Monthly salary", SalaryType::Monthly),
+                                            ]
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(
+                                                |(index, (label, value))| {
+                                                    setting_chip(
+                                                        self.ui_language(),
+                                                        ("setup-salary-type", index),
+                                                        label,
+                                                        salary_type == value,
+                                                        colors,
+                                                        scale,
+                                                    )
+                                                    .on_click(cx.listener(
+                                                        move |shell, _, _, cx| {
+                                                            shell
+                                                                .settings_draft
+                                                                .salary
+                                                                .salary_type = value;
+                                                            cx.notify();
+                                                        },
+                                                    ))
+                                                },
+                                            ),
+                                        ),
+                                    )
+                                    .child(if salary_type == SalaryType::Hourly {
+                                        "Hourly rate"
+                                    } else {
+                                        "Monthly salary"
+                                    })
+                                    .child(if salary_type == SalaryType::Hourly {
+                                        self.settings_inputs.hourly_rate.clone()
+                                    } else {
+                                        self.settings_inputs.monthly_salary.clone()
+                                    }),
+                            ),
+                    )
+                    .child(
+                        div().flex().justify_end().child(
+                            maintenance_button(
+                                "complete-setup",
+                                "Save and continue",
+                                true,
+                                colors,
+                                scale,
+                            )
+                            .on_click(cx.listener(|shell, _, _, cx| shell.save_setup(cx))),
+                        ),
+                    ),
+            )
+    }
+
+    fn settings_page(
+        &mut self,
+        colors: M3ColorScheme,
+        pane_width: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let (_, page_padding) = route_page_layout(pane_width);
+        let dirty = self
+            .parse_settings_inputs(cx)
+            .map_or(true, |settings| settings != self.model.settings)
+            || self.preferences_draft != self.model.preferences;
+        let save_background = if dirty {
+            colors.primary
+        } else {
+            colors.on_surface.opacity(0.12)
+        };
+        let save_foreground = if dirty {
+            colors.on_primary
+        } else {
+            colors.on_surface.opacity(0.38)
+        };
+        let tab_labels = [
+            self.text("General"),
+            self.text("Schedule"),
+            self.text("Overtime & OB"),
+            self.text("Salary & Tax"),
+            self.text("Application"),
+        ];
+        self.settings_tabs.update(cx, |tabs, cx| {
+            tabs.set_colors(colors, cx);
+            tabs.set_selected(self.settings_tab, cx);
+            tabs.set_labels(tab_labels, cx);
+        });
+        let content = match self.settings_tab {
+            0 => self.general_settings(colors, cx),
+            1 => self.schedule_settings(colors, cx),
+            2 => self.overtime_settings(colors, cx),
+            3 => self.salary_tax_settings(colors, cx),
+            _ => self.application_settings(colors, cx),
+        };
+        div()
+            .max_w(scale.px(1088.0))
+            .mx_auto()
+            .pt(scale.px(24.0))
+            .px(scale.px(page_padding))
+            .pb(scale.px(48.0))
+            .flex()
+            .flex_col()
+            .gap_0()
+            .child(
+                div()
+                    .h(scale.px(40.0))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .child(
+                        div().text_color(colors.on_surface_variant).child(
+                            self.text("Set your schedule, pay, tax, and timesheet defaults."),
+                        ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(scale.px(8.0))
+                            .child(
+                                div()
+                                    .id("discard-settings")
+                                    .m3_focusable(dirty, colors.primary, scale.px(3.0))
+                                    .h(scale.px(40.0))
+                                    .px(scale.px(18.0))
+                                    .flex()
+                                    .items_center()
+                                    .rounded(scale.px(20.0))
+                                    .opacity(if dirty { 1.0 } else { 0.38 })
+                                    .child(self.text("Discard"))
+                                    .when(dirty, |button| {
+                                        button
+                                            .cursor_pointer()
+                                            .hover(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.background,
+                                                    colors.on_surface,
+                                                    0.08,
+                                                ))
+                                            })
+                                            .active(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    colors.background,
+                                                    colors.on_surface,
+                                                    0.12,
+                                                ))
+                                            })
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.discard_settings(cx)
+                                            }))
+                                    }),
+                            )
+                            .child(
+                                div()
+                                    .id("save-settings")
+                                    .m3_focusable(dirty, colors.primary, scale.px(3.0))
+                                    .h(scale.px(40.0))
+                                    .px(scale.px(18.0))
+                                    .flex()
+                                    .items_center()
+                                    .gap(scale.px(8.0))
+                                    .rounded(scale.px(20.0))
+                                    .bg(save_background)
+                                    .text_color(save_foreground)
+                                    .child(m3_icon_colored(
+                                        "save",
+                                        18.0 * scale.factor(),
+                                        save_foreground,
+                                    ))
+                                    .child(self.text("Save Settings"))
+                                    .when(dirty, |button| {
+                                        button
+                                            .cursor_pointer()
+                                            .hover(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    save_background,
+                                                    save_foreground,
+                                                    0.08,
+                                                ))
+                                            })
+                                            .active(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    save_background,
+                                                    save_foreground,
+                                                    0.12,
+                                                ))
+                                            })
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.save_settings(cx)
+                                            }))
+                                    }),
+                            ),
+                    ),
+            )
+            .child(
+                div()
+                    .mt(scale.px(24.0))
+                    .child(self.settings_tabs.clone())
+                    .child(content),
+            )
+    }
+
+    fn settings_card(
+        &self,
+        title: &'static str,
+        description: &'static str,
+        body: gpui::Div,
+        connected_to_tabs: bool,
+        colors: M3ColorScheme,
+        scale: UiScale,
+    ) -> gpui::Div {
+        div()
+            .p(scale.px(24.0))
+            .flex()
+            .flex_col()
+            .gap(scale.px(16.0))
+            .when_else(
+                connected_to_tabs,
+                |card| card.rounded_b(scale.px(16.0)),
+                |card| card.rounded(scale.px(16.0)),
+            )
+            .bg(colors.surface_container_low)
+            .child(
+                div()
+                    .font_weight(gpui::FontWeight::MEDIUM)
+                    .child(self.text(title)),
+            )
+            .child(
+                div()
+                    .mt(scale.px(-12.0))
+                    .mb(scale.px(8.0))
+                    .text_size(scale.px(12.0))
+                    .text_color(colors.on_surface_variant)
+                    .child(self.text(description)),
+            )
+            .child(body)
+    }
+
+    fn general_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let projects: Vec<_> = self
+            .model
+            .projects
+            .iter()
+            .filter(|project| project.is_active)
+            .map(|project| project.name.clone())
+            .collect();
+        let selected_project = projects
+            .iter()
+            .position(|name| *name == self.settings_draft.default_project)
+            .unwrap_or(0);
+        let current_currency = self
+            .pending_currency
+            .unwrap_or(self.settings_draft.currency_preference);
+        let selected_currency = CURRENCY_OPTIONS
+            .iter()
+            .position(|(_, currency)| *currency == current_currency)
+            .unwrap_or(0);
+        self.settings_project_select.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(projects, selected_project, cx);
+        });
+        self.currency_select.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                CURRENCY_OPTIONS.map(|(label, _)| label),
+                selected_currency,
+                cx,
+            );
+        });
+        let body = div()
+            .grid()
+            .grid_cols(2)
+            .gap(scale.px(16.0))
+            .child(self.settings_project_select.clone())
+            .child(self.currency_select.clone())
+            .child(self.settings_inputs.opening_balance.clone());
+        div().child(self.settings_card(
+            "Workspace defaults",
+            "Projects and report preferences for the active workspace. Manage identity details from the workspace menu.",
+            body,
+            true,
+            colors,
+            scale,
+        ))
+    }
+
+    fn schedule_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let weekdays = self.settings_draft.expected_hours.working_weekdays.clone();
+        let schedule_body = div()
+            .flex()
+            .flex_col()
+            .gap(scale.px(16.0))
+            .child(
+                div()
+                    .w(relative(0.5))
+                    .pr(scale.px(8.0))
+                    .child(self.settings_inputs.expected_hours.clone()),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(8.0))
+                    .child(
+                        div()
+                            .text_size(scale.px(12.0))
+                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .text_color(colors.on_surface_variant)
+                            .child(self.text("Scheduled Weekdays")),
+                    )
+                    .child(
+                        div().flex().gap(scale.px(8.0)).children(
+                            [
+                                ("Mon", 1_u32),
+                                ("Tue", 2),
+                                ("Wed", 3),
+                                ("Thu", 4),
+                                ("Fri", 5),
+                                ("Sat", 6),
+                                ("Sun", 0),
+                            ]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(index, (label, day))| {
+                                setting_chip(
+                                    self.ui_language(),
+                                    ("weekday", index),
+                                    label,
+                                    weekdays.contains(&day),
+                                    colors,
+                                    scale,
+                                )
+                                .on_click(cx.listener(
+                                    move |shell, _, _, cx| {
+                                        let days = &mut shell
+                                            .settings_draft
+                                            .expected_hours
+                                            .working_weekdays;
+                                        if let Some(position) =
+                                            days.iter().position(|value| *value == day)
+                                        {
+                                            if days.len() > 1 {
+                                                days.remove(position);
+                                            }
+                                        } else {
+                                            days.push(day);
+                                            days.sort_unstable();
+                                        }
+                                        cx.notify();
+                                    },
+                                ))
+                            }),
+                        ),
+                    ),
+            )
+            .child(
+                div()
+                    .min_h(scale.px(48.0))
+                    .flex()
+                    .items_center()
+                    .gap(scale.px(12.0))
+                    .child(self.exclude_holidays_switch.clone())
+                    .child(self.text("Exclude Swedish public holidays")),
+            );
+        let timer_body = div()
+            .grid()
+            .grid_cols(3)
+            .gap(scale.px(16.0))
+            .child(self.settings_inputs.default_start.clone())
+            .child(self.settings_inputs.default_end.clone())
+            .child(self.settings_inputs.default_lunch.clone());
+        div()
+            .flex()
+            .flex_col()
+            .gap(scale.px(24.0))
+            .child(self.settings_card(
+                "Expected Work Schedule",
+                "Define baseline working hours used to compute daily targets and flex balances.",
+                schedule_body,
+                true,
+                colors,
+                scale,
+            ))
+            .child(self.settings_card(
+                "Default Day Timers",
+                "Standard prefill values when creating a new worked day entry.",
+                timer_body,
+                false,
+                colors,
+                scale,
+            ))
+    }
+
+    fn overtime_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let overtime = self.settings_draft.overtime_compensation.clone();
+        let has_rate_bands = !overtime.rate_bands.is_empty();
+        let mode_labels = [self.text("Comp time"), self.text("Direct salary")];
+        let threshold_labels = [self.text("Fixed daily hours"), self.text("Scheduled hours")];
+        let combination_labels = [self.text("Exclude"), self.text("Include")];
+        let rate_labels = [
+            self.text("Premium percent"),
+            self.text("Fixed amount"),
+            self.text("Monthly divisor"),
+        ];
+        self.overtime_selects.mode.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                mode_labels,
+                option_index(&OVERTIME_MODE_OPTIONS, overtime.mode),
+                cx,
+            );
+        });
+        self.overtime_selects.threshold.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                threshold_labels,
+                option_index(&OVERTIME_THRESHOLD_OPTIONS, overtime.threshold_mode),
+                cx,
+            );
+        });
+        self.overtime_selects
+            .ob_combination
+            .update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    combination_labels,
+                    option_index(&OB_COMBINATION_OPTIONS, overtime.ob_overtime_combination),
+                    cx,
+                );
+            });
+        self.overtime_selects.default_rate.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                rate_labels.clone(),
+                option_index(&RATE_TYPE_OPTIONS, overtime.default_rate_type),
+                cx,
+            );
+        });
+        for (band, inputs) in overtime.rate_bands.iter().zip(&self.rate_band_inputs) {
+            inputs.rule_type.update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    [self.text("Overtime"), self.text("OB")],
+                    option_index(&RULE_TYPE_OPTIONS, band.compensation_type),
+                    cx,
+                );
+            });
+            inputs.day_category.update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    OVERTIME_DAY_OPTIONS
+                        .map(|category| self.text(overtime_day_category_label(category))),
+                    option_index(&OVERTIME_DAY_OPTIONS, band.day_category),
+                    cx,
+                );
+            });
+            inputs.rate_type.update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    rate_labels.clone(),
+                    option_index(&RATE_TYPE_OPTIONS, band.rate_type),
+                    cx,
+                );
+            });
+            let title: SharedString = if band.name.trim().is_empty() {
+                self.text("Untitled Band")
+            } else {
+                band.name.clone().into()
+            };
+            let description = format!(
+                "{} • {}-{} • {}",
+                self.text(overtime_day_category_label(band.day_category)),
+                band.start_time,
+                band.end_time,
+                band.rate_value
+            );
+            inputs.expansion.update(cx, |panel, cx| {
+                panel.set_colors(colors, cx);
+                panel.set_title(title, cx);
+                panel.set_description(Some(description), cx);
+            });
+        }
+        let policy_body = div()
+            .flex()
+            .flex_col()
+            .gap(scale.px(16.0))
+            .child(
+                div()
+                    .grid()
+                    .grid_cols(2)
+                    .gap(scale.px(16.0))
+                    .child(self.overtime_selects.mode.clone())
+                    .child(self.overtime_selects.threshold.clone()),
+            )
+            .when(
+                overtime.threshold_mode == OvertimeThresholdMode::FixedDailyHours,
+                |settings| {
+                    settings.child(
+                        div()
+                            .w(relative(0.5))
+                            .pr(scale.px(6.0))
+                            .child(self.settings_inputs.overtime_threshold.clone()),
+                    )
+                },
+            )
+            .child(
+                div()
+                    .w(relative(0.5))
+                    .pr(scale.px(6.0))
+                    .child(self.overtime_selects.ob_combination.clone()),
+            )
+            .when(
+                overtime.mode == OvertimeCompensationMode::Paid,
+                |settings| {
+                    settings.child(
+                        div()
+                            .grid()
+                            .grid_cols(2)
+                            .gap(scale.px(16.0))
+                            .child(self.overtime_selects.default_rate.clone())
+                            .child(self.settings_inputs.default_rate_value.clone()),
+                    )
+                },
+            );
+        let bands_body = div()
+            .flex()
+            .flex_col()
+            .gap(scale.px(8.0))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_end()
+                    .gap(scale.px(8.0))
+                    .child(
+                        div()
+                            .id("add-overtime-rule")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                            .h(scale.px(36.0))
+                            .px(scale.px(12.0))
+                            .flex()
+                            .items_center()
+                            .rounded(scale.px(18.0))
+                            .cursor_pointer()
+                            .text_color(colors.primary)
+                            .hover(move |style| {
+                                style.bg(m3_state_layer(
+                                    colors.surface_container_low,
+                                    colors.primary,
+                                    0.08,
+                                ))
+                            })
+                            .child(self.text("Add overtime rule"))
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.add_rate_band(CompensationRuleType::Overtime, cx);
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        div()
+                            .id("add-ob-rule")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                            .h(scale.px(36.0))
+                            .px(scale.px(12.0))
+                            .flex()
+                            .items_center()
+                            .rounded(scale.px(18.0))
+                            .cursor_pointer()
+                            .text_color(colors.primary)
+                            .hover(move |style| {
+                                style.bg(m3_state_layer(
+                                    colors.surface_container_low,
+                                    colors.primary,
+                                    0.08,
+                                ))
+                            })
+                            .child(self.text("Add OB rule"))
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.add_rate_band(CompensationRuleType::Ob, cx);
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .when(!has_rate_bands, |settings| {
+                settings.child(
+                    div()
+                        .p(scale.px(16.0))
+                        .rounded(scale.px(8.0))
+                        .bg(colors.surface_container)
+                        .text_color(colors.on_surface_variant)
+                        .child(self.text(
+                            "No special OB bands defined. Standard overtime rules will apply.",
+                        )),
+                )
+            })
+            .children(
+                overtime
+                    .rate_bands
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, _band)| {
+                        let inputs = &self.rate_band_inputs[index];
+                        let expanded = inputs.expansion.read(cx).expanded();
+                        div()
+                            .rounded(scale.px(8.0))
+                            .overflow_hidden()
+                            .bg(colors.surface_container)
+                            .child(inputs.expansion.clone())
+                            .when(expanded, |panel| {
+                                panel.child(
+                                    div()
+                                        .p(scale.px(16.0))
+                                        .pt(scale.px(12.0))
+                                        .flex()
+                                        .flex_col()
+                                        .gap(scale.px(16.0))
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .gap(scale.px(10.0))
+                                                .child(div().flex_1().child(inputs.name.clone()))
+                                                .child(
+                                                    div().flex_1().child(inputs.rule_type.clone()),
+                                                ),
+                                        )
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .gap(scale.px(10.0))
+                                                .child(div().flex_1().child(inputs.start.clone()))
+                                                .child(div().flex_1().child(inputs.end.clone()))
+                                                .child(div().flex_1().child(inputs.value.clone())),
+                                        )
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .gap(scale.px(10.0))
+                                                .child(
+                                                    div()
+                                                        .flex_1()
+                                                        .child(inputs.day_category.clone()),
+                                                )
+                                                .child(
+                                                    div().flex_1().child(inputs.rate_type.clone()),
+                                                )
+                                                .child(div().flex_1())
+                                                .child(
+                                                    div()
+                                                        .id(("remove-band", index))
+                                                        .m3_focusable(
+                                                            true,
+                                                            colors.primary,
+                                                            scale.px(3.0),
+                                                        )
+                                                        .h(scale.px(40.0))
+                                                        .px(scale.px(10.0))
+                                                        .flex()
+                                                        .items_center()
+                                                        .rounded(scale.px(20.0))
+                                                        .cursor_pointer()
+                                                        .text_color(colors.error)
+                                                        .hover(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                colors.surface_container,
+                                                                colors.error,
+                                                                0.08,
+                                                            ))
+                                                        })
+                                                        .active(move |style| {
+                                                            style.bg(m3_state_layer(
+                                                                colors.surface_container,
+                                                                colors.error,
+                                                                0.12,
+                                                            ))
+                                                        })
+                                                        .child(self.text("Remove"))
+                                                        .on_click(cx.listener(
+                                                            move |shell, _, _, cx| {
+                                                                if index
+                                                                    < shell
+                                                                        .settings_draft
+                                                                        .overtime_compensation
+                                                                        .rate_bands
+                                                                        .len()
+                                                                {
+                                                                    shell
+                                                                        .settings_draft
+                                                                        .overtime_compensation
+                                                                        .rate_bands
+                                                                        .remove(index);
+                                                                    shell
+                                                                        .rate_band_inputs
+                                                                        .remove(index);
+                                                                }
+                                                                cx.notify();
+                                                            },
+                                                        )),
+                                                ),
+                                        ),
+                                )
+                            })
+                    }),
+            );
+        div()
+            .flex()
+            .flex_col()
+            .gap(scale.px(24.0))
+            .child(self.settings_card(
+                "Overtime Baseline Policy",
+                "How excess worked time is treated and credited in monthly summaries.",
+                policy_body,
+                true,
+                colors,
+                scale,
+            ))
+            .child(self.settings_card(
+                "Differential Overtime & OB Bands",
+                "Specific time-of-day or day-category compensation multipliers.",
+                bands_body,
+                false,
+                colors,
+                scale,
+            ))
+    }
+
+    fn salary_tax_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let salary = self.settings_draft.salary.clone();
+        let tax = self.settings_draft.tax_settings.clone();
+        let show_hourly_basis = salary.salary_type == SalaryType::Hourly
+            && self.settings_draft.overtime_compensation.mode == OvertimeCompensationMode::CompTime;
+        let salary_labels = [self.text("Hourly"), self.text("Monthly")];
+        let basis_labels = [
+            self.text("Regular hours per day"),
+            self.text("Monthly expected hours"),
+        ];
+        let tax_labels = [
+            self.text("Disabled"),
+            self.text("Primary table"),
+            self.text("Secondary 30%"),
+            self.text("Manual"),
+        ];
+        self.salary_tax_selects
+            .salary_type
+            .update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    salary_labels,
+                    option_index(&SALARY_TYPE_OPTIONS, salary.salary_type),
+                    cx,
+                );
+            });
+        self.salary_tax_selects
+            .hourly_pay_basis
+            .update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    basis_labels,
+                    option_index(&HOURLY_PAY_BASIS_OPTIONS, salary.hourly_pay_basis),
+                    cx,
+                );
+            });
+        self.salary_tax_selects.tax_mode.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(tax_labels, option_index(&TAX_MODE_OPTIONS, tax.mode), cx);
+        });
+        let currency = match self.settings_draft.currency_preference {
+            CurrencyPreference::Sek => "SEK",
+            CurrencyPreference::Eur => "EUR",
+            CurrencyPreference::Usd => "USD",
+            CurrencyPreference::Gbp => "GBP",
+            CurrencyPreference::Nok => "NOK",
+            CurrencyPreference::Dkk => "DKK",
+        };
+        for input in [
+            &self.settings_inputs.hourly_rate,
+            &self.settings_inputs.monthly_salary,
+            &self.settings_inputs.manual_tax,
+        ] {
+            input.update(cx, |input, cx| input.set_suffix(currency, cx));
+        }
+        let salary_body = div()
+            .grid()
+            .grid_cols(2)
+            .gap(scale.px(16.0))
+            .child(self.salary_tax_selects.salary_type.clone())
+            .when(salary.salary_type == SalaryType::Hourly, |settings| {
+                settings.child(self.settings_inputs.hourly_rate.clone())
+            })
+            .when(salary.salary_type == SalaryType::Monthly, |settings| {
+                settings
+                    .child(self.settings_inputs.monthly_salary.clone())
+                    .child(self.settings_inputs.employment_percent.clone())
+            })
+            .when(show_hourly_basis, |settings| {
+                settings.child(self.salary_tax_selects.hourly_pay_basis.clone())
+            });
+        let tax_body = div()
+            .grid()
+            .grid_cols(2)
+            .gap(scale.px(16.0))
+            .child(self.salary_tax_selects.tax_mode.clone())
+            .child(self.settings_inputs.tax_year.clone())
+            .when(tax.mode == TaxMode::PrimaryIncomeTaxTable, |settings| {
+                settings
+                    .child(self.settings_inputs.tax_table.clone())
+                    .child(self.settings_inputs.tax_column.clone())
+            })
+            .when(tax.mode == TaxMode::ManualMonthlyDeduction, |settings| {
+                settings.child(self.settings_inputs.manual_tax.clone())
+            });
+        div()
+            .flex()
+            .flex_col()
+            .gap(scale.px(24.0))
+            .child(self.settings_card(
+                "Salary Structure",
+                "Base remuneration mode used for monthly pay calculations.",
+                salary_body,
+                true,
+                colors,
+                scale,
+            ))
+            .child(self.settings_card(
+                "Swedish preliminary tax",
+                "Official Swedish tax table bracket deduction engine.",
+                tax_body,
+                false,
+                colors,
+                scale,
+            ))
+    }
+
+    fn application_settings(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let preferences = self.preferences_draft.clone();
+        let export_language = self.settings_draft.export_language_preference;
+        let localized_languages = [
+            self.text("System"),
+            self.text("English"),
+            self.text("Swedish"),
+        ];
+        self.application_selects.theme.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                [self.text("System"), self.text("Light"), self.text("Dark")],
+                option_index(&THEME_OPTIONS, preferences.theme_preference),
+                cx,
+            );
+        });
+        self.application_selects.language.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                localized_languages.clone(),
+                option_index(&LANGUAGE_OPTIONS, preferences.language_preference),
+                cx,
+            );
+        });
+        self.application_selects.scale.update(cx, |select, cx| {
+            select.set_colors(colors, cx);
+            select.set_options(
+                INTERFACE_SCALE_OPTIONS.map(|value| format!("{value}%")),
+                option_index(
+                    &INTERFACE_SCALE_OPTIONS,
+                    preferences.interface_scale_percent,
+                ),
+                cx,
+            );
+        });
+        self.application_selects
+            .export_language
+            .update(cx, |select, cx| {
+                select.set_colors(colors, cx);
+                select.set_options(
+                    localized_languages,
+                    option_index(&EXPORT_LANGUAGE_OPTIONS, export_language),
+                    cx,
+                );
+            });
+        let appearance_body = div()
+            .grid()
+            .grid_cols(2)
+            .gap(scale.px(16.0))
+            .child(self.application_selects.theme.clone())
+            .child(self.application_selects.language.clone())
+            .child(self.application_selects.scale.clone())
+            .child(self.application_selects.export_language.clone());
+        let updates_body = div().child(
+            div()
+                .h(scale.px(40.0))
+                .px(scale.px(12.0))
+                .flex()
+                .items_center()
+                .gap(scale.px(8.0))
+                .rounded(scale.px(20.0))
+                .opacity(0.38)
+                .text_color(colors.primary)
+                .child(m3_icon_colored(
+                    "refresh",
+                    18.0 * scale.factor(),
+                    colors.primary,
+                ))
+                .child(self.text("Check for updates")),
+        );
+        let data_body = div().child(
+            div()
+                .id("open-data-backups")
+                .m3_focusable(true, colors.primary, scale.px(3.0))
+                .h(scale.px(40.0))
+                .flex()
+                .items_center()
+                .cursor_pointer()
+                .text_color(colors.primary)
+                .px(scale.px(12.0))
+                .rounded(scale.px(20.0))
+                .hover(move |style| {
+                    style.bg(m3_state_layer(
+                        colors.surface_container_low,
+                        colors.primary,
+                        0.08,
+                    ))
+                })
+                .active(move |style| {
+                    style.bg(m3_state_layer(
+                        colors.surface_container_low,
+                        colors.primary,
+                        0.12,
+                    ))
+                })
+                .child(self.text("Data & backups"))
+                .on_click(cx.listener(|shell, _, _, cx| shell.set_route(Route::DataBackups, cx))),
+        );
+        div()
+            .flex()
+            .flex_col()
+            .gap(scale.px(24.0))
+            .child(self.settings_card(
+                "Appearance and language",
+                "These preferences apply to every workspace.",
+                appearance_body,
+                true,
+                colors,
+                scale,
+            ))
+            .child(self.settings_card(
+                "Application updates",
+                "Updates are unavailable in development builds.",
+                updates_body,
+                false,
+                colors,
+                scale,
+            ))
+            .child(self.settings_card(
+                "Data and backups",
+                "Back up or restore the local Dagsverk database for all workspaces.",
+                data_body,
+                false,
+                colors,
+                scale,
+            ))
+    }
+
+    fn add_rate_band(&mut self, compensation_type: CompensationRuleType, cx: &mut Context<Self>) {
+        let band = OvertimeRateBand {
+            name: if compensation_type == CompensationRuleType::Overtime {
+                self.message("Overtime")
+            } else {
+                self.message("Evening OB")
+            },
+            compensation_type,
+            day_category: OvertimeDayCategory::ScheduledWorkdays,
+            start_time: "18:00".parse().unwrap_or_else(|_| unreachable!()),
+            end_time: "22:00".parse().unwrap_or_else(|_| unreachable!()),
+            rate_type: CompensationRateType::HourlyPremiumPercent,
+            rate_value: Decimal::from(50),
+        };
+        let inputs = RateBandInputs::new(&band, cx);
+        inputs.set_scale(interface_scale(&self.model), cx);
+        inputs.set_colors(self.colors(), cx);
+        self.rate_band_inputs.push(inputs);
+        self.settings_draft
+            .overtime_compensation
+            .rate_bands
+            .push(band);
+    }
+
+    fn timesheet(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let summary = self.model.summary();
+        let tax = self.model.tax_estimate();
+        let unstarted = self.model.is_month_unstarted();
+        div()
+            .w_full()
+            .max_w(scale.px(1280.0))
+            .mx_auto()
+            .pt(scale.px(24.0))
+            .px(scale.px(32.0))
+            .pb(scale.px(40.0))
+            .flex()
+            .flex_col()
+            .gap(scale.px(16.0))
+            .child(summary_banner(
+                &summary,
+                &tax,
+                &self.model.settings,
+                self.model.is_month_unstarted(),
+                match self.model.language {
+                    crate::state::Language::English => LanguagePreference::English,
+                    crate::state::Language::Swedish => LanguagePreference::Swedish,
+                },
+                colors,
+                scale,
+            ))
+            .when(unstarted, |page| {
+                page.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(scale.px(16.0))
+                        .px(scale.px(16.0))
+                        .py(scale.px(12.0))
+                        .rounded(scale.px(16.0))
+                        .bg(colors.surface_container_low)
+                        .child(
+                            div()
+                                .size(scale.px(40.0))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded(scale.px(12.0))
+                                .bg(colors.primary_container)
+                                .child(m3_icon_colored(
+                                    "calendar_add_on",
+                                    24.0 * scale.factor(),
+                                    colors.on_primary_container,
+                                )),
+                        )
+                        .child(
+                            div()
+                                .min_w_0()
+                                .flex_1()
+                                .flex()
+                                .flex_col()
+                                .gap(scale.px(4.0))
+                                .child(self.text("This month has not started"))
+                                .child(div().text_color(colors.on_surface_variant).child(
+                                    self.text("Add the first entry to begin tracking this month."),
+                                )),
+                        )
+                        .child(
+                            div()
+                                .id("start-month")
+                                .m3_focusable(true, colors.primary, scale.px(3.0))
+                                .h(scale.px(40.0))
+                                .px(scale.px(16.0))
+                                .flex()
+                                .items_center()
+                                .rounded(scale.px(20.0))
+                                .cursor_pointer()
+                                .text_color(colors.primary)
+                                .hover(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.primary,
+                                        0.08,
+                                    ))
+                                })
+                                .active(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.primary,
+                                        0.12,
+                                    ))
+                                })
+                                .child(self.text("Add first entry"))
+                                .on_click(cx.listener(|shell, _, _, cx| {
+                                    shell.model.start_month();
+                                    shell.sync_editor_inputs(cx);
+                                    shell.refresh_month_view(cx);
+                                    cx.notify();
+                                })),
+                        ),
+                )
+            })
+            .child(self.month_view.clone())
+    }
+
+    fn editor_panel(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let Some(draft) = self.model.editor.draft.as_ref() else {
+            return div();
+        };
+        let date = draft.date;
+        let status = draft.status;
+        let lunch = draft.lunch_minutes.value();
+        let scheduled_override = draft.scheduled_minutes_override.is_some();
+        let currency = match self.model.settings.currency_preference {
+            CurrencyPreference::Sek => "SEK",
+            CurrencyPreference::Eur => "EUR",
+            CurrencyPreference::Usd => "USD",
+            CurrencyPreference::Gbp => "GBP",
+            CurrencyPreference::Nok => "NOK",
+            CurrencyPreference::Dkk => "DKK",
+        };
+        let daily_pay = calculate_daily_pay(
+            draft,
+            &self.model.settings.expected_hours,
+            &self.model.settings.salary,
+            &self.model.settings.overtime_compensation,
+            dagsverk_core::holidays::SwedishHolidayCalendar,
+        );
+        let error = self.model.editor.validation_error.clone();
+        let date_title = format_editor_date(date, self.model.language);
+        let holiday = dagsverk_core::holidays::SwedishHolidayCalendar.holiday_name(date);
+        let effective_hours = Decimal::new(worked_minutes(draft).value(), 0) / Decimal::new(60, 0);
+        let premium_pay = daily_pay.overtime_pay.decimal() + daily_pay.ob_pay.decimal();
+        let status_labels = [
+            self.text("Worked"),
+            self.text("Day Off"),
+            self.text("Unlogged"),
+        ];
+        let reuse_labels = [
+            self.text("Normal day"),
+            self.text("Copy previous"),
+            self.text("Copy last week"),
+        ];
+        div()
+            .w(scale.px(416.0))
+            .h_full()
+            .flex_none()
+            .flex()
+            .flex_col()
+            .shadow(side_sheet_elevation())
+            .child(
+                div()
+                    .h(scale.px(64.0))
+                    .min_h(scale.px(64.0))
+                    .pl(scale.px(24.0))
+                    .pr(scale.px(16.0))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .rounded_tl(scale.px(16.0))
+                    .border_b_1()
+                    .border_color(colors.grid_line)
+                    .bg(colors.surface_container_low)
+                    .bg(colors.surface_container)
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex()
+                            .items_center()
+                            .gap(scale.px(8.0))
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .text_size(scale.px(18.0))
+                                    .font_weight(gpui::FontWeight::MEDIUM)
+                                    .truncate()
+                                    .child(date_title),
+                            )
+                            .when_some(holiday, |header, holiday| {
+                                header.child(
+                                    div()
+                                        .px(scale.px(8.0))
+                                        .py(scale.px(2.0))
+                                        .rounded(scale.px(12.0))
+                                        .bg(colors.warning_container)
+                                        .text_color(colors.on_warning_container)
+                                        .text_size(scale.px(12.0))
+                                        .child(holiday),
+                                )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .id("close-editor")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                            .size(scale.px(40.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_full()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(colors.surface_container_high))
+                            .active(|style| style.bg(colors.surface_container_highest))
+                            .child(m3_icon("close", 20.0 * scale.factor(), colors))
+                            .tooltip(m3_tooltip("Close", colors, scale))
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.model.close_catch_up();
+                                shell.refresh_month_view(cx);
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .id("editor-scroll")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .p(scale.px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(24.0))
+                    .bg(colors.surface_container_low)
+                    .child(self.text("Status"))
+                    .child(
+                        div()
+                            .flex()
+                            .rounded(scale.px(20.0))
+                            .overflow_hidden()
+                            .border_1()
+                            .border_color(colors.outline_variant)
+                            .children(
+                                [
+                                    (
+                                        "status-worked",
+                                        "check",
+                                        status_labels[0].clone(),
+                                        WorkEntryStatus::Worked,
+                                    ),
+                                    (
+                                        "status-off",
+                                        "beach_access",
+                                        status_labels[1].clone(),
+                                        WorkEntryStatus::Off,
+                                    ),
+                                    (
+                                        "status-incomplete",
+                                        "remove",
+                                        status_labels[2].clone(),
+                                        WorkEntryStatus::Incomplete,
+                                    ),
+                                ]
+                                .into_iter()
+                                .enumerate()
+                                .map(
+                                    |(index, (id, icon, label, value))| {
+                                        let selected = status == value;
+                                        let foreground = if selected {
+                                            colors.on_secondary_container
+                                        } else {
+                                            colors.on_surface_variant
+                                        };
+                                        div()
+                                            .id(id)
+                                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                                            .h(scale.px(40.0))
+                                            .px(scale.px(12.0))
+                                            .flex_1()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .gap(scale.px(8.0))
+                                            .cursor_pointer()
+                                            .when(index == 0, |segment| {
+                                                segment.rounded_l(scale.px(20.0))
+                                            })
+                                            .when(index == 2, |segment| {
+                                                segment.rounded_r(scale.px(20.0))
+                                            })
+                                            .when(index > 0, |segment| {
+                                                segment
+                                                    .border_l_1()
+                                                    .border_color(colors.outline_variant)
+                                            })
+                                            .bg(if selected {
+                                                colors.secondary_container
+                                            } else {
+                                                colors.surface_container_low
+                                            })
+                                            .text_color(foreground)
+                                            .hover(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    if selected {
+                                                        colors.secondary_container
+                                                    } else {
+                                                        colors.surface_container_low
+                                                    },
+                                                    foreground,
+                                                    0.08,
+                                                ))
+                                            })
+                                            .active(move |style| {
+                                                style.bg(m3_state_layer(
+                                                    if selected {
+                                                        colors.secondary_container
+                                                    } else {
+                                                        colors.surface_container_low
+                                                    },
+                                                    foreground,
+                                                    0.12,
+                                                ))
+                                            })
+                                            .child(m3_icon_colored(
+                                                icon,
+                                                18.0 * scale.factor(),
+                                                foreground,
+                                            ))
+                                            .child(label)
+                                            .on_click(cx.listener(move |shell, _, _, cx| {
+                                                if let Some(draft) =
+                                                    shell.model.editor.draft.as_mut()
+                                                {
+                                                    draft.status = value;
+                                                }
+                                                cx.notify();
+                                            }))
+                                    },
+                                ),
+                            ),
+                    )
+                    .child(self.text("Reuse a day"))
+                    .child(div().flex().gap(scale.px(8.0)).children(
+                        reuse_labels.into_iter().enumerate().map(|(index, label)| {
+                            div()
+                                .id(("reuse", index))
+                                .m3_focusable(true, colors.primary, scale.px(3.0))
+                                .h(scale.px(40.0))
+                                .px(scale.px(10.0))
+                                .flex()
+                                .items_center()
+                                .rounded(scale.px(20.0))
+                                .cursor_pointer()
+                                .text_color(colors.primary)
+                                .text_size(scale.px(12.0))
+                                .hover(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.on_surface,
+                                        0.08,
+                                    ))
+                                })
+                                .active(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.on_surface,
+                                        0.12,
+                                    ))
+                                })
+                                .child(label)
+                                .on_click(cx.listener(move |shell, _, _, cx| match index {
+                                    0 => {
+                                        if let Some(draft) = shell.model.editor.draft.as_mut() {
+                                            draft.status = WorkEntryStatus::Worked;
+                                            draft.start_time =
+                                                Some(shell.model.settings.default_start_time);
+                                            draft.end_time =
+                                                Some(shell.model.settings.default_end_time);
+                                            draft.lunch_minutes =
+                                                shell.model.settings.default_lunch_minutes;
+                                            draft.project_name =
+                                                Some(shell.model.settings.default_project.clone());
+                                            draft.scheduled_minutes_override = None;
+                                        }
+                                        shell.sync_editor_inputs(cx);
+                                        cx.notify();
+                                    }
+                                    1 => shell.copy_previous(cx),
+                                    _ => shell.copy_last_week(cx),
+                                }))
+                        }),
+                    ))
+                    .when(status == WorkEntryStatus::Worked, |panel| {
+                        panel
+                            .child(self.text("Quick Presets"))
+                            .child(
+                                div().flex().gap(scale.px(8.0)).children(
+                                    [
+                                        ("08:00-16:30", "08:00", "16:30"),
+                                        ("08:30-17:00", "08:30", "17:00"),
+                                        ("09:00-17:30", "09:00", "17:30"),
+                                    ]
+                                    .into_iter()
+                                    .enumerate()
+                                    .map(
+                                        |(index, (label, start, end))| {
+                                            div()
+                                                .id(("preset", index))
+                                                .m3_focusable(true, colors.primary, scale.px(3.0))
+                                                .h(scale.px(32.0))
+                                                .px(scale.px(10.0))
+                                                .flex()
+                                                .items_center()
+                                                .rounded(scale.px(18.0))
+                                                .border_1()
+                                                .border_color(colors.outline_variant)
+                                                .cursor_pointer()
+                                                .text_size(scale.px(12.0))
+                                                .hover(move |style| {
+                                                    style.bg(m3_state_layer(
+                                                        colors.surface_container_low,
+                                                        colors.on_surface,
+                                                        0.08,
+                                                    ))
+                                                })
+                                                .active(move |style| {
+                                                    style.bg(m3_state_layer(
+                                                        colors.surface_container_low,
+                                                        colors.on_surface,
+                                                        0.12,
+                                                    ))
+                                                })
+                                                .child(label)
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.start_input.update(cx, |input, cx| {
+                                                        input.set_text(start, cx)
+                                                    });
+                                                    shell.end_input.update(cx, |input, cx| {
+                                                        input.set_text(end, cx)
+                                                    });
+                                                    if let Some(draft) =
+                                                        shell.model.editor.draft.as_mut()
+                                                    {
+                                                        draft.status = WorkEntryStatus::Worked;
+                                                        draft.lunch_minutes = Minutes::new(30);
+                                                    }
+                                                    cx.notify();
+                                                }))
+                                        },
+                                    ),
+                                ),
+                            )
+                            .child(
+                                div()
+                                    .min_h(scale.px(48.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .child(self.text("Override scheduled hours"))
+                                    .child(self.scheduled_override_switch.clone()),
+                            )
+                            .when(scheduled_override, |panel| {
+                                panel.child(self.scheduled_input.clone())
+                            })
+                            .child(
+                                div()
+                                    .flex()
+                                    .gap(scale.px(12.0))
+                                    .child(
+                                        div()
+                                            .min_w_0()
+                                            .flex_1()
+                                            .flex()
+                                            .flex_col()
+                                            .gap(scale.px(8.0))
+                                            .child(self.start_input.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .min_w_0()
+                                            .flex_1()
+                                            .flex()
+                                            .flex_col()
+                                            .gap(scale.px(8.0))
+                                            .child(self.end_input.clone()),
+                                    ),
+                            )
+                            .child(self.text("Lunch Break"))
+                            .child(div().flex().gap(scale.px(8.0)).children(
+                                [0_i64, 30, 45, 60].into_iter().map(|minutes| {
+                                    let selected = lunch == minutes;
+                                    let background = if selected {
+                                        colors.secondary_container
+                                    } else {
+                                        colors.surface_container
+                                    };
+                                    let foreground = if selected {
+                                        colors.on_secondary_container
+                                    } else {
+                                        colors.on_surface
+                                    };
+                                    let label = if minutes == 0 {
+                                        self.text("No Lunch")
+                                    } else {
+                                        format!("{minutes} min").into()
+                                    };
+                                    div()
+                                        .id(("lunch", minutes as usize))
+                                        .m3_focusable(true, colors.primary, scale.px(3.0))
+                                        .h(scale.px(32.0))
+                                        .px(scale.px(14.0))
+                                        .flex()
+                                        .items_center()
+                                        .gap(scale.px(6.0))
+                                        .rounded(scale.px(18.0))
+                                        .border_1()
+                                        .border_color(colors.outline_variant)
+                                        .cursor_pointer()
+                                        .bg(background)
+                                        .text_color(foreground)
+                                        .hover(move |style| {
+                                            style.bg(m3_state_layer(background, foreground, 0.08))
+                                        })
+                                        .active(move |style| {
+                                            style.bg(m3_state_layer(background, foreground, 0.12))
+                                        })
+                                        .when(selected, |chip| {
+                                            chip.child(m3_icon_colored(
+                                                "check",
+                                                16.0 * scale.factor(),
+                                                foreground,
+                                            ))
+                                        })
+                                        .child(label)
+                                        .on_click(cx.listener(move |shell, _, _, cx| {
+                                            if let Some(draft) = shell.model.editor.draft.as_mut() {
+                                                draft.lunch_minutes = Minutes::new(minutes);
+                                            }
+                                            cx.notify();
+                                        }))
+                                }),
+                            ))
+                            .child(self.project_select.clone())
+                    })
+                    .when(status == WorkEntryStatus::Off, |panel| {
+                        panel.child(self.reason_select.clone())
+                    })
+                    .child(
+                        div()
+                            .p(scale.px(16.0))
+                            .flex()
+                            .flex_col()
+                            .gap(scale.px(8.0))
+                            .rounded(scale.px(12.0))
+                            .bg(colors.surface_container)
+                            .child(
+                                div()
+                                    .flex()
+                                    .justify_between()
+                                    .child(self.text("Effective Hours"))
+                                    .child(format!("{}h", effective_hours.round_dp(2))),
+                            )
+                            .when(premium_pay > Decimal::ZERO, |card| {
+                                card.child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .child(self.text("Overtime & OB"))
+                                        .child(format!("+{} {currency}", premium_pay.round_dp(2))),
+                                )
+                            })
+                            .child(div().h(scale.px(1.0)).bg(colors.grid_line))
+                            .child(
+                                div()
+                                    .flex()
+                                    .justify_between()
+                                    .text_color(colors.primary)
+                                    .text_size(scale.px(16.0))
+                                    .font_weight(gpui::FontWeight::MEDIUM)
+                                    .child(self.text("Estimated Day Pay"))
+                                    .child(format!(
+                                        "{} {currency}",
+                                        daily_pay.total.decimal().round_dp(2)
+                                    )),
+                            ),
+                    )
+                    .child(self.notes_input.clone())
+                    .when_some(error, |panel, error| {
+                        panel.child(div().text_color(colors.error).child(error))
+                    }),
+            )
+            .child(
+                div()
+                    .h(scale.px(64.0))
+                    .px(scale.px(16.0))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap(scale.px(8.0))
+                    .border_t_1()
+                    .border_color(colors.grid_line)
+                    .rounded_bl(scale.px(16.0))
+                    .bg(colors.surface_container)
+                    .child(
+                        div()
+                            .id("reset-entry")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                            .h(scale.px(40.0))
+                            .min_w_0()
+                            .flex_1()
+                            .px(scale.px(2.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded(scale.px(20.0))
+                            .cursor_pointer()
+                            .text_color(colors.primary)
+                            .hover(move |style| {
+                                style.bg(m3_state_layer(
+                                    colors.surface_container,
+                                    colors.primary,
+                                    0.08,
+                                ))
+                            })
+                            .child(self.text("Reset"))
+                            .on_click(cx.listener(move |shell, _, _, cx| {
+                                if let Err(error) = shell.model.delete_entry(date) {
+                                    shell.model.editor.validation_error =
+                                        Some(shell.localized_error(error));
+                                }
+                                shell.refresh_month_view(cx);
+                                cx.notify();
+                            })),
+                    )
+                    .when(self.model.catch_up.is_some(), |footer| {
+                        footer
+                            .child(
+                                div()
+                                    .id("catch-up-back")
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
+                                    .h(scale.px(40.0))
+                                    .min_w_0()
+                                    .flex_1()
+                                    .px(scale.px(2.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded(scale.px(20.0))
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .child(self.text("Back"))
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.model.move_catch_up(-1);
+                                        shell.sync_editor_inputs(cx);
+                                        shell.refresh_month_view(cx);
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                div()
+                                    .id("catch-up-skip")
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
+                                    .h(scale.px(40.0))
+                                    .min_w_0()
+                                    .flex_1()
+                                    .px(scale.px(2.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded(scale.px(20.0))
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .child(self.text("Skip"))
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.model.move_catch_up(1);
+                                        shell.sync_editor_inputs(cx);
+                                        shell.refresh_month_view(cx);
+                                        cx.notify();
+                                    })),
+                            )
+                    })
+                    .child(
+                        div()
+                            .id("cancel-editor")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                            .h(scale.px(40.0))
+                            .min_w_0()
+                            .flex_1()
+                            .px(scale.px(2.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded(scale.px(20.0))
+                            .cursor_pointer()
+                            .hover(|style| style.bg(colors.surface_container_high))
+                            .child(self.text("Cancel"))
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.model.close_catch_up();
+                                shell.refresh_month_view(cx);
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        div()
+                            .id("save-entry")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                            .h(scale.px(40.0))
+                            .w(scale.px(128.0))
+                            .flex_none()
+                            .px(scale.px(2.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded(scale.px(20.0))
+                            .cursor_pointer()
+                            .bg(colors.primary)
+                            .text_color(colors.on_primary)
+                            .hover(move |style| {
+                                style.bg(m3_state_layer(colors.primary, colors.on_primary, 0.08))
+                            })
+                            .child(if self.model.catch_up.is_some() {
+                                self.text("Save and next")
+                            } else {
+                                self.text("Save entry")
+                            })
+                            .on_click(cx.listener(|shell, _, _, cx| shell.save_editor(cx))),
+                    ),
+            )
+    }
+
+    fn editor_panel_container(
+        &mut self,
+        colors: M3ColorScheme,
+        corner_background: gpui::Hsla,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        div()
+            .w(scale.px(416.0))
+            .h_full()
+            .flex_none()
+            .bg(corner_background)
+            .child(self.editor_panel(colors, cx))
+    }
+
+    fn month_actions_menu(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        div()
+            .w(scale.px(200.0))
+            .p(scale.px(8.0))
+            .flex()
+            .flex_col()
+            .rounded(scale.px(12.0))
+            .bg(colors.surface_container)
+            .shadow(menu_elevation())
+            .on_mouse_down_out(cx.listener(|shell, _, _, cx| {
+                shell.month_actions_open = false;
+                cx.notify();
+            }))
+            .child(
+                header_menu_item(
+                    "menu-fill-month",
+                    "playlist_add",
+                    self.text("Fill normal workdays"),
+                    true,
+                    colors,
+                    scale,
+                )
+                .on_click(cx.listener(|shell, _, _, cx| {
+                    shell.month_actions_open = false;
+                    shell.fill_month(cx);
+                })),
+            )
+            .child(
+                header_menu_item(
+                    "menu-copy-month",
+                    "content_copy",
+                    self.text("Copy month"),
+                    !self.model.is_month_unstarted(),
+                    colors,
+                    scale,
+                )
+                .when(!self.model.is_month_unstarted(), |item| {
+                    item.on_click(cx.listener(|shell, _, _, cx| {
+                        shell.month_actions_open = false;
+                        shell.copy_month(cx);
+                    }))
+                }),
+            )
+            .child(
+                header_menu_item(
+                    "menu-paste-month",
+                    "content_paste",
+                    self.text("Paste month"),
+                    self.model.can_paste_month(),
+                    colors,
+                    scale,
+                )
+                .when(self.model.can_paste_month(), |item| {
+                    item.on_click(cx.listener(|shell, _, _, cx| {
+                        shell.month_actions_open = false;
+                        shell.paste_month(cx);
+                    }))
+                }),
+            )
+            .child(
+                div()
+                    .h(scale.px(1.0))
+                    .my(scale.px(4.0))
+                    .bg(colors.outline_variant),
+            )
+            .child(
+                header_menu_item(
+                    "menu-reset-month",
+                    "delete_sweep",
+                    self.text("Reset month"),
+                    self.model.can_reset_month(),
+                    colors,
+                    scale,
+                )
+                .text_color(colors.error)
+                .when(self.model.can_reset_month(), |item| {
+                    item.on_click(cx.listener(|shell, _, _, cx| {
+                        shell.month_actions_open = false;
+                        shell.confirm_reset = true;
+                        cx.notify();
+                    }))
+                }),
+            )
+    }
+
+    fn export_dialog(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> impl IntoElement {
+        let scale = interface_scale(&self.model);
+        let summary = self.model.summary();
+        let workspace = self
+            .model
+            .active_workspace()
+            .map_or_else(|| "Dagsverk".to_owned(), |workspace| workspace.name.clone());
+        let month = format_month_title(self.model.current_month, self.ui_language());
+        let context = format!("{workspace} - {month}");
+        let report_summary = format!(
+            "{} saved entries and {:.2} worked hours.",
+            self.model.entries.len(),
+            summary.worked_hours
+        );
+        let missing = summary.missing_past_days.len();
+        div()
+            .id("export-dialog-backdrop")
+            .absolute()
+            .inset_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(gpui::black().opacity(0.45))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|shell, _, _, cx| {
+                    shell.export_menu_open = false;
+                    cx.notify();
+                }),
+            )
+            .child(
+                div()
+                    .id("export-dialog")
+                    .w(scale.px(440.0))
+                    .p(scale.px(24.0))
+                    .gap(scale.px(12.0))
+                    .flex()
+                    .flex_col()
+                    .rounded(scale.px(28.0))
+                    .bg(colors.surface_container_high)
+                    .shadow(side_sheet_elevation())
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .child(
+                        div()
+                            .text_size(scale.px(24.0))
+                            .line_height(scale.px(32.0))
+                            .child(self.text("Export monthly report")),
+                    )
+                    .child(div().font_weight(gpui::FontWeight::MEDIUM).child(context))
+                    .child(
+                        div()
+                            .text_color(colors.on_surface_variant)
+                            .child(report_summary),
+                    )
+                    .when(missing > 0, |dialog| {
+                        dialog.child(
+                            div()
+                                .mt(scale.px(8.0))
+                                .flex()
+                                .items_center()
+                                .gap(scale.px(8.0))
+                                .text_color(colors.on_surface_variant)
+                                .child(m3_icon_colored(
+                                    "warning",
+                                    20.0 * scale.factor(),
+                                    colors.on_surface_variant,
+                                ))
+                                .child(format!("{missing} past workdays are still unlogged.")),
+                        )
+                    })
+                    .child(
+                        div()
+                            .mt(scale.px(8.0))
+                            .flex()
+                            .justify_end()
+                            .items_center()
+                            .gap(scale.px(8.0))
+                            .child(
+                                dialog_action(
+                                    "cancel-export",
+                                    self.text("Cancel"),
+                                    colors.primary,
+                                    colors,
+                                    scale.factor(),
+                                )
+                                .on_click(cx.listener(
+                                    |shell, _, _, cx| {
+                                        shell.export_menu_open = false;
+                                        cx.notify();
+                                    },
+                                )),
+                            )
+                            .child(
+                                dialog_action(
+                                    "export-ods",
+                                    "OpenDocument",
+                                    colors.primary,
+                                    colors,
+                                    scale.factor(),
+                                )
+                                .on_click(cx.listener(
+                                    |shell, _, _, cx| {
+                                        shell.export_menu_open = false;
+                                        shell.export_report(ExportFormat::Ods, cx);
+                                    },
+                                )),
+                            )
+                            .child(
+                                div()
+                                    .id("export-xlsx")
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
+                                    .h(scale.px(40.0))
+                                    .px(scale.px(20.0))
+                                    .flex()
+                                    .items_center()
+                                    .rounded(scale.px(20.0))
+                                    .bg(colors.primary)
+                                    .text_color(colors.on_primary)
+                                    .cursor_pointer()
+                                    .hover(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.primary,
+                                            colors.on_primary,
+                                            0.08,
+                                        ))
+                                    })
+                                    .active(move |style| {
+                                        style.bg(m3_state_layer(
+                                            colors.primary,
+                                            colors.on_primary,
+                                            0.12,
+                                        ))
+                                    })
+                                    .child("Excel")
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.export_menu_open = false;
+                                        shell.export_report(ExportFormat::Xlsx, cx);
+                                    })),
+                            ),
+                    ),
+            )
+    }
+
+    fn month_menu(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
+        let scale = interface_scale(&self.model);
+        let year = self.model.current_month.year;
+        let month = self.model.current_month.month;
+        let names = if self.model.language == crate::state::Language::Swedish {
+            [
+                "Jan", "Feb", "Mar", "Apr", "Maj", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec",
+            ]
+        } else {
+            [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+            ]
+        };
+        div()
+            .w(scale.px(280.0))
+            .p(scale.px(8.0))
+            .flex()
+            .flex_col()
+            .gap(scale.px(4.0))
+            .rounded(scale.px(12.0))
+            .bg(colors.surface_container)
+            .shadow(menu_elevation())
+            .on_mouse_down_out(cx.listener(|shell, _, _, cx| {
+                shell.month_menu_open = false;
+                cx.notify();
+            }))
+            .child(
+                div()
+                    .h(scale.px(40.0))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .child(
+                        div()
+                            .id("previous-year")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                            .p(scale.px(8.0))
+                            .rounded_full()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(colors.surface_container_high))
+                            .child(m3_icon("chevron_left", 20.0 * scale.factor(), colors))
+                            .tooltip(m3_tooltip("Previous year", colors, scale))
+                            .on_click(cx.listener(move |shell, _, _, cx| {
+                                let key = shell.model.select_month(
+                                    YearMonth::new(year - 1, month)
+                                        .unwrap_or_else(|_| unreachable!()),
+                                );
+                                shell.load_month(key, cx);
+                            })),
+                    )
+                    .child(div().child(year.to_string()))
+                    .child(
+                        div()
+                            .id("next-year")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
+                            .p(scale.px(8.0))
+                            .rounded_full()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(colors.surface_container_high))
+                            .child(m3_icon("chevron_right", 20.0 * scale.factor(), colors))
+                            .tooltip(m3_tooltip("Next year", colors, scale))
+                            .on_click(cx.listener(move |shell, _, _, cx| {
+                                let key = shell.model.select_month(
+                                    YearMonth::new(year + 1, month)
+                                        .unwrap_or_else(|_| unreachable!()),
+                                );
+                                shell.load_month(key, cx);
+                            })),
+                    ),
+            )
+            .child(div().grid().grid_cols(3).gap(scale.px(4.0)).children(
+                names.into_iter().enumerate().map(|(index, name)| {
+                    let selected = index as u32 + 1 == month;
+                    div()
+                        .id(("select-month", index))
+                        .m3_focusable(true, colors.primary, scale.px(3.0))
+                        .h(scale.px(40.0))
+                        .px(scale.px(8.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(scale.px(8.0))
+                        .cursor_pointer()
+                        .bg(if selected {
+                            colors.primary_container
+                        } else {
+                            colors.surface_container
+                        })
+                        .hover(|style| style.bg(colors.surface_container_high))
+                        .child(name)
+                        .on_click(cx.listener(move |shell, _, _, cx| {
+                            shell.month_menu_open = false;
+                            let key = shell.model.select_month(
+                                YearMonth::new(year, index as u32 + 1)
+                                    .unwrap_or_else(|_| unreachable!()),
+                            );
+                            shell.load_month(key, cx);
+                        }))
+                }),
+            ))
+    }
+
+    fn color_palette(
+        &mut self,
+        selected: &str,
+        colors: M3ColorScheme,
+        scale: UiScale,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let selected = selected.to_ascii_uppercase();
+        let selected_swatch = color_from_hex(&selected).unwrap_or(colors.primary);
+        for slider in [
+            &self.color_hue_slider,
+            &self.color_saturation_slider,
+            &self.color_lightness_slider,
+        ] {
+            slider.update(cx, |slider, cx| {
+                slider.set_colors(colors, cx);
+                slider.set_scale(scale, cx);
+            });
+        }
+        div()
+            .min_w(scale.px(232.0))
+            .p(scale.px(16.0))
+            .flex()
+            .flex_col()
+            .rounded(scale.px(16.0))
+            .bg(colors.surface_container_high)
+            .shadow(workspace_menu_elevation())
+            .on_mouse_down_out(cx.listener(|shell, _, _, cx| {
+                shell.color_picker_target = None;
+                cx.notify();
+            }))
+            .child(
+                div()
+                    .mb(scale.px(8.0))
+                    .text_size(scale.px(11.0))
+                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .text_color(colors.on_surface_variant)
+                    .child(self.text("COLOR")),
+            )
+            .child(
+                div()
+                    .grid()
+                    .grid_cols(6)
+                    .gap(scale.px(8.0))
+                    .mb(scale.px(16.0))
+                    .children(MATERIAL_COLOR_PRESETS.into_iter().enumerate().map(
+                        |(index, color)| {
+                            let swatch = color_from_hex(color).unwrap_or(colors.primary);
+                            let is_selected = selected == color;
+                            div()
+                                .id(("color-preset", index))
+                                .m3_focusable(true, colors.primary, scale.px(3.0))
+                                .size(scale.px(32.0))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded_full()
+                                .border_1()
+                                .border_color(if is_selected {
+                                    colors.primary
+                                } else {
+                                    gpui::black().opacity(0.2)
+                                })
+                                .bg(swatch)
+                                .cursor_pointer()
+                                .hover(|style| style.border_color(colors.on_surface))
+                                .tooltip(m3_tooltip(format!("Select color {color}"), colors, scale))
+                                .when(is_selected, |item| {
+                                    item.child(m3_icon_colored(
+                                        "check",
+                                        18.0 * scale.factor(),
+                                        gpui::white(),
+                                    ))
+                                })
+                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                    shell.apply_picker_color(color, true, cx)
+                                }))
+                                .on_key_down(cx.listener(
+                                    move |shell, event: &gpui::KeyDownEvent, _, cx| {
+                                        if matches!(event.keystroke.key.as_str(), "enter" | "space")
+                                        {
+                                            shell.apply_picker_color(color, true, cx);
+                                        }
+                                    },
+                                ))
+                        },
+                    )),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(10.0))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                div()
+                                    .text_size(scale.px(11.0))
+                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                    .text_color(colors.on_surface_variant)
+                                    .child(self.text("CUSTOM COLOR")),
+                            )
+                            .child(
+                                div()
+                                    .size(scale.px(24.0))
+                                    .rounded_full()
+                                    .border_1()
+                                    .border_color(gpui::black().opacity(0.2))
+                                    .bg(selected_swatch),
+                            ),
+                    )
+                    .child(color_slider_row(
+                        self.text("HUE"),
+                        self.color_hue_slider.clone(),
+                        colors,
+                        scale,
+                    ))
+                    .child(color_slider_row(
+                        self.text("SATURATION"),
+                        self.color_saturation_slider.clone(),
+                        colors,
+                        scale,
+                    ))
+                    .child(color_slider_row(
+                        self.text("BRIGHTNESS"),
+                        self.color_lightness_slider.clone(),
+                        colors,
+                        scale,
+                    )),
+            )
+    }
+
+    fn workspace_menu(
+        &mut self,
+        workspaces: Vec<Workspace>,
+        active_workspace_id: WorkspaceId,
+        colors: M3ColorScheme,
+        scale: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        div()
+            .min_w(px(248.0 * scale))
+            .p(px(8.0 * scale))
+            .flex()
+            .flex_col()
+            .rounded(px(16.0 * scale))
+            .bg(colors.surface_container_high)
+            .shadow(workspace_menu_elevation())
+            .child(
+                div()
+                    .px(px(12.0 * scale))
+                    .pt(px(8.0 * scale))
+                    .pb(px(4.0 * scale))
+                    .text_size(px(11.0 * scale))
+                    .font_weight(gpui::FontWeight::MEDIUM)
+                    .text_color(colors.on_surface_variant)
+                    .child(self.text("Switch workspace")),
+            )
+            .children(
+                workspaces
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, workspace)| {
+                        let id = workspace.id.clone();
+                        let active = workspace.id == active_workspace_id;
+                        div()
+                            .id(("workspace-menu-item", index))
+                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                            .h(px(52.0 * scale))
+                            .px(px(12.0 * scale))
+                            .flex()
+                            .items_center()
+                            .gap(px(12.0 * scale))
+                            .rounded(px(12.0 * scale))
+                            .cursor_pointer()
+                            .hover(|style| style.bg(colors.surface_container))
+                            .active(|style| style.bg(colors.surface_container_highest))
+                            .child(
+                                div()
+                                    .size(px(12.0 * scale))
+                                    .rounded_full()
+                                    .bg(color_from_hex(&workspace.color).unwrap_or(colors.primary)),
+                            )
+                            .child(div().flex_1().truncate().child(workspace.name))
+                            .when(active, |row| {
+                                row.child(m3_icon_colored("check", 20.0 * scale, colors.on_surface))
+                            })
+                            .when_else(
+                                active,
+                                |row| {
+                                    row.on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.workspace_menu_open = false;
+                                        cx.notify();
+                                    }))
+                                },
+                                |row| {
+                                    row.on_click(cx.listener(move |shell, _, _, cx| {
+                                        shell.switch_workspace(&id, cx)
+                                    }))
+                                },
+                            )
+                    }),
+            )
+            .child(div().h(px(1.0)).my(px(4.0)).bg(colors.outline_variant))
+            .child(
+                div()
+                    .id("manage-workspaces")
+                    .m3_focusable(true, colors.primary, px(3.0 * scale))
+                    .h(px(52.0 * scale))
+                    .px(px(12.0 * scale))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.0 * scale))
+                    .rounded(px(12.0 * scale))
+                    .cursor_pointer()
+                    .bg(colors.surface_container)
+                    .hover(|style| style.bg(colors.surface_container_highest))
+                    .active(|style| style.bg(colors.surface_container))
+                    .child(m3_icon_colored(
+                        "settings",
+                        20.0 * scale,
+                        colors.on_surface_variant,
+                    ))
+                    .child(self.text("Manage workspaces"))
+                    .on_click(cx.listener(|shell, _, _, cx| {
+                        shell.workspace_menu_open = false;
+                        shell.manage_workspaces = true;
+                        cx.notify();
+                    })),
+            )
+    }
+}
+
+impl Focusable for AppShell {
+    fn focus_handle(&self, _: &App) -> FocusHandle {
+        self.focus.clone()
+    }
+}
+
+impl Render for AppShell {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let colors = self.colors();
+        let scale = self.model.interface_scale.clamp(0.8, 1.5);
+        let window_width = window.bounds().size.width;
+        let (sidebar_collapsed, editor_overlay) =
+            responsive_layout(window_width, self.sidebar_collapsed);
+        let sidebar_width = if sidebar_collapsed { 80.0 } else { 256.0 } * scale;
+        let active_workspace = self.model.active_workspace().cloned();
+        let workspace_name = active_workspace
+            .as_ref()
+            .map_or_else(|| "Dagsverk".to_owned(), |workspace| workspace.name.clone());
+        let workspace_subtitle = active_workspace.as_ref().and_then(|workspace| {
+            workspace
+                .organization_name
+                .clone()
+                .or_else(|| workspace.worker_name.clone())
+        });
+        let workspace_accent = active_workspace
+            .as_ref()
+            .and_then(|workspace| color_from_hex(&workspace.color))
+            .unwrap_or(colors.primary);
+        let workspace_avatar = colors
+            .surface_container_high
+            .blend(workspace_accent.opacity(0.42));
+        let workspace_menu_items = self.model.workspaces.clone();
+        let active_workspace_id = self.model.active_workspace_id.clone();
+        let month = format_month_title(self.model.current_month, self.ui_language());
+        let message = self
+            .model
+            .transient_error
+            .clone()
+            .or_else(|| self.notice.clone());
+        let project_delete = self.confirm_project_delete.clone();
+        let workspace_delete = self.confirm_workspace_delete.clone();
+        let pending_currency = self.pending_currency;
+        let restore = self.confirm_restore.clone();
+        let tidverk_import = self.confirm_import.clone();
+        let setup_required = !self.model.preferences.has_completed_setup;
+        let route_title = match self.model.route {
+            Route::Timesheet => "",
+            Route::Projects => "Projects",
+            Route::Settings => "Settings",
+            Route::DataBackups => "Data & backups",
+        };
+        let theme_icon = match self.model.resolved_theme {
+            ResolvedTheme::Light => "dark_mode",
+            ResolvedTheme::Dark => "light_mode",
+        };
+        let catch_up_hover = m3_state_layer(colors.primary, colors.on_primary, 0.08);
+        let catch_up_pressed = m3_state_layer(colors.primary, colors.on_primary, 0.12);
+        let can_export = !self.maintenance_busy && !self.model.entries.is_empty();
+        let snackbar_right = if self.model.editor.is_open {
+            416.0 * scale + 24.0
+        } else {
+            24.0
+        };
+        let pane_width = window_width / px(1.0) / scale
+            - if sidebar_collapsed { 80.0 } else { 256.0 }
+            - if self.model.editor.is_open && !editor_overlay {
+                416.0
+            } else {
+                0.0
+            };
+        let header_layout = header_layout(pane_width);
+        let editor_center_shift = if self.model.editor.is_open && !editor_overlay {
+            208.0 * scale
+        } else {
+            0.0
+        };
+        let editor_corner_background = if editor_overlay {
+            m3_state_layer(colors.background, gpui::black(), 0.35)
+        } else {
+            colors.background
+        };
+        let timesheet_header_offset =
+            32.0 + ((pane_width - 1280.0) / 2.0).max(0.0) - header_layout.padding;
+        let route_header_offset =
+            (32.0 + ((pane_width - 1088.0) / 2.0).max(0.0) - header_layout.padding).max(0.0);
+        self.snackbar.update(cx, |snackbar, cx| {
+            snackbar.set_dismiss_label(self.text("Close"), cx);
+            snackbar.configure(
+                message.clone().map(Into::into),
+                colors,
+                interface_scale(&self.model),
+                [
+                    px(sidebar_width + 24.0 * scale),
+                    px(snackbar_right),
+                    px(24.0 * scale),
+                ],
+                px(560.0 * scale),
+                cx,
+            )
+        });
+
+        div()
+            .track_focus(&self.focus)
+            .key_context("Dagsverk")
+            .on_action(|_: &Tab, window, _| window.focus_next())
+            .on_action(|_: &TabPrevious, window, _| window.focus_prev())
+            .on_action(cx.listener(|shell, _: &ShowLedger, _, cx| {
+                shell.set_view(MonthViewPreference::Ledger, cx)
+            }))
+            .on_action(cx.listener(|shell, _: &ShowCalendar, _, cx| {
+                shell.set_view(MonthViewPreference::Calendar, cx)
+            }))
+            .on_action(
+                cx.listener(|shell, _: &ShowSettings, _, cx| shell.set_route(Route::Settings, cx)),
+            )
+            .on_action(cx.listener(Self::previous_month))
+            .on_action(cx.listener(Self::next_month))
+            .on_action(cx.listener(Self::start_catch_up))
+            .on_action(cx.listener(Self::export_action))
+            .on_action(cx.listener(Self::save_active))
+            .on_action(cx.listener(Self::close_surface))
+            .relative()
+            .size_full()
+            .flex()
+            .font_family("Roboto")
+            .text_color(colors.on_surface)
+            .bg(colors.background)
+            .child(
+                div()
+                    .h_full()
+                    .flex_none()
+                    .flex()
+                    .flex_col()
+                    .bg(colors.surface_container_low)
+                    .child(
+                        div()
+                            .id("toggle-sidebar")
+                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                            .h(px(68.0 * scale))
+                            .pl(px(20.0 * scale))
+                            .pr(px(12.0 * scale))
+                            .flex()
+                            .items_center()
+                            .gap(px(12.0 * scale))
+                            .cursor_pointer()
+                            .child(
+                                div()
+                                    .size(px(40.0 * scale))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .child(m3_icon("menu", 24.0 * scale, colors)),
+                            )
+                            .when(!sidebar_collapsed, |item| {
+                                item.child(
+                                    div()
+                                        .text_size(px(16.0 * scale))
+                                        .font_weight(gpui::FontWeight::MEDIUM)
+                                        .child("Dagsverk"),
+                                )
+                            })
+                            .on_click(cx.listener(|shell, _, _, cx| {
+                                shell.sidebar_collapsed = !shell.sidebar_collapsed;
+                                cx.notify();
+                            }))
+                            .tooltip(m3_tooltip(
+                                if sidebar_collapsed {
+                                    "Expand sidebar"
+                                } else {
+                                    "Collapse sidebar"
+                                },
+                                colors,
+                                interface_scale(&self.model),
+                            )),
+                    )
+                    .child(
+                        div()
+                            .px(px(12.0 * scale))
+                            .pb(px(6.0 * scale))
+                            .child(
+                                div()
+                                    .id("workspace-switcher")
+                                    .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                    .h(px(56.0 * scale))
+                                    .w_full()
+                                    .px(px(12.0 * scale))
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(12.0 * scale))
+                                    .rounded(px(12.0 * scale))
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container))
+                                    .child(
+                                        div()
+                                            .size(px(32.0 * scale))
+                                            .flex_none()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded(px(10.0 * scale))
+                                            .bg(workspace_avatar)
+                                            .child(m3_icon_colored(
+                                                "business_center",
+                                                18.0 * scale,
+                                                colors.on_surface_variant,
+                                            )),
+                                    )
+                                    .when(!sidebar_collapsed, |item| {
+                                        item.child(
+                                            div()
+                                                .min_w_0()
+                                                .flex_1()
+                                                .flex()
+                                                .flex_col()
+                                                .child(
+                                                    div()
+                                                        .truncate()
+                                                        .font_weight(gpui::FontWeight::MEDIUM)
+                                                        .child(workspace_name),
+                                                )
+                                                .when_some(
+                                                    workspace_subtitle,
+                                                    |details, subtitle| {
+                                                        details.child(
+                                                            div()
+                                                                .truncate()
+                                                                .text_size(px(12.0 * scale))
+                                                                .text_color(
+                                                                    colors.on_surface_variant,
+                                                                )
+                                                                .child(subtitle),
+                                                        )
+                                                    },
+                                                ),
+                                        )
+                                        .child(m3_icon("expand_more", 20.0 * scale, colors))
+                                    })
+                                    .tooltip(m3_tooltip(
+                                        "Switch workspace",
+                                        colors,
+                                        interface_scale(&self.model),
+                                    ))
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.workspace_menu_open = !shell.workspace_menu_open;
+                                        shell.month_actions_open = false;
+                                        shell.export_menu_open = false;
+                                        shell.month_menu_open = false;
+                                        cx.notify();
+                                    }))
+                                    .when(self.workspace_menu_open, |trigger| {
+                                        trigger.child(
+                                            deferred(
+                                                anchored()
+                                                    .position(point(
+                                                        px(12.0 * scale),
+                                                        px(132.0 * scale),
+                                                    ))
+                                                    .anchor(Corner::TopLeft)
+                                                    .snap_to_window_with_margin(px(8.0 * scale))
+                                                    .child(self.workspace_menu(
+                                                        workspace_menu_items,
+                                                        active_workspace_id,
+                                                        colors,
+                                                        scale,
+                                                        cx,
+                                                    )),
+                                            )
+                                            .priority(3),
+                                        )
+                                    }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .pt(px(8.0 * scale))
+                            .flex()
+                            .flex_col()
+                            .gap(px(4.0 * scale))
+                            .child(self.navigation_item(
+                                "nav-timesheet",
+                                "schedule",
+                                "Timesheet",
+                                Route::Timesheet,
+                                sidebar_collapsed,
+                                cx,
+                            ))
+                            .child(self.navigation_item(
+                                "nav-projects",
+                                "folder",
+                                "Projects",
+                                Route::Projects,
+                                sidebar_collapsed,
+                                cx,
+                            )),
+                    )
+                    .child(div().flex_1())
+                    .child(
+                        div().pb(px(12.0 * scale)).child(self.navigation_item(
+                            "nav-settings",
+                            "settings",
+                            "Settings",
+                            Route::Settings,
+                            sidebar_collapsed,
+                            cx,
+                        )),
+                    )
+                    .w(px(sidebar_width)),
+            )
+            .child(
+                div()
+                    .relative()
+                    .min_w_0()
+                    .flex_1()
+                    .h_full()
+                    .flex()
+                    .flex_col()
+                    .child(
+                        div()
+                            .relative()
+                            .h(px(64.0 * scale))
+                            .px(px(header_layout.padding * scale))
+                            .items_center()
+                            .when_else(
+                                self.model.route == Route::Timesheet,
+                                |header| header.grid().grid_cols(3),
+                                |header| header.flex().justify_between(),
+                            )
+                            .bg(colors.surface)
+                            .when(self.model.route == Route::Timesheet, |header| {
+                                header.child(
+                                div()
+                                    .ml(px(timesheet_header_offset * scale))
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(4.0 * scale))
+                                    .child(
+                                        div()
+                                            .id("previous-month")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                            .when(!header_layout.show_arrows, |button| button.hidden())
+                                            .p(px(8.0 * scale))
+                                            .rounded_full()
+                                            .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
+                                            .child(m3_icon("chevron_left", 24.0 * scale, colors))
+                                            .tooltip(m3_tooltip(
+                                                "Previous month",
+                                                colors,
+                                                interface_scale(&self.model),
+                                            ))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                let key = shell.model.previous_month();
+                                                shell.load_month(key, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("month-selector")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                            .w(px(header_layout.month_width * scale))
+                                            .h(px(40.0 * scale))
+                                            .px(px(12.0 * scale))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .gap(px(4.0 * scale))
+                                            .rounded(px(20.0 * scale))
+                                            .cursor_pointer()
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
+                                            })
+                                            .child(div().text_size(px(16.0 * scale)).child(month))
+                                            .child(m3_icon("arrow_drop_down", 20.0 * scale, colors))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.month_menu_open = !shell.month_menu_open;
+                                                shell.month_actions_open = false;
+                                                shell.export_menu_open = false;
+                                                cx.notify();
+                                            }))
+                                            .when(self.month_menu_open, |trigger| {
+                                                trigger.child(
+                                                    deferred(
+                                                        anchored()
+                                                            .anchor(Corner::TopLeft)
+                                                            .offset(point(px(0.0), px(48.0 * scale)))
+                                                            .snap_to_window_with_margin(px(8.0 * scale))
+                                                            .child(self.month_menu(colors, cx)),
+                                                    )
+                                                    .priority(2),
+                                                )
+                                            }),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("next-month")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                            .when(!header_layout.show_arrows, |button| button.hidden())
+                                            .p(px(8.0 * scale))
+                                            .rounded_full()
+                                            .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
+                                            .child(m3_icon("chevron_right", 24.0 * scale, colors))
+                                            .tooltip(m3_tooltip(
+                                                "Next month",
+                                                colors,
+                                                interface_scale(&self.model),
+                                            ))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                let key = shell.model.next_month();
+                                                shell.load_month(key, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("today")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                            .when(!header_layout.show_today, |button| button.hidden())
+                                            .h(px(40.0 * scale))
+                                            .ml(px(8.0 * scale))
+                                            .px(px(16.0 * scale))
+                                            .flex()
+                                            .items_center()
+                                            .rounded(px(20.0 * scale))
+                                            .border_1()
+                                            .border_color(colors.outline_variant)
+                                            .cursor_pointer()
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
+                                            })
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
+                                            .child(self.text("Today"))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                let key = shell.model.go_to_today();
+                                                shell.load_month(key, cx);
+                                            })),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("month-actions")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                            .when(!header_layout.show_month_actions, |button| {
+                                                button.hidden()
+                                            })
+                                            .p(px(8.0 * scale))
+                                            .rounded_full()
+                                            .cursor_pointer()
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
+                                            })
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
+                                            .child(m3_icon("more_vert", 24.0 * scale, colors))
+                                            .tooltip(m3_tooltip(
+                                                "Month actions",
+                                                colors,
+                                                interface_scale(&self.model),
+                                            ))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.month_actions_open =
+                                                    !shell.month_actions_open;
+                                                shell.export_menu_open = false;
+                                                cx.notify();
+                                            }))
+                                            .when(self.month_actions_open, |trigger| {
+                                                trigger.child(
+                                                    deferred(
+                                                        anchored()
+                                                            .anchor(Corner::TopLeft)
+                                                            .offset(point(px(0.0), px(48.0 * scale)))
+                                                            .snap_to_window_with_margin(px(8.0 * scale))
+                                                            .child(self.month_actions_menu(colors, cx)),
+                                                    )
+                                                    .priority(2),
+                                                )
+                                            }),
+                                    ),
+                                )
+                            })
+                            .when(self.model.route == Route::Timesheet, |header| header.child(
+                                div()
+                                    .relative()
+                                    .right(px(editor_center_shift))
+                                    .flex()
+                                    .justify_center()
+                                    .child(
+                                        div()
+                                            .when(!header_layout.show_view_toggle, |toggle| {
+                                                toggle.hidden()
+                                            })
+                                            .h(px(40.0 * scale))
+                                            .flex()
+                                            .items_center()
+                                            .rounded(px(20.0 * scale))
+                                            .border_1()
+                                            .border_color(colors.outline_variant)
+                                            .overflow_hidden()
+                                            .child(
+                                                div()
+                                            .id("view-ledger")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                            .h_full()
+                                            .px(px(16.0 * scale))
+                                            .rounded_l(px(20.0 * scale))
+                                                    .flex()
+                                                    .items_center()
+                                                    .gap(px(8.0 * scale))
+                                                    .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
+                                            .bg(
+                                                if self.model.active_view
+                                                    == MonthViewPreference::Ledger
+                                                {
+                                                    colors.secondary_container
+                                                } else {
+                                                    colors.surface
+                                                },
+                                            )
+                                                    .child(m3_icon_colored(
+                                                        "table_rows",
+                                                        18.0 * scale,
+                                                        if self.model.active_view
+                                                            == MonthViewPreference::Ledger
+                                                        {
+                                                            colors.on_secondary_container
+                                                        } else {
+                                                            colors.on_surface_variant
+                                                        },
+                                                    ))
+                                                    .when(header_layout.show_view_labels, |item| {
+                                                        item.child(self.text("Ledger"))
+                                                    })
+                                                    .tooltip(m3_tooltip(
+                                                        "Ledger view",
+                                                        colors,
+                                                        interface_scale(&self.model),
+                                                    ))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.set_view(MonthViewPreference::Ledger, cx)
+                                            })),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("view-calendar")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                            .h_full()
+                                            .px(px(16.0 * scale))
+                                            .rounded_r(px(20.0 * scale))
+                                                    .flex()
+                                                    .items_center()
+                                                    .gap(px(8.0 * scale))
+                                                    .border_l_1()
+                                                    .border_color(colors.outline_variant)
+                                                    .cursor_pointer()
+                                            .hover(|style| style.bg(colors.surface_container_high))
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
+                                            .bg(
+                                                if self.model.active_view
+                                                    == MonthViewPreference::Calendar
+                                                {
+                                                    colors.secondary_container
+                                                } else {
+                                                    colors.surface
+                                                },
+                                            )
+                                                    .child(m3_icon_colored(
+                                                        "calendar_month",
+                                                        18.0 * scale,
+                                                        if self.model.active_view
+                                                            == MonthViewPreference::Calendar
+                                                        {
+                                                            colors.on_secondary_container
+                                                        } else {
+                                                            colors.on_surface_variant
+                                                        },
+                                                    ))
+                                                    .when(header_layout.show_view_labels, |item| {
+                                                        item.child(self.text("Calendar"))
+                                                    })
+                                                    .tooltip(m3_tooltip(
+                                                        "Calendar view",
+                                                        colors,
+                                                        interface_scale(&self.model),
+                                                    ))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.set_view(MonthViewPreference::Calendar, cx)
+                                            })),
+                                    ),
+                                ),
+                            ))
+                            .when(self.model.route == Route::Timesheet, |header| header.child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .justify_end()
+                                    .gap(px(8.0 * scale))
+                                    .when(
+                                        self.model.missing_days_count() > 0
+                                            && header_layout.show_catch_up,
+                                        |actions| {
+                                        actions.child(
+                                            div()
+                                                .id("catch-up")
+                                                .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                                .h(px(40.0 * scale))
+                                                .px(px(16.0 * scale))
+                                                .flex()
+                                                .items_center()
+                                                .gap(px(8.0 * scale))
+                                                .rounded(px(20.0 * scale))
+                                                .cursor_pointer()
+                                                .bg(colors.primary)
+                                                .text_color(colors.on_primary)
+                                                .hover(move |style| style.bg(catch_up_hover))
+                                                .active(move |style| style.bg(catch_up_pressed))
+                                                .child(m3_icon_colored(
+                                                    "auto_fix_high",
+                                                    18.0 * scale,
+                                                    colors.on_primary,
+                                                ))
+                                                .when(
+                                                    header_layout.show_view_labels,
+                                                    |button| {
+                                                        button.child(format!(
+                                                            "Catch Up ({})",
+                                                            self.model.missing_days_count()
+                                                        ))
+                                                    },
+                                                )
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.model.start_catch_up();
+                                                    shell.sync_editor_inputs(cx);
+                                                    shell.refresh_month_view(cx);
+                                                    cx.notify();
+                                                }))
+                                                .tooltip(m3_tooltip(
+                                                    "Review unlogged past workdays",
+                                                    colors,
+                                                    interface_scale(&self.model),
+                                                )),
+                                        )
+                                    },
+                                    )
+                                    .child(
+                                        div()
+                                            .id("export-report")
+                                            .m3_focusable(can_export, colors.primary, px(3.0 * scale))
+                                            .when(!header_layout.show_export, |button| {
+                                                button.hidden()
+                                            })
+                                            .p(px(8.0 * scale))
+                                            .rounded_full()
+                                            .opacity(if can_export { 1.0 } else { 0.38 })
+                                            .child(m3_icon("download", 24.0 * scale, colors))
+                                            .when(can_export, |button| {
+                                                button
+                                                    .cursor_pointer()
+                                                    .hover(|style| {
+                                                        style.bg(colors.surface_container_high)
+                                                    })
+                                                    .active(|style| {
+                                                        style.bg(colors.surface_container_highest)
+                                                    })
+                                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                                        shell.export_menu_open =
+                                                            !shell.export_menu_open;
+                                                        shell.month_actions_open = false;
+                                                        shell.month_menu_open = false;
+                                                        cx.notify();
+                                                    }))
+                                            })
+                                            .tooltip(m3_tooltip(
+                                                if can_export {
+                                                    self.text("Export monthly report")
+                                                } else {
+                                                    self.text("Add at least one time entry before exporting")
+                                                },
+                                                colors,
+                                                interface_scale(&self.model),
+                                            )),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("toggle-theme")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                            .p(px(8.0 * scale))
+                                            .rounded_full()
+                                            .cursor_pointer()
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
+                                            })
+                                            .active(|style| {
+                                                style.bg(colors.surface_container_highest)
+                                            })
+                                            .child(m3_icon(theme_icon, 24.0 * scale, colors))
+                                            .tooltip(m3_tooltip(
+                                                "Toggle dark or light mode",
+                                                colors,
+                                                interface_scale(&self.model),
+                                            ))
+                                            .on_click(cx.listener(|shell, _, _, cx| {
+                                                shell.toggle_theme(cx)
+                                            })),
+                                    ),
+                            ))
+                            .when(self.model.route != Route::Timesheet, |header| {
+                                header
+                                    .child(
+                                        div()
+                                            .ml(px(route_header_offset * scale))
+                                            .flex()
+                                            .items_center()
+                                            .gap(px(8.0 * scale))
+                                            .when(self.model.route == Route::DataBackups, |title| {
+                                                title.child(
+                                                    div()
+                                                        .id("back-to-settings")
+                                                        .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                                        .size(px(40.0 * scale))
+                                                        .flex()
+                                                        .items_center()
+                                                        .justify_center()
+                                                        .rounded_full()
+                                                        .cursor_pointer()
+                                                        .hover(|style| {
+                                                            style.bg(colors.surface_container_high)
+                                                        })
+                                                        .child(m3_icon("arrow_back", 24.0 * scale, colors))
+                                                        .tooltip(m3_tooltip(
+                                                            "Back to settings",
+                                                            colors,
+                                                            interface_scale(&self.model),
+                                                        ))
+                                                        .on_click(cx.listener(
+                                                            |shell, _, _, cx| {
+                                                                shell.set_route(
+                                                                    Route::Settings,
+                                                                    cx,
+                                                                )
+                                                            },
+                                                        )),
+                                                )
+                                            })
+                                            .child(
+                                                div()
+                                                    .text_size(px(22.0 * scale))
+                                                    .line_height(px(28.0 * scale))
+                                                    .child(self.text(route_title)),
+                                            ),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("toggle-theme-route")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
+                                            .size(px(40.0 * scale))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded_full()
+                                            .cursor_pointer()
+                                            .hover(|style| {
+                                                style.bg(colors.surface_container_high)
+                                    })
+                                    .child(m3_icon(theme_icon, 24.0 * scale, colors))
+                                    .tooltip(m3_tooltip(
+                                        "Toggle dark or light mode",
+                                        colors,
+                                        interface_scale(&self.model),
+                                    ))
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.toggle_theme(cx)
+                                    })),
+                                    )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .relative()
+                            .min_h_0()
+                            .flex_1()
+                            .flex()
+                            .bg(colors.surface_container_low)
+                    .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .h_full()
+                                    .child(
+                                        div()
+                                            .id("route-content")
+                                            .size_full()
+                                            .overflow_y_scroll()
+                                            .rounded_tl(px(24.0 * scale))
+                                            .bg(colors.background)
+                                    .child(self.route_content(colors, pane_width, cx)),
+                            ),
+                    )
+                    .when(self.model.editor.is_open && !editor_overlay, |content| {
+                        content.child(self.editor_panel_container(
+                            colors,
+                            editor_corner_background,
+                            cx,
+                        ))
+                    })
+                    .when(self.model.editor.is_open && editor_overlay, |content| {
+                        content.child(
+                            div()
+                                .absolute()
+                                .inset_0()
+                                .flex()
+                                .justify_end()
+                                .child(
+                                    div()
+                                        .id("editor-backdrop")
+                                        .absolute()
+                                        .inset_0()
+                                        .rounded_tl(px(24.0 * scale))
+                                        .bg(gpui::black().opacity(0.35))
+                                        .on_click(cx.listener(|shell, _, _, cx| {
+                                            shell.model.close_editor();
+                                            shell.refresh_month_view(cx);
+                                            cx.notify();
+                                        })),
+                                )
+                                .child(self.editor_panel_container(
+                                    colors,
+                                    editor_corner_background,
+                                    cx,
+                                )),
+                        )
+                    }),
+            )
+            )
+            .when(self.workspace_menu_open, |root| {
+                root.child(
+                    div()
+                        .id("workspace-menu-backdrop")
+                        .absolute()
+                        .inset_0()
+                        .on_click(cx.listener(|shell, _, _, cx| {
+                            shell.workspace_menu_open = false;
+                            cx.notify();
+                        })),
+                )
+            })
+            .when(self.export_menu_open, |root| {
+                root.child(self.export_dialog(colors, cx))
+            })
+            .when(self.confirm_reset, |root| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.45))
+                        .child(
+                            div()
+                                .w(px(420.0 * scale))
+                                .p(px(24.0 * scale))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
+                                .bg(colors.surface_container_high)
+                                .child(
+                                    div()
+                                        .text_size(px(20.0 * scale))
+                                        .child(self.text("Reset month")),
+                                )
+                                .child(
+                                    div()
+                                        .text_color(colors.on_surface_variant)
+                                        .child(self.text(
+                                            "All entries and the month record will be deleted.",
+                                        )),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0 * scale))
+                                        .child(
+                                            dialog_action(
+                                                "cancel-reset",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_reset = false;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            dialog_action(
+                                                "confirm-reset",
+                                                self.text("Reset"),
+                                                colors.error,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.reset_month(cx)
+                                                })),
+                                        ),
+                                ),
+                        ),
+                )
+            })
+            .when_some(project_delete, |root, project_id| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.45))
+                        .child(
+                            div()
+                                .w(px(420.0 * scale))
+                                .p(px(24.0 * scale))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
+                                .bg(colors.surface_container_high)
+                                .child(
+                                    div()
+                                        .text_size(px(20.0 * scale))
+                                        .child(self.text("Delete project?")),
+                                )
+                                .child(self.text("Existing entries keep the stored project name."))
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0 * scale))
+                                        .child(
+                                            dialog_action(
+                                                "cancel-project-delete",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_project_delete = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            dialog_action(
+                                                "confirm-project-delete",
+                                                self.text("Delete"),
+                                                colors.error,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.delete_project(&project_id, cx)
+                                                })),
+                                        ),
+                                ),
+                        ),
+                )
+            })
+            .when(self.manage_workspaces, |root| {
+                root.child(self.workspace_dialog(colors, cx))
+            })
+            .when_some(workspace_delete, |root, workspace_id| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.55))
+                        .child(
+                            div()
+                                .w(px(460.0 * scale))
+                                .p(px(24.0 * scale))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
+                                .bg(colors.surface_container_high)
+                                .child(
+                                    div()
+                                        .text_size(px(20.0 * scale))
+                                        .child(self.text("Delete workspace?")),
+                                )
+                                .child(self.text(
+                                    "Entries, projects, settings, and month records will be removed.",
+                                ))
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0 * scale))
+                                        .child(
+                                            dialog_action(
+                                                "cancel-workspace-delete",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_workspace_delete = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            dialog_action(
+                                                "confirm-workspace-delete",
+                                                self.text("Delete"),
+                                                colors.error,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.delete_workspace(&workspace_id, cx)
+                                                })),
+                                        ),
+                                ),
+                        ),
+                )
+            })
+            .when_some(pending_currency, |root, currency| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.55))
+                        .child(
+                            div()
+                                .w(px(440.0 * scale))
+                                .p(px(24.0 * scale))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
+                                .bg(colors.surface_container_high)
+                                .child(
+                                    div()
+                                        .text_size(px(20.0 * scale))
+                                        .child(self.text("Change currency?")),
+                                )
+                                .child(self.text(
+                                    "Dagsverk will not convert existing rates or report values.",
+                                ))
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0 * scale))
+                                        .child(
+                                            dialog_action(
+                                                "cancel-currency",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.pending_currency = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            dialog_action(
+                                                "confirm-currency",
+                                                self.text("Change"),
+                                                colors.primary,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.settings_draft.currency_preference = currency;
+                                                    shell.pending_currency = None;
+                                                    cx.notify();
+                                                })),
+                                        ),
+                                ),
+                    ),
+                )
+            })
+            .when_some(restore, |root, path| {
+                let selected = path.clone();
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.55))
+                        .child(
+                            div()
+                                .w(px(480.0 * scale))
+                                .p(px(24.0 * scale))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
+                                .bg(colors.surface_container_high)
+                                .child(
+                                    div()
+                                        .text_size(px(20.0 * scale))
+                                        .child(self.text("Restore database?")),
+                                )
+                                .child(self.text(
+                                    "Current data will be backed up before replacement.",
+                                ))
+                                .child(
+                                    div()
+                                        .text_color(colors.on_surface_variant)
+                                        .child(path.display().to_string()),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0 * scale))
+                                        .child(
+                                            dialog_action(
+                                                "cancel-restore",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_restore = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            dialog_action(
+                                                "confirm-restore",
+                                                self.text("Restore database"),
+                                                colors.error,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.run_restore(selected.clone(), cx)
+                                                })),
+                                        ),
+                                ),
+                        ),
+                )
+            })
+            .when_some(tidverk_import, |root, path| {
+                let selected = path.clone();
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(gpui::black().opacity(0.55))
+                        .child(
+                            div()
+                                .w(px(480.0 * scale))
+                                .p(px(24.0 * scale))
+                                .flex()
+                                .flex_col()
+                                .gap(px(18.0 * scale))
+                                .rounded(px(28.0 * scale))
+                                .bg(colors.surface_container_high)
+                                .child(
+                                    div()
+                                        .text_size(px(20.0 * scale))
+                                        .child(self.text("Import Tidverk data?")),
+                                )
+                                .child(self.text(
+                                    "Dagsverk will create safety backups before import.",
+                                ))
+                                .child(
+                                    div()
+                                        .text_color(colors.on_surface_variant)
+                                        .child(path.display().to_string()),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_end()
+                                        .gap(px(16.0 * scale))
+                                        .child(
+                                            dialog_action(
+                                                "cancel-tidverk-import",
+                                                self.text("Cancel"),
+                                                colors.on_surface,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(|shell, _, _, cx| {
+                                                    shell.confirm_import = None;
+                                                    cx.notify();
+                                                })),
+                                        )
+                                        .child(
+                                            dialog_action(
+                                                "confirm-tidverk-import",
+                                                self.text("Import from Tidverk"),
+                                                colors.error,
+                                                colors,
+                                                scale,
+                                            )
+                                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                                    shell.run_tidverk_import(selected.clone(), cx)
+                                                })),
+                                        ),
+                                ),
+                    ),
+                )
+            })
+            .when(setup_required, |root| {
+                root.child(self.setup_dialog(colors, cx))
+            })
+            .child(self.snackbar.clone())
+    }
+}
+
+fn month_view_data(model: &AppModel) -> MonthViewData {
+    MonthViewData {
+        month: model.current_month,
+        entries: model.entries.clone(),
+        settings: model.settings.clone(),
+        projects: model.projects.clone(),
+        today: model.today(),
+        selected_date: model.selected_date,
+        month_started: !model.is_month_unstarted(),
+        mode: model.active_view,
+        language: match model.language {
+            crate::state::Language::English => LanguagePreference::English,
+            crate::state::Language::Swedish => LanguagePreference::Swedish,
+        },
+        colors: M3ColorScheme::resolve(match model.resolved_theme {
+            ResolvedTheme::Light => UiTheme::Light,
+            ResolvedTheme::Dark => UiTheme::Dark,
+        }),
+        scale: interface_scale(model),
+    }
+}
+
+fn interface_scale(model: &AppModel) -> UiScale {
+    u16::try_from(model.preferences.interface_scale_percent)
+        .ok()
+        .and_then(UiScale::from_percent)
+        .unwrap_or_default()
+}
+
+const DAY_OFF_REASONS: [&str; 6] = [
+    "Vacation",
+    "Sick leave",
+    "Care of child",
+    "Leave of absence",
+    "Parental leave",
+    "Public holiday",
+];
+
+fn editor_project_options(model: &AppModel) -> Vec<String> {
+    let selected = model
+        .editor
+        .draft
+        .as_ref()
+        .and_then(|draft| draft.project_name.as_deref());
+    model
+        .projects
+        .iter()
+        .filter(|project| project.is_active || selected == Some(project.name.as_str()))
+        .map(|project| project.name.clone())
+        .collect()
+}
+
+fn format_hours_input(minutes: i64) -> String {
+    let whole = minutes / 60;
+    let remainder = minutes % 60;
+    if remainder == 0 {
+        whole.to_string()
+    } else {
+        format!("{whole}.{:02}", remainder * 100 / 60)
+    }
+}
+
+const MATERIAL_COLOR_PRESETS: [&str; 12] = [
+    "#5F875F", "#1E8E3E", "#00897B", "#039BE5", "#3F51B5", "#7986CB", "#8E24AA", "#D81B60",
+    "#E67C73", "#F6BF26", "#F4511E", "#616161",
+];
+
+fn format_editor_date(
+    date: dagsverk_core::models::IsoDate,
+    language: crate::state::Language,
+) -> String {
+    let value = date.as_naive_date();
+    let (weekdays, months) = match language {
+        crate::state::Language::English => (
+            [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ],
+            [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+            ],
+        ),
+        crate::state::Language::Swedish => (
+            [
+                "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag", "Söndag",
+            ],
+            [
+                "jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec",
+            ],
+        ),
+    };
+    format!(
+        "{}, {} {} {}",
+        weekdays[value.weekday().num_days_from_monday() as usize],
+        months[value.month0() as usize],
+        value.day(),
+        value.year()
+    )
+}
+
+fn format_month_title(month: YearMonth, language: LanguagePreference) -> String {
+    let names = match language {
+        LanguagePreference::English | LanguagePreference::System => [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ],
+        LanguagePreference::Swedish => [
+            "januari",
+            "februari",
+            "mars",
+            "april",
+            "maj",
+            "juni",
+            "juli",
+            "augusti",
+            "september",
+            "oktober",
+            "november",
+            "december",
+        ],
+    };
+    format!("{} {}", names[month.month as usize - 1], month.year)
+}
+
+fn overtime_day_category_label(category: OvertimeDayCategory) -> &'static str {
+    match category {
+        OvertimeDayCategory::AllDays => "All days",
+        OvertimeDayCategory::ScheduledWorkdays => "Scheduled workdays",
+        OvertimeDayCategory::NonWorkdays => "Non-workdays",
+        OvertimeDayCategory::Monday => "Monday",
+        OvertimeDayCategory::Tuesday => "Tuesday",
+        OvertimeDayCategory::Wednesday => "Wednesday",
+        OvertimeDayCategory::Thursday => "Thursday",
+        OvertimeDayCategory::Friday => "Friday",
+        OvertimeDayCategory::Saturday => "Saturday",
+        OvertimeDayCategory::Sunday => "Sunday",
+        OvertimeDayCategory::PublicHolidays => "Public holidays",
+        OvertimeDayCategory::ScheduledWeekdays => "Scheduled weekdays",
+        OvertimeDayCategory::Weekends => "Weekends",
+        OvertimeDayCategory::MajorHolidays => "Major holidays",
+    }
+}
+
+fn responsive_layout(width: gpui::Pixels, manual_sidebar_collapse: bool) -> (bool, bool) {
+    (
+        manual_sidebar_collapse || width < px(1200.0),
+        width < px(1600.0),
+    )
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct HeaderLayout {
+    padding: f32,
+    month_width: f32,
+    show_view_labels: bool,
+    show_today: bool,
+    show_catch_up: bool,
+    show_month_actions: bool,
+    show_arrows: bool,
+    show_export: bool,
+    show_view_toggle: bool,
+}
+
+fn header_layout(pane_width: f32) -> HeaderLayout {
+    HeaderLayout {
+        padding: if pane_width <= 880.0 { 16.0 } else { 24.0 },
+        month_width: if pane_width <= 880.0 { 132.0 } else { 164.0 },
+        show_view_labels: pane_width > 1240.0,
+        show_today: pane_width > 1080.0,
+        show_catch_up: pane_width > 740.0,
+        show_month_actions: pane_width > 680.0,
+        show_arrows: pane_width > 560.0,
+        show_export: pane_width > 560.0,
+        show_view_toggle: pane_width > 420.0,
+    }
+}
+
+fn route_page_layout(pane_width: f32) -> (bool, f32) {
+    (
+        pane_width <= 860.0,
+        if pane_width <= 720.0 { 20.0 } else { 32.0 },
+    )
+}
+
+fn parse_scheduled_minutes(value: &str) -> Result<Minutes, &'static str> {
+    let hours = value
+        .trim()
+        .parse::<f64>()
+        .map_err(|_| "Scheduled hours must be a non-negative number.")?;
+    if !hours.is_finite() || hours < 0.0 {
+        return Err("Scheduled hours must be a non-negative number.");
+    }
+    Ok(Minutes::new((hours * 60.0).round() as i64))
+}
+
+fn is_hex_color(value: &str) -> bool {
+    let value = value.strip_prefix('#').unwrap_or(value);
+    value.len() == 6 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn color_from_hex(value: &str) -> Option<gpui::Hsla> {
+    let value = value.strip_prefix('#').unwrap_or(value);
+    is_hex_color(value)
+        .then(|| u32::from_str_radix(value, 16).ok())
+        .flatten()
+        .map(|value| gpui::rgb(value).into())
+}
+
+fn hex_to_hsl(value: &str) -> Option<(i32, i32, i32)> {
+    let color = color_from_hex(value)?;
+    Some((
+        (color.h * 360.0).round() as i32 % 360,
+        (color.s * 100.0).round() as i32,
+        (color.l * 100.0).round() as i32,
+    ))
+}
+
+fn hsl_to_hex(hue: i32, saturation: i32, lightness: i32) -> String {
+    let color = gpui::hsla(
+        hue.clamp(0, 359) as f32 / 360.0,
+        saturation.clamp(0, 100) as f32 / 100.0,
+        lightness.clamp(0, 100) as f32 / 100.0,
+        1.0,
+    )
+    .to_rgb();
+    format!(
+        "#{:02X}{:02X}{:02X}",
+        (color.r * 255.0).round() as u8,
+        (color.g * 255.0).round() as u8,
+        (color.b * 255.0).round() as u8,
+    )
+}
+
+fn color_slider_row(
+    label: SharedString,
+    slider: Entity<M3Slider>,
+    colors: M3ColorScheme,
+    scale: UiScale,
+) -> gpui::Div {
+    div()
+        .w_full()
+        .flex()
+        .items_center()
+        .gap(scale.px(8.0))
+        .child(
+            div()
+                .w(scale.px(72.0))
+                .flex_none()
+                .text_size(scale.px(11.0))
+                .font_weight(gpui::FontWeight::SEMIBOLD)
+                .text_color(colors.on_surface_variant)
+                .child(label),
+        )
+        .child(div().min_w_0().flex_1().child(slider))
+}
+
+fn nonempty(value: &str) -> Option<String> {
+    let value = value.trim();
+    (!value.is_empty()).then(|| value.to_owned())
+}
+
+fn option_index<T: Copy + PartialEq>(options: &[T], value: T) -> usize {
+    options
+        .iter()
+        .position(|option| *option == value)
+        .unwrap_or(0)
+}
+
+fn setting_chip(
+    language: LanguagePreference,
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    selected: bool,
+    colors: M3ColorScheme,
+    scale: UiScale,
+) -> Stateful<gpui::Div> {
+    let background = if selected {
+        colors.secondary_container
+    } else {
+        colors.surface_container
+    };
+    let foreground = if selected {
+        colors.on_secondary_container
+    } else {
+        colors.on_surface
+    };
+    div()
+        .id(id)
+        .m3_focusable(true, colors.primary, scale.px(3.0))
+        .h(scale.px(36.0))
+        .px(scale.px(12.0))
+        .flex()
+        .items_center()
+        .rounded(scale.px(18.0))
+        .cursor_pointer()
+        .bg(background)
+        .hover(move |style| style.bg(m3_state_layer(background, foreground, 0.08)))
+        .active(move |style| style.bg(m3_state_layer(background, foreground, 0.12)))
+        .child(translate(language, label.into().as_ref()).into_owned())
+}
+
+fn dialog_action(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    foreground: gpui::Hsla,
+    colors: M3ColorScheme,
+    scale: f32,
+) -> Stateful<gpui::Div> {
+    let label: SharedString = label.into();
+    div()
+        .id(id)
+        .m3_focusable(true, colors.primary, px(3.0 * scale))
+        .h(px(40.0 * scale))
+        .px(px(12.0 * scale))
+        .flex()
+        .items_center()
+        .rounded(px(20.0 * scale))
+        .cursor_pointer()
+        .text_color(foreground)
+        .hover(move |style| {
+            style.bg(m3_state_layer(
+                colors.surface_container_high,
+                foreground,
+                0.08,
+            ))
+        })
+        .active(move |style| {
+            style.bg(m3_state_layer(
+                colors.surface_container_high,
+                foreground,
+                0.12,
+            ))
+        })
+        .child(label)
+}
+
+fn maintenance_button(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    enabled: bool,
+    colors: M3ColorScheme,
+    scale: UiScale,
+) -> Stateful<gpui::Div> {
+    let background = if enabled {
+        colors.secondary_container
+    } else {
+        colors.on_surface.opacity(0.12)
+    };
+    let foreground = if enabled {
+        colors.on_secondary_container
+    } else {
+        colors.on_surface.opacity(0.38)
+    };
+    div()
+        .id(id)
+        .m3_focusable(enabled, colors.primary, scale.px(3.0))
+        .h(scale.px(40.0))
+        .px(scale.px(18.0))
+        .flex()
+        .items_center()
+        .rounded(scale.px(20.0))
+        .bg(background)
+        .text_color(foreground)
+        .when(enabled, |button| {
+            button
+                .cursor_pointer()
+                .hover(move |style| style.bg(m3_state_layer(background, foreground, 0.08)))
+                .active(move |style| style.bg(m3_state_layer(background, foreground, 0.12)))
+        })
+        .child(label.into())
+}
+
+fn header_menu_item(
+    id: impl Into<ElementId>,
+    icon: &'static str,
+    label: impl Into<SharedString>,
+    enabled: bool,
+    colors: M3ColorScheme,
+    scale: UiScale,
+) -> Stateful<gpui::Div> {
+    let background = colors.surface_container;
+    let foreground = colors.on_surface;
+    div()
+        .id(id)
+        .m3_focusable(enabled, colors.primary, scale.px(3.0))
+        .h(scale.px(48.0))
+        .px(scale.px(12.0))
+        .flex()
+        .items_center()
+        .gap(scale.px(12.0))
+        .rounded(scale.px(8.0))
+        .opacity(if enabled { 1.0 } else { 0.38 })
+        .when(enabled, |item| {
+            item.cursor_pointer()
+                .hover(move |style| style.bg(m3_state_layer(background, foreground, 0.08)))
+                .active(move |style| style.bg(m3_state_layer(background, foreground, 0.12)))
+        })
+        .child(m3_icon(icon, 24.0 * scale.factor(), colors))
+        .child(label.into())
+}
+
+fn parse_non_negative_decimal(value: &str) -> Result<Decimal, &'static str> {
+    let value = value
+        .trim()
+        .parse::<Decimal>()
+        .map_err(|_| "Enter a valid non-negative number.")?;
+    if value.is_sign_negative() {
+        Err("Enter a valid non-negative number.")
+    } else {
+        Ok(value)
+    }
+}
+
+fn parse_non_negative_i64(value: &str) -> Result<i64, &'static str> {
+    let value = value
+        .trim()
+        .parse::<i64>()
+        .map_err(|_| "Enter a valid non-negative whole number.")?;
+    if value < 0 {
+        Err("Enter a valid non-negative whole number.")
+    } else {
+        Ok(value)
+    }
+}
+
+fn parse_i32(value: &str) -> Result<i32, &'static str> {
+    value
+        .trim()
+        .parse::<i32>()
+        .map_err(|_| "Enter a valid whole number.")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{path::PathBuf, sync::Arc};
+
+    use chrono::{DateTime, Utc};
+    use dagsverk_core::{
+        clock::FixedClock,
+        i18n::resources,
+        models::{
+            CompensationRateType, CompensationRuleType, CurrencyPreference, LanguagePreference,
+            MonthViewPreference, OvertimeCompensationMode, OvertimeDayCategory,
+            OvertimeThresholdMode, SalaryType, TaxMode, ThemePreference,
+        },
+        tax::TaxEngine,
+    };
+    use dagsverk_data::Database;
+    use gpui::{
+        Context, Focusable, KeyUpEvent, Keystroke, Render, TestAppContext, Window, div, prelude::*,
+        px,
+    };
+    use tempfile::tempdir;
+
+    use super::{
+        AppShell, AppShellServices, ExportFormat, ShellFocusable, Tab, TabPrevious,
+        format_editor_date, format_month_title, header_layout, hex_to_hsl, hsl_to_hex,
+        overtime_day_category_label, parse_non_negative_decimal, parse_scheduled_minutes,
+        responsive_layout, route_page_layout,
+    };
+    use crate::{
+        platform::{
+            FileDialogService, NativeShellService, OpenFileRequest, PlatformFuture, SaveFileRequest,
+        },
+        startup::VisualState,
+        state::{AppModel, ResolvedTheme, Route},
+    };
+
+    struct SaveDialog(PathBuf);
+
+    struct FocusSurface {
+        activated: bool,
+        focus: gpui::FocusHandle,
+    }
+
+    impl Render for FocusSurface {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let colors = dagsverk_ui::m3::M3ColorScheme::light();
+            div()
+                .track_focus(&self.focus)
+                .key_context("Dagsverk")
+                .on_action(|_: &Tab, window, _| window.focus_next())
+                .on_action(|_: &TabPrevious, window, _| window.focus_prev())
+                .child(
+                    div()
+                        .id("focus-surface")
+                        .m3_focusable(true, colors.primary, px(3.0))
+                        .child("Activate")
+                        .on_click(cx.listener(|surface, _, _, cx| {
+                            surface.activated = true;
+                            cx.notify();
+                        })),
+                )
+        }
+    }
+
+    #[gpui::test]
+    fn shell_focus_surfaces_activate_from_the_keyboard(cx: &mut TestAppContext) {
+        cx.update(AppShell::register_key_bindings);
+        let (surface, cx) = cx.add_window_view(|_, cx| FocusSurface {
+            activated: false,
+            focus: cx.focus_handle(),
+        });
+        let root_focus = surface.read_with(cx, |surface, _| surface.focus.clone());
+        cx.update(|window, _| window.focus(&root_focus));
+        cx.refresh().expect("refresh focus surface");
+        cx.simulate_keystrokes("tab");
+        cx.simulate_event(KeyUpEvent {
+            keystroke: Keystroke::parse("enter").expect("enter keystroke"),
+        });
+        assert!(surface.read_with(cx, |surface, _| surface.activated));
+    }
+
+    #[test]
+    fn every_literal_shell_translation_key_exists_in_both_catalogs() {
+        for marker in ["self.text(\"", "self.message(\"", "self.message_with(\""] {
+            let mut source = include_str!("shell.rs");
+            while let Some(start) = source.find(marker) {
+                source = &source[start + marker.len()..];
+                let end = source.find('"').expect("translation key ends");
+                let key = &source[..end];
+                assert!(
+                    resources(LanguagePreference::English).contains_key(key),
+                    "missing English translation key: {key}"
+                );
+                assert!(
+                    resources(LanguagePreference::Swedish).contains_key(key),
+                    "missing Swedish translation key: {key}"
+                );
+                source = &source[end + 1..];
+            }
+        }
+    }
+
+    impl FileDialogService for SaveDialog {
+        fn choose_open_file(&self, _: OpenFileRequest) -> PlatformFuture<'_, Option<PathBuf>> {
+            Box::pin(async { Ok(None) })
+        }
+
+        fn choose_save_file(&self, _: SaveFileRequest) -> PlatformFuture<'_, Option<PathBuf>> {
+            let path = self.0.clone();
+            Box::pin(async move { Ok(Some(path)) })
+        }
+    }
+
+    #[gpui::test]
+    fn shell_shortcuts_and_background_backup_work(cx: &mut TestAppContext) {
+        let directory = tempdir().expect("temporary data directory");
+        let now = DateTime::parse_from_rfc3339("2026-08-18T10:00:00Z")
+            .expect("fixed time")
+            .with_timezone(&Utc);
+        let clock = FixedClock::new(now);
+        let repository = Arc::new(
+            Database::open(directory.path().join("dagsverk.db"), clock)
+                .expect("temporary database"),
+        );
+        let export_path = directory.path().join("report.xlsx");
+        let mut model = AppModel::new(
+            repository.clone(),
+            Arc::new(clock),
+            TaxEngine::default(),
+            false,
+        );
+        model.initialize().expect("application state");
+        let services = AppShellServices {
+            data: repository,
+            file_dialog: Arc::new(SaveDialog(export_path.clone())),
+            shell: Arc::new(NativeShellService),
+        };
+
+        cx.update(AppShell::register_key_bindings);
+        let (shell, cx) =
+            cx.add_window_view(|window, cx| AppShell::new(model, services, window, cx));
+        cx.simulate_keystrokes("ctrl-2");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.model.active_view),
+            MonthViewPreference::Calendar
+        );
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::SettingsOvertime, cx)
+        });
+        assert!(shell.read_with(cx, |shell, _| {
+            shell.model.route == Route::Settings && shell.settings_tab == 2
+        }));
+        assert_eq!(
+            shell.read_with(cx, |shell, cx| shell.settings_tabs.read(cx).selected()),
+            2
+        );
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::SettingsGeneral, cx)
+        });
+        let currency_select = shell.read_with(cx, |shell, _| shell.currency_select.clone());
+        cx.update(|window, app| window.focus(&currency_select.read(app).focus_handle(app)));
+        cx.refresh().expect("refresh currency select");
+        cx.simulate_keystrokes("enter home down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.pending_currency),
+            Some(CurrencyPreference::Eur)
+        );
+        shell.update(cx, |shell, cx| {
+            shell.settings_tab = 4;
+            shell
+                .settings_tabs
+                .update(cx, |tabs, cx| tabs.set_selected(4, cx));
+        });
+        cx.refresh().expect("refresh application settings");
+        let theme_select = shell.read_with(cx, |shell, _| shell.application_selects.theme.clone());
+        cx.update(|window, app| window.focus(&theme_select.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.preferences_draft.theme_preference),
+            ThemePreference::Light
+        );
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.model.resolved_theme),
+            ResolvedTheme::Light
+        );
+        shell.update(cx, |shell, cx| shell.toggle_theme(cx));
+        assert!(shell.read_with(cx, |shell, _| {
+            shell.model.resolved_theme == ResolvedTheme::Dark
+                && shell.model.preferences.theme_preference == ThemePreference::Dark
+                && shell.preferences_draft.theme_preference == ThemePreference::Dark
+        }));
+        shell.update(cx, |shell, cx| {
+            shell.settings_tab = 3;
+            shell
+                .settings_tabs
+                .update(cx, |tabs, cx| tabs.set_selected(3, cx));
+        });
+        cx.refresh().expect("refresh salary and tax settings");
+        let salary_type =
+            shell.read_with(cx, |shell, _| shell.salary_tax_selects.salary_type.clone());
+        cx.update(|window, app| window.focus(&salary_type.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.settings_draft.salary.salary_type),
+            SalaryType::Monthly
+        );
+        let tax_mode = shell.read_with(cx, |shell, _| shell.salary_tax_selects.tax_mode.clone());
+        cx.update(|window, app| window.focus(&tax_mode.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter home down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.settings_draft.tax_settings.mode),
+            TaxMode::PrimaryIncomeTaxTable
+        );
+        shell.update(cx, |shell, cx| {
+            shell.settings_tab = 2;
+            shell
+                .settings_tabs
+                .update(cx, |tabs, cx| tabs.set_selected(2, cx));
+        });
+        cx.refresh().expect("refresh overtime settings");
+        let overtime_mode = shell.read_with(cx, |shell, _| shell.overtime_selects.mode.clone());
+        cx.update(|window, app| window.focus(&overtime_mode.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter home down enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell
+                .settings_draft
+                .overtime_compensation
+                .mode),
+            OvertimeCompensationMode::Paid
+        );
+        let threshold = shell.read_with(cx, |shell, _| shell.overtime_selects.threshold.clone());
+        cx.update(|window, app| window.focus(&threshold.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter home enter");
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell
+                .settings_draft
+                .overtime_compensation
+                .threshold_mode),
+            OvertimeThresholdMode::FixedDailyHours
+        );
+        let shell_focus = shell.read_with(cx, |shell, _| shell.focus.clone());
+        cx.update(|window, _| window.focus(&shell_focus));
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::EditorDark, cx)
+        });
+        assert!(shell.read_with(cx, |shell, _| {
+            shell.model.editor.is_open
+                && shell.model.resolved_theme == ResolvedTheme::Dark
+                && shell
+                    .model
+                    .selected_date
+                    .as_ref()
+                    .is_some_and(|date| date.to_string() == "2026-08-04")
+        }));
+
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::ColorPicker, cx)
+        });
+        cx.refresh().expect("refresh color picker");
+        let hue_slider = shell.read_with(cx, |shell, _| shell.color_hue_slider.clone());
+        cx.update(|window, app| window.focus(&hue_slider.read(app).focus_handle()));
+        cx.simulate_keystrokes("home right");
+        assert_eq!(hue_slider.read_with(cx, |slider, _| slider.value()), 1);
+        assert_eq!(
+            shell.read_with(cx, |shell, app| shell
+                .project_color_input
+                .read(app)
+                .text()
+                .to_owned()),
+            hsl_to_hex(1, 17, 45)
+        );
+        cx.simulate_keystrokes("escape");
+        assert!(shell.read_with(cx, |shell, _| shell.color_picker_target.is_none()));
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::Ledger, cx)
+        });
+        let shell_focus = shell.read_with(cx, |shell, _| shell.focus.clone());
+        cx.update(|window, _| window.focus(&shell_focus));
+
+        shell.update(cx, |shell, cx| shell.create_backup(cx));
+        cx.run_until_parked();
+        assert!(shell.read_with(cx, |shell, _| {
+            !shell.maintenance_busy && shell.last_backup.as_ref().is_some_and(|path| path.exists())
+        }));
+
+        shell.update(cx, |shell, cx| shell.save_setup(cx));
+        assert!(shell.read_with(cx, |shell, _| {
+            shell.model.preferences.has_completed_setup
+        }));
+
+        shell.update(cx, |shell, cx| {
+            shell.model.fill_normal_workdays().expect("fill workdays");
+            shell.refresh_month_view(cx);
+        });
+        cx.simulate_keystrokes("ctrl-e");
+        assert!(shell.read_with(cx, |shell, _| shell.export_menu_open));
+        shell.update(cx, |shell, cx| {
+            shell.export_menu_open = false;
+            shell.export_report(ExportFormat::Xlsx, cx);
+        });
+        cx.run_until_parked();
+        assert!(export_path.exists());
+
+        shell.update(cx, |shell, cx| {
+            shell.add_rate_band(CompensationRuleType::Ob, cx);
+            shell
+                .rate_band_inputs
+                .last()
+                .expect("new rule fields")
+                .start
+                .update(cx, |input, cx| input.set_text("invalid", cx));
+            shell.save_settings(cx);
+        });
+        assert!(shell.read_with(cx, |shell, _| shell.model.transient_error.is_some()));
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::SettingsOvertime, cx)
+        });
+        cx.refresh().expect("refresh rate-band controls");
+        let (expansion, day_category, rate_type) = shell.read_with(cx, |shell, _| {
+            let controls = shell.rate_band_inputs.last().expect("new rule controls");
+            (
+                controls.expansion.clone(),
+                controls.day_category.clone(),
+                controls.rate_type.clone(),
+            )
+        });
+        cx.update(|window, app| window.focus(&expansion.read(app).focus_handle()));
+        cx.simulate_keystrokes("enter");
+        assert!(expansion.read_with(cx, |panel, _| panel.expanded()));
+        cx.refresh().expect("refresh expanded rate band");
+        cx.update(|window, app| window.focus(&day_category.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter end enter");
+        cx.update(|window, app| window.focus(&rate_type.read(app).focus_handle(app)));
+        cx.simulate_keystrokes("enter end enter");
+        assert!(shell.read_with(cx, |shell, _| {
+            shell
+                .settings_draft
+                .overtime_compensation
+                .rate_bands
+                .last()
+                .is_some_and(|band| {
+                    band.day_category == OvertimeDayCategory::MajorHolidays
+                        && band.rate_type == CompensationRateType::FullTimeMonthlySalaryDivisor
+                })
+        }));
+        shell.update(cx, |shell, cx| {
+            shell
+                .rate_band_inputs
+                .last()
+                .expect("new rule fields")
+                .start
+                .update(cx, |input, cx| input.set_text("19:00", cx));
+            shell.save_settings(cx);
+        });
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell
+                .model
+                .settings
+                .overtime_compensation
+                .rate_bands
+                .last()
+                .expect("saved rule")
+                .start_time
+                .to_string()),
+            "19:00"
+        );
+
+        shell.update(cx, |shell, cx| {
+            let mut preferences = shell.model.preferences.clone();
+            preferences.language_preference = LanguagePreference::Swedish;
+            shell
+                .model
+                .update_preferences(preferences)
+                .expect("Swedish preference");
+            cx.notify();
+        });
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.text("Settings").to_string()),
+            "Inställningar"
+        );
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.text("COLOR").to_string()),
+            "FÄRG"
+        );
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.message("Evening OB")),
+            "Kvälls-OB"
+        );
+        shell.update(cx, |shell, cx| shell.create_backup(cx));
+        cx.run_until_parked();
+        assert!(shell.read_with(cx, |shell, _| {
+            shell
+                .notice
+                .as_deref()
+                .is_some_and(|notice| notice.starts_with("Säkerhetskopian skapades: "))
+        }));
+        shell.update(cx, |shell, cx| {
+            shell
+                .settings_inputs
+                .tax_column
+                .update(cx, |input, cx| input.set_text("7", cx));
+            shell.save_settings(cx);
+        });
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.model.transient_error.clone()),
+            Some("Skattekolumnen måste vara från 1 till 6.".to_owned())
+        );
+        let active_workspace =
+            shell.read_with(cx, |shell, _| shell.model.active_workspace_id.clone());
+        shell.update(cx, |shell, cx| {
+            shell.delete_workspace(&active_workspace, cx)
+        });
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.model.transient_error.clone()),
+            Some("Det går inte att ta bort den sista arbetsytan.".to_owned())
+        );
+
+        shell.update(cx, |shell, cx| {
+            shell.month_menu_open = true;
+            shell.month_actions_open = true;
+            shell.export_menu_open = true;
+            cx.notify();
+        });
+        cx.simulate_keystrokes("escape");
+        assert!(shell.read_with(cx, |shell, _| {
+            !shell.month_menu_open && !shell.month_actions_open && !shell.export_menu_open
+        }));
+    }
+
+    #[test]
+    fn scheduled_override_accepts_zero_and_rejects_invalid_values() {
+        assert_eq!(hex_to_hsl("#FF0000"), Some((0, 100, 50)));
+        assert_eq!(hex_to_hsl("#5F875F"), Some((120, 17, 45)));
+        assert_eq!(hsl_to_hex(0, 100, 50), "#FF0000");
+        assert_eq!(hsl_to_hex(120, 17, 45), "#5F865F");
+        assert_eq!(parse_scheduled_minutes("0").expect("zero hours").value(), 0);
+        assert_eq!(
+            parse_scheduled_minutes("7.5")
+                .expect("fractional hours")
+                .value(),
+            450
+        );
+        assert!(parse_scheduled_minutes("-1").is_err());
+        assert!(parse_scheduled_minutes("NaN").is_err());
+        assert_eq!(
+            parse_non_negative_decimal("123.45").expect("decimal value"),
+            "123.45".parse().expect("expected decimal")
+        );
+        assert!(parse_non_negative_decimal("-0.01").is_err());
+        assert_eq!(responsive_layout(gpui::px(1199.0), false), (true, true));
+        assert_eq!(responsive_layout(gpui::px(1200.0), false), (false, true));
+        assert_eq!(responsive_layout(gpui::px(1600.0), false), (false, false));
+        assert_eq!(responsive_layout(gpui::px(1600.0), true), (true, false));
+        assert_eq!(route_page_layout(861.0), (false, 32.0));
+        assert_eq!(route_page_layout(860.0), (true, 32.0));
+        assert_eq!(route_page_layout(720.0), (true, 20.0));
+        let wide_header = header_layout(1241.0);
+        assert!(wide_header.show_view_labels && wide_header.show_today);
+        assert_eq!(
+            (wide_header.padding, wide_header.month_width),
+            (24.0, 164.0)
+        );
+        let narrow_header = header_layout(700.0);
+        assert!(!narrow_header.show_view_labels && !narrow_header.show_catch_up);
+        assert!(narrow_header.show_month_actions && narrow_header.show_export);
+        assert_eq!(
+            (narrow_header.padding, narrow_header.month_width),
+            (16.0, 132.0)
+        );
+        let date = "2026-08-18".parse().expect("editor date");
+        assert_eq!(
+            format_editor_date(date, crate::state::Language::English),
+            "Tuesday, Aug 18 2026"
+        );
+        assert_eq!(
+            format_editor_date(date, crate::state::Language::Swedish),
+            "Tisdag, aug 18 2026"
+        );
+        let month = dagsverk_core::models::YearMonth::new(2026, 8).expect("month");
+        assert_eq!(
+            format_month_title(month, LanguagePreference::English),
+            "August 2026"
+        );
+        assert_eq!(
+            format_month_title(month, LanguagePreference::Swedish),
+            "augusti 2026"
+        );
+        assert_eq!(
+            overtime_day_category_label(dagsverk_core::models::OvertimeDayCategory::MajorHolidays),
+            "Major holidays"
+        );
+    }
+}

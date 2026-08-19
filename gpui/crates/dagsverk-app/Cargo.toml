@@ -1,0 +1,33 @@
+[package]
+name = "dagsverk-app"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "dagsverk-gpui"
+path = "src/main.rs"
+
+[dependencies]
+chrono.workspace = true
+dagsverk-core.workspace = true
+dagsverk-data.workspace = true
+dagsverk-export.workspace = true
+dagsverk-ui.workspace = true
+gpui.workspace = true
+rfd.workspace = true
+rust_decimal.workspace = true
+sys-locale.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+tempfile.workspace = true
+
+[lints]
+workspace = true

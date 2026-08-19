@@ -1,0 +1,1046 @@
+{
+  "sourceCommit": "204d00873bfc02b8fc2c04e08b8cce8b8ce59885",
+  "generatedAt": "2026-08-18T12:43:24+02:00",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "input": {
+        "name": "empty-current",
+        "entries": [],
+        "today": "2026-08-14",
+        "record": {
+          "year": 2026,
+          "month": 8,
+          "openingBalanceMinutes": 120,
+          "expectedMinutesOverride": null,
+          "openingBalanceWasEdited": false
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "year": 2026,
+        "month": 8,
+        "workedMinutes": 0,
+        "regularMinutes": 0,
+        "overtimeMinutes": 0,
+        "ordinaryPaidMinutes": 0,
+        "balanceEligibleMinutes": 0,
+        "expectedMinutes": 4800,
+        "monthlyDifferenceMinutes": -4800,
+        "openingBalanceMinutes": 120,
+        "closingBalanceMinutes": -4680,
+        "grossSalary": 0,
+        "baseSalary": 0,
+        "overtimeCompensation": 0,
+        "obCompensation": 0,
+        "obMinutes": 0,
+        "completedDayCount": 0,
+        "missingPastDays": [
+          "2026-08-03",
+          "2026-08-04",
+          "2026-08-05",
+          "2026-08-06",
+          "2026-08-07",
+          "2026-08-10",
+          "2026-08-11",
+          "2026-08-12",
+          "2026-08-13"
+        ],
+        "workedHours": 0,
+        "regularHours": 0,
+        "overtimeHours": 0,
+        "ordinaryPaidHours": 0,
+        "obHours": 0,
+        "expectedHours": 80
+      }
+    },
+    {
+      "input": {
+        "name": "worked-off-incomplete-current",
+        "entries": [
+          {
+            "date": "2026-08-03",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-04",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "18:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-05",
+            "status": 2,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-06",
+            "status": 0,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          }
+        ],
+        "today": "2026-08-14",
+        "record": {
+          "year": 2026,
+          "month": 8,
+          "openingBalanceMinutes": 120,
+          "expectedMinutesOverride": null,
+          "openingBalanceWasEdited": false
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "year": 2026,
+        "month": 8,
+        "workedMinutes": 1080,
+        "regularMinutes": 960,
+        "overtimeMinutes": 120,
+        "ordinaryPaidMinutes": 960,
+        "balanceEligibleMinutes": 1080,
+        "expectedMinutes": 4800,
+        "monthlyDifferenceMinutes": -3720,
+        "openingBalanceMinutes": 120,
+        "closingBalanceMinutes": -3600,
+        "grossSalary": 3200,
+        "baseSalary": 0,
+        "overtimeCompensation": 0,
+        "obCompensation": 0,
+        "obMinutes": 0,
+        "completedDayCount": 3,
+        "missingPastDays": [
+          "2026-08-06",
+          "2026-08-07",
+          "2026-08-10",
+          "2026-08-11",
+          "2026-08-12",
+          "2026-08-13"
+        ],
+        "workedHours": 18,
+        "regularHours": 16,
+        "overtimeHours": 2,
+        "ordinaryPaidHours": 16,
+        "obHours": 0,
+        "expectedHours": 80
+      }
+    },
+    {
+      "input": {
+        "name": "past-month-override",
+        "entries": [
+          {
+            "date": "2026-08-03",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-04",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "18:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-05",
+            "status": 2,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-06",
+            "status": 0,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          }
+        ],
+        "today": "2026-09-01",
+        "record": {
+          "year": 2026,
+          "month": 8,
+          "openingBalanceMinutes": 120,
+          "expectedMinutesOverride": 6000,
+          "openingBalanceWasEdited": false
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "year": 2026,
+        "month": 8,
+        "workedMinutes": 1080,
+        "regularMinutes": 960,
+        "overtimeMinutes": 120,
+        "ordinaryPaidMinutes": 960,
+        "balanceEligibleMinutes": 1080,
+        "expectedMinutes": 6000,
+        "monthlyDifferenceMinutes": -4920,
+        "openingBalanceMinutes": 120,
+        "closingBalanceMinutes": -4800,
+        "grossSalary": 3200,
+        "baseSalary": 0,
+        "overtimeCompensation": 0,
+        "obCompensation": 0,
+        "obMinutes": 0,
+        "completedDayCount": 3,
+        "missingPastDays": [
+          "2026-08-06",
+          "2026-08-07",
+          "2026-08-10",
+          "2026-08-11",
+          "2026-08-12",
+          "2026-08-13",
+          "2026-08-14",
+          "2026-08-17",
+          "2026-08-18",
+          "2026-08-19",
+          "2026-08-20",
+          "2026-08-21",
+          "2026-08-24",
+          "2026-08-25",
+          "2026-08-26",
+          "2026-08-27",
+          "2026-08-28",
+          "2026-08-31"
+        ],
+        "workedHours": 18,
+        "regularHours": 16,
+        "overtimeHours": 2,
+        "ordinaryPaidHours": 16,
+        "obHours": 0,
+        "expectedHours": 100
+      }
+    },
+    {
+      "input": {
+        "name": "future-month",
+        "entries": [
+          {
+            "date": "2026-08-03",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-04",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "18:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-05",
+            "status": 2,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-06",
+            "status": 0,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          }
+        ],
+        "today": "2026-07-01",
+        "record": {
+          "year": 2026,
+          "month": 8,
+          "openingBalanceMinutes": 120,
+          "expectedMinutesOverride": null,
+          "openingBalanceWasEdited": false
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "year": 2026,
+        "month": 8,
+        "workedMinutes": 1080,
+        "regularMinutes": 960,
+        "overtimeMinutes": 120,
+        "ordinaryPaidMinutes": 960,
+        "balanceEligibleMinutes": 1080,
+        "expectedMinutes": 0,
+        "monthlyDifferenceMinutes": 1080,
+        "openingBalanceMinutes": 120,
+        "closingBalanceMinutes": 1200,
+        "grossSalary": 3200,
+        "baseSalary": 0,
+        "overtimeCompensation": 0,
+        "obCompensation": 0,
+        "obMinutes": 0,
+        "completedDayCount": 3,
+        "missingPastDays": [],
+        "workedHours": 18,
+        "regularHours": 16,
+        "overtimeHours": 2,
+        "ordinaryPaidHours": 16,
+        "obHours": 0,
+        "expectedHours": 0
+      }
+    },
+    {
+      "input": {
+        "name": "current-month-accrual",
+        "entries": [
+          {
+            "date": "2026-08-03",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-04",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-05",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-06",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-07",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-10",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "17:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-11",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-12",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "20:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-13",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "22:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          }
+        ],
+        "today": "2026-08-14",
+        "record": {
+          "year": 2026,
+          "month": 8,
+          "openingBalanceMinutes": 0,
+          "expectedMinutesOverride": 9240,
+          "openingBalanceWasEdited": false
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": false
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 202,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "year": 2026,
+        "month": 8,
+        "workedMinutes": 4920,
+        "regularMinutes": 4320,
+        "overtimeMinutes": 600,
+        "ordinaryPaidMinutes": 4320,
+        "balanceEligibleMinutes": 4920,
+        "expectedMinutes": 4400,
+        "monthlyDifferenceMinutes": 520,
+        "openingBalanceMinutes": 0,
+        "closingBalanceMinutes": 520,
+        "grossSalary": 14544,
+        "baseSalary": 0,
+        "overtimeCompensation": 0,
+        "obCompensation": 0,
+        "obMinutes": 0,
+        "completedDayCount": 9,
+        "missingPastDays": [],
+        "workedHours": 82,
+        "regularHours": 72,
+        "overtimeHours": 10,
+        "ordinaryPaidHours": 72,
+        "obHours": 0,
+        "expectedHours": 73.33
+      }
+    },
+    {
+      "input": {
+        "name": "monthly-expected-hours-pay",
+        "entries": [
+          {
+            "date": "2026-06-08",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-09",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "17:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-10",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "19:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-11",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-12",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "15:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-15",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "17:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-16",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-17",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-18",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "17:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-19",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-22",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "18:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-23",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-24",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "17:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-25",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-26",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "17:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-29",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "16:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-06-30",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "17:00",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          }
+        ],
+        "today": "2026-07-01",
+        "record": {
+          "year": 2026,
+          "month": 6,
+          "openingBalanceMinutes": 0,
+          "expectedMinutesOverride": 8160,
+          "openingBalanceWasEdited": false
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 180,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 1
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "year": 2026,
+        "month": 6,
+        "workedMinutes": 8460,
+        "regularMinutes": 8010,
+        "overtimeMinutes": 450,
+        "ordinaryPaidMinutes": 8160,
+        "balanceEligibleMinutes": 8460,
+        "expectedMinutes": 8160,
+        "monthlyDifferenceMinutes": 300,
+        "openingBalanceMinutes": 0,
+        "closingBalanceMinutes": 300,
+        "grossSalary": 24480,
+        "baseSalary": 0,
+        "overtimeCompensation": 0,
+        "obCompensation": 0,
+        "obMinutes": 0,
+        "completedDayCount": 17,
+        "missingPastDays": [
+          "2026-06-01",
+          "2026-06-02",
+          "2026-06-03",
+          "2026-06-04",
+          "2026-06-05"
+        ],
+        "workedHours": 141,
+        "regularHours": 133.5,
+        "overtimeHours": 7.5,
+        "ordinaryPaidHours": 136,
+        "obHours": 0,
+        "expectedHours": 136
+      }
+    },
+    {
+      "input": {
+        "name": "paid-overtime-excluded-from-balance",
+        "entries": [
+          {
+            "date": "2026-07-01",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "18:30",
+            "lunchMinutes": 30,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          }
+        ],
+        "today": "2026-08-01",
+        "record": {
+          "year": 2026,
+          "month": 7,
+          "openingBalanceMinutes": 0,
+          "expectedMinutesOverride": 480,
+          "openingBalanceWasEdited": false
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 1,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "year": 2026,
+        "month": 7,
+        "workedMinutes": 600,
+        "regularMinutes": 480,
+        "overtimeMinutes": 120,
+        "ordinaryPaidMinutes": 480,
+        "balanceEligibleMinutes": 480,
+        "expectedMinutes": 480,
+        "monthlyDifferenceMinutes": 0,
+        "openingBalanceMinutes": 0,
+        "closingBalanceMinutes": 0,
+        "grossSalary": 2200,
+        "baseSalary": 0,
+        "overtimeCompensation": 600,
+        "obCompensation": 0,
+        "obMinutes": 0,
+        "completedDayCount": 1,
+        "missingPastDays": [
+          "2026-07-02",
+          "2026-07-03",
+          "2026-07-06",
+          "2026-07-07",
+          "2026-07-08",
+          "2026-07-09",
+          "2026-07-10",
+          "2026-07-13",
+          "2026-07-14",
+          "2026-07-15",
+          "2026-07-16",
+          "2026-07-17",
+          "2026-07-20",
+          "2026-07-21",
+          "2026-07-22",
+          "2026-07-23",
+          "2026-07-24",
+          "2026-07-27",
+          "2026-07-28",
+          "2026-07-29",
+          "2026-07-30",
+          "2026-07-31"
+        ],
+        "workedHours": 10,
+        "regularHours": 8,
+        "overtimeHours": 2,
+        "ordinaryPaidHours": 8,
+        "obHours": 0,
+        "expectedHours": 8
+      }
+    },
+    {
+      "input": {
+        "name": "duplicate-date-last-wins",
+        "entries": [
+          {
+            "date": "2026-08-03",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "12:00",
+            "lunchMinutes": 0,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          },
+          {
+            "date": "2026-08-03",
+            "status": 1,
+            "startTime": "08:00",
+            "endTime": "18:00",
+            "lunchMinutes": 0,
+            "projectName": null,
+            "notes": null,
+            "scheduledMinutesOverride": null
+          }
+        ],
+        "today": "2026-09-01",
+        "record": {
+          "year": 2026,
+          "month": 8,
+          "openingBalanceMinutes": 120,
+          "expectedMinutesOverride": null,
+          "openingBalanceWasEdited": false
+        },
+        "expectedHours": {
+          "hoursPerWorkday": 8,
+          "workingWeekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "excludePublicHolidays": true
+        },
+        "salary": {
+          "type": 0,
+          "hourlyRate": 200,
+          "monthlySalary": 0,
+          "employmentPercent": 100,
+          "hourlyPayBasis": 0
+        },
+        "overtime": {
+          "mode": 0,
+          "defaultRateType": 0,
+          "defaultRateValue": 50,
+          "dailyThresholdHours": 8,
+          "thresholdMode": 1,
+          "rateBands": [],
+          "obOvertimeCombination": 0
+        }
+      },
+      "output": {
+        "year": 2026,
+        "month": 8,
+        "workedMinutes": 600,
+        "regularMinutes": 480,
+        "overtimeMinutes": 120,
+        "ordinaryPaidMinutes": 480,
+        "balanceEligibleMinutes": 600,
+        "expectedMinutes": 10080,
+        "monthlyDifferenceMinutes": -9480,
+        "openingBalanceMinutes": 120,
+        "closingBalanceMinutes": -9360,
+        "grossSalary": 1600,
+        "baseSalary": 0,
+        "overtimeCompensation": 0,
+        "obCompensation": 0,
+        "obMinutes": 0,
+        "completedDayCount": 1,
+        "missingPastDays": [
+          "2026-08-04",
+          "2026-08-05",
+          "2026-08-06",
+          "2026-08-07",
+          "2026-08-10",
+          "2026-08-11",
+          "2026-08-12",
+          "2026-08-13",
+          "2026-08-14",
+          "2026-08-17",
+          "2026-08-18",
+          "2026-08-19",
+          "2026-08-20",
+          "2026-08-21",
+          "2026-08-24",
+          "2026-08-25",
+          "2026-08-26",
+          "2026-08-27",
+          "2026-08-28",
+          "2026-08-31"
+        ],
+        "workedHours": 10,
+        "regularHours": 8,
+        "overtimeHours": 2,
+        "ordinaryPaidHours": 8,
+        "obHours": 0,
+        "expectedHours": 168
+      }
+    }
+  ]
+}
