@@ -106,6 +106,14 @@ impl M3Select {
         }
     }
 
+    pub fn set_open(&mut self, open: bool, cx: &mut Context<Self>) {
+        if self.open != open {
+            self.open = open;
+            self.highlighted = self.selected;
+            cx.notify();
+        }
+    }
+
     fn toggle(&mut self, _: &ToggleSelect, window: &mut Window, cx: &mut Context<Self>) {
         window.focus(&self.focus);
         if self.open {

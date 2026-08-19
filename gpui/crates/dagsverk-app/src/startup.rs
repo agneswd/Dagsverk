@@ -32,6 +32,11 @@ pub enum VisualState {
     EditorDark,
     SettingsDark,
     WorkspacesDark,
+    MonthActions,
+    WorkspaceMenu,
+    SelectPanel,
+    ConfirmationDialog,
+    Snackbar,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -193,6 +198,11 @@ impl VisualState {
             "editor-dark" => Self::EditorDark,
             "settings-dark" => Self::SettingsDark,
             "workspaces-dark" => Self::WorkspacesDark,
+            "month-actions" => Self::MonthActions,
+            "workspace-menu" => Self::WorkspaceMenu,
+            "select-panel" => Self::SelectPanel,
+            "confirmation-dialog" => Self::ConfirmationDialog,
+            "snackbar" => Self::Snackbar,
             _ => return None,
         })
     }
@@ -290,6 +300,27 @@ mod tests {
         )
         .expect("compatibility path");
         assert_eq!(compatibility, Path::new("/config/Dagsverk/dagsverk.db"));
+    }
+
+    #[test]
+    fn parses_overlay_visual_states() {
+        assert_eq!(
+            VisualState::parse("month-actions"),
+            Some(VisualState::MonthActions)
+        );
+        assert_eq!(
+            VisualState::parse("workspace-menu"),
+            Some(VisualState::WorkspaceMenu)
+        );
+        assert_eq!(
+            VisualState::parse("select-panel"),
+            Some(VisualState::SelectPanel)
+        );
+        assert_eq!(
+            VisualState::parse("confirmation-dialog"),
+            Some(VisualState::ConfirmationDialog)
+        );
+        assert_eq!(VisualState::parse("snackbar"), Some(VisualState::Snackbar));
     }
 
     #[test]

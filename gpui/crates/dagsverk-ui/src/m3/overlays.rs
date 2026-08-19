@@ -195,6 +195,7 @@ pub enum M3SnackbarEvent {
 
 pub struct M3SnackbarHost {
     message: Option<SharedString>,
+    dismiss_label: SharedString,
     colors: M3ColorScheme,
     dismiss_focus: FocusHandle,
     scale: UiScale,
@@ -208,6 +209,7 @@ impl M3SnackbarHost {
     pub fn new(colors: M3ColorScheme, cx: &mut Context<Self>) -> Self {
         Self {
             message: None,
+            dismiss_label: "Close".into(),
             colors,
             dismiss_focus: cx.focus_handle().tab_index(0),
             scale: UiScale::default(),
@@ -234,6 +236,18 @@ impl M3SnackbarHost {
     pub fn set_scale(&mut self, scale: UiScale, cx: &mut Context<Self>) {
         self.scale = scale;
         cx.notify();
+    }
+
+    pub fn set_dismiss_label(
+        &mut self,
+        dismiss_label: impl Into<SharedString>,
+        cx: &mut Context<Self>,
+    ) {
+        let dismiss_label = dismiss_label.into();
+        if self.dismiss_label != dismiss_label {
+            self.dismiss_label = dismiss_label;
+            cx.notify();
+        }
     }
 
     pub fn configure(
@@ -282,14 +296,15 @@ impl Render for M3SnackbarHost {
         let dismiss_focused = self.dismiss_focus.is_focused(window);
         let scale = self.scale;
         div()
-            .size_full()
+            .absolute()
+            .left(self.left)
+            .right(self.right)
+            .bottom(self.bottom)
+            .flex()
+            .justify_center()
             .when_some(self.message.clone(), |root, message| {
                 root.child(
                     div()
-                        .absolute()
-                        .left(self.left)
-                        .right(self.right)
-                        .bottom(self.bottom)
                         .max_w(self.max_width)
                         .min_w(scale.px(320.0))
                         .h(scale.px(48.0))
@@ -318,7 +333,7 @@ impl Render for M3SnackbarHost {
                                 .text_color(self.colors.primary)
                                 .cursor_pointer()
                                 .on_click(cx.listener(|this, _, _, cx| this.dismiss(cx)))
-                                .child("Dismiss"),
+                                .child(self.dismiss_label.clone()),
                         ),
                 )
             })

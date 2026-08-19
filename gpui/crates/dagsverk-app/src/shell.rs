@@ -61,11 +61,11 @@ enum ExportFormat {
 
 const CURRENCY_OPTIONS: [(&str, CurrencyPreference); 6] = [
     ("SEK (kr)", CurrencyPreference::Sek),
-    ("EUR", CurrencyPreference::Eur),
-    ("USD", CurrencyPreference::Usd),
-    ("GBP", CurrencyPreference::Gbp),
-    ("NOK", CurrencyPreference::Nok),
-    ("DKK", CurrencyPreference::Dkk),
+    ("EUR (€)", CurrencyPreference::Eur),
+    ("USD ($)", CurrencyPreference::Usd),
+    ("GBP (£)", CurrencyPreference::Gbp),
+    ("NOK (kr)", CurrencyPreference::Nok),
+    ("DKK (kr)", CurrencyPreference::Dkk),
 ];
 const THEME_OPTIONS: [ThemePreference; 3] = [
     ThemePreference::System,
@@ -726,10 +726,13 @@ impl AppShell {
             ResolvedTheme::Light
         };
         self.model.route = match state {
-            VisualState::Projects | VisualState::ColorPicker => Route::Projects,
+            VisualState::Projects | VisualState::ColorPicker | VisualState::ConfirmationDialog => {
+                Route::Projects
+            }
             VisualState::SettingsGeneral
             | VisualState::SettingsOvertime
-            | VisualState::SettingsDark => Route::Settings,
+            | VisualState::SettingsDark
+            | VisualState::SelectPanel => Route::Settings,
             VisualState::Backups => Route::DataBackups,
             _ => Route::Timesheet,
         };
@@ -742,11 +745,31 @@ impl AppShell {
         self.settings_tab = usize::from(matches!(state, VisualState::SettingsOvertime)) * 2;
         self.settings_tabs
             .update(cx, |tabs, cx| tabs.set_selected(self.settings_tab, cx));
-        self.manage_workspaces =
-            matches!(state, VisualState::Workspaces | VisualState::WorkspacesDark);
+        self.manage_workspaces = matches!(
+            state,
+            VisualState::Workspaces | VisualState::WorkspacesDark | VisualState::Snackbar
+        );
         self.month_menu_open = matches!(state, VisualState::MonthMenu);
+        self.month_actions_open = matches!(state, VisualState::MonthActions);
+        self.workspace_menu_open =
+            matches!(state, VisualState::WorkspaceMenu | VisualState::Snackbar);
         self.color_picker_target =
             matches!(state, VisualState::ColorPicker).then_some(ColorPickerTarget::NewProject);
+        self.confirm_project_delete = matches!(state, VisualState::ConfirmationDialog)
+            .then(|| {
+                self.model
+                    .projects
+                    .iter()
+                    .find(|project| project.name == "Client A")
+                    .or_else(|| self.model.projects.first())
+                    .map(|project| project.id.clone())
+            })
+            .flatten();
+        self.notice = matches!(state, VisualState::Snackbar)
+            .then(|| self.text("Workspace created.").to_string());
+        self.currency_select.update(cx, |select, cx| {
+            select.set_open(matches!(state, VisualState::SelectPanel), cx)
+        });
         if matches!(state, VisualState::Editor | VisualState::EditorDark)
             && let Ok(date) = "2026-08-04".parse()
         {
@@ -2179,88 +2202,155 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap(scale.px(24.0))
-            .child(self.text("Current database"))
             .child(
                 div()
-                    .p(scale.px(16.0))
-                    .rounded(scale.px(12.0))
-                    .bg(colors.surface_container)
                     .text_color(colors.on_surface_variant)
-                    .child(database_path.display().to_string()),
+                    .child(self.text("Back up or restore your local Dagsverk database.")),
             )
             .child(
                 div()
+                    .p(scale.px(24.0))
                     .flex()
-                    .gap(scale.px(12.0))
+                    .flex_col()
+                    .gap(scale.px(16.0))
+                    .rounded(scale.px(16.0))
+                    .bg(colors.surface_container_low)
                     .child(
-                        maintenance_button(
-                            "open-data-folder",
-                            "Open data folder",
-                            !busy,
-                            colors,
-                            scale,
-                        )
-                        .when(!busy, |button| {
-                            button.on_click(cx.listener(|shell, _, _, cx| {
-                                shell.open_data_folder();
-                                cx.notify();
-                            }))
-                        }),
+                        div()
+                            .text_size(scale.px(18.0))
+                            .child(self.text("Local data")),
                     )
                     .child(
-                        maintenance_button("create-backup", "Create backup", !busy, colors, scale)
-                            .when(!busy, |button| {
-                                button.on_click(
-                                    cx.listener(|shell, _, _, cx| shell.create_backup(cx)),
+                        div()
+                            .text_size(scale.px(12.0))
+                            .text_color(colors.on_surface_variant)
+                            .child(self.text(
+                                "Your time entries, rates, and projects stay on this device.",
+                            )),
+                    )
+                    .child(
+                        div().text_color(colors.on_surface_variant).child(self.text(
+                            "Dagsverk works without an account or internet connection. It stores all records in a local SQLite database.",
+                        )),
+                    )
+                    .child(
+                        div()
+                            .p(scale.px(16.0))
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .gap(scale.px(16.0))
+                            .rounded(scale.px(12.0))
+                            .bg(colors.surface_container)
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(scale.px(4.0))
+                                    .child(
+                                        div()
+                                            .text_size(scale.px(12.0))
+                                            .child(self.text("Database location")),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(scale.px(12.0))
+                                            .text_color(colors.on_surface_variant)
+                                            .child(database_path.display().to_string()),
+                                    ),
+                            )
+                            .child(
+                                maintenance_button(
+                                    "open-data-folder",
+                                    "Open data folder",
+                                    !busy,
+                                    colors,
+                                    scale,
                                 )
-                            }),
+                                .when(!busy, |button| {
+                                    button.on_click(cx.listener(|shell, _, _, cx| {
+                                        shell.open_data_folder();
+                                        cx.notify();
+                                    }))
+                                }),
+                            ),
+                    ),
+            )
+            .child(
+                div()
+                    .p(scale.px(24.0))
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(16.0))
+                    .rounded(scale.px(16.0))
+                    .bg(colors.surface_container_low)
+                    .child(
+                        div()
+                            .text_size(scale.px(18.0))
+                            .child(self.text("Backup and restore")),
+                    )
+                    .child(
+                        div()
+                            .text_size(scale.px(12.0))
+                            .text_color(colors.on_surface_variant)
+                            .child(self.text(
+                                "Create a portable copy or restore an earlier database.",
+                            )),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .gap(scale.px(16.0))
+                            .child(
+                                maintenance_button(
+                                    "create-backup",
+                                    "Create backup",
+                                    !busy,
+                                    colors,
+                                    scale,
+                                )
+                                .when(!busy, |button| {
+                                    button.on_click(
+                                        cx.listener(|shell, _, _, cx| shell.create_backup(cx)),
+                                    )
+                                }),
+                            )
+                            .child(
+                                maintenance_button(
+                                    "restore-database",
+                                    "Restore from backup",
+                                    !busy,
+                                    colors,
+                                    scale,
+                                )
+                                .when(!busy, |button| {
+                                    button.on_click(
+                                        cx.listener(|shell, _, _, cx| shell.choose_restore(cx)),
+                                    )
+                                }),
+                            )
+                            .child(
+                                maintenance_button(
+                                    "import-tidverk",
+                                    "Import from Tidverk",
+                                    !busy,
+                                    colors,
+                                    scale,
+                                )
+                                .when(!busy, |button| {
+                                    button.on_click(
+                                        cx.listener(|shell, _, _, cx| {
+                                            shell.choose_tidverk_import(cx)
+                                        }),
+                                    )
+                                }),
+                            ),
                     ),
             )
             .when_some(self.last_backup.clone(), |page, path| {
                 page.child(format!("Last backup: {}", path.display()))
             })
-            .child(
-                div()
-                    .mt(scale.px(12.0))
-                    .text_size(scale.px(20.0))
-                    .child(self.text("Restore or import")),
-            )
-            .child(
-                div()
-                    .text_color(colors.on_surface_variant)
-                    .child(self.text("Close Electron Dagsverk before restore or import.")),
-            )
-            .child(
-                div()
-                    .flex()
-                    .gap(scale.px(12.0))
-                    .child(
-                        maintenance_button(
-                            "restore-database",
-                            "Restore database",
-                            !busy,
-                            colors,
-                            scale,
-                        )
-                        .when(!busy, |button| {
-                            button.on_click(cx.listener(|shell, _, _, cx| shell.choose_restore(cx)))
-                        }),
-                    )
-                    .child(
-                        maintenance_button(
-                            "import-tidverk",
-                            "Import Tidverk",
-                            !busy,
-                            colors,
-                            scale,
-                        )
-                        .when(!busy, |button| {
-                            button.on_click(
-                                cx.listener(|shell, _, _, cx| shell.choose_tidverk_import(cx)),
-                            )
-                        }),
-                    ),
-            )
             .when(busy, |page| {
                 page.child(
                     div()
@@ -2507,7 +2597,8 @@ impl AppShell {
     ) -> gpui::Div {
         let scale = interface_scale(&self.model);
         let (stacked, page_padding) = route_page_layout(pane_width);
-        let projects = self.model.projects.clone();
+        let mut projects = self.model.projects.clone();
+        projects.sort_by_key(|project| (!project.is_active, !project.is_default));
         let new_color = self.project_color_input.read(cx).text().to_owned();
         let new_color_swatch = color_from_hex(&new_color).unwrap_or(colors.primary);
         let can_add_project = !self.project_name_input.read(cx).text().trim().is_empty();
@@ -2669,9 +2760,9 @@ impl AppShell {
                                         .text_size(scale.px(12.0))
                                         .text_color(colors.on_surface_variant)
                                         .child(if project.is_active {
-                                            "Active"
+                                            self.text("Active")
                                         } else {
-                                            "Archived"
+                                            self.text("Archived")
                                         }),
                                 ),
                             )
@@ -2787,9 +2878,9 @@ impl AppShell {
                                         ))
                                     })
                                     .child(if project.is_active {
-                                        "Archive"
+                                        self.text("Archive")
                                     } else {
-                                        "Unarchive"
+                                        self.text("Unarchive")
                                     })
                                     .on_click(cx.listener(move |shell, _, _, cx| {
                                         shell.toggle_project(&toggle_id, cx)
@@ -3817,13 +3908,31 @@ impl AppShell {
                     .text_size(scale.px(18.0))
                     .child(self.text("Overtime & OB")),
             )
-            .child(self.overtime_selects.mode.clone())
-            .child(self.overtime_selects.threshold.clone())
+            .child(
+                div()
+                    .grid()
+                    .grid_cols(2)
+                    .gap(scale.px(12.0))
+                    .child(self.overtime_selects.mode.clone())
+                    .child(self.overtime_selects.threshold.clone()),
+            )
             .when(
                 overtime.threshold_mode == OvertimeThresholdMode::FixedDailyHours,
-                |settings| settings.child(self.settings_inputs.overtime_threshold.clone()),
+                |settings| {
+                    settings.child(
+                        div()
+                            .w(relative(0.5))
+                            .pr(scale.px(6.0))
+                            .child(self.settings_inputs.overtime_threshold.clone()),
+                    )
+                },
             )
-            .child(self.overtime_selects.ob_combination.clone())
+            .child(
+                div()
+                    .w(relative(0.5))
+                    .pr(scale.px(6.0))
+                    .child(self.overtime_selects.ob_combination.clone()),
+            )
             .when(
                 overtime.mode == OvertimeCompensationMode::Paid,
                 |settings| {
@@ -4327,6 +4436,16 @@ impl AppShell {
         let holiday = dagsverk_core::holidays::SwedishHolidayCalendar.holiday_name(date);
         let effective_hours = Decimal::new(worked_minutes(draft).value(), 0) / Decimal::new(60, 0);
         let premium_pay = daily_pay.overtime_pay.decimal() + daily_pay.ob_pay.decimal();
+        let status_labels = [
+            self.text("Worked"),
+            self.text("Day Off"),
+            self.text("Unlogged"),
+        ];
+        let reuse_labels = [
+            self.text("Normal day"),
+            self.text("Copy previous"),
+            self.text("Copy last week"),
+        ];
         div()
             .w(scale.px(416.0))
             .h_full()
@@ -4412,17 +4531,22 @@ impl AppShell {
                             .border_color(colors.outline_variant)
                             .children(
                                 [
-                                    ("status-worked", "check", "Worked", WorkEntryStatus::Worked),
+                                    (
+                                        "status-worked",
+                                        "check",
+                                        status_labels[0].clone(),
+                                        WorkEntryStatus::Worked,
+                                    ),
                                     (
                                         "status-off",
                                         "beach_access",
-                                        "Day Off",
+                                        status_labels[1].clone(),
                                         WorkEntryStatus::Off,
                                     ),
                                     (
                                         "status-incomplete",
                                         "remove",
-                                        "Unlogged",
+                                        status_labels[2].clone(),
                                         WorkEntryStatus::Incomplete,
                                     ),
                                 ]
@@ -4497,70 +4621,56 @@ impl AppShell {
                                 ),
                             ),
                     )
-                    .child(self.text("Reuse"))
-                    .child(
-                        div().flex().gap(scale.px(8.0)).children(
-                            ["Normal day", "Copy previous", "Copy last week"]
-                                .into_iter()
-                                .enumerate()
-                                .map(|(index, label)| {
-                                    div()
-                                        .id(("reuse", index))
-                                        .h(scale.px(36.0))
-                                        .px(scale.px(10.0))
-                                        .flex()
-                                        .items_center()
-                                        .rounded(scale.px(18.0))
-                                        .border_1()
-                                        .border_color(colors.outline_variant)
-                                        .cursor_pointer()
-                                        .text_size(scale.px(12.0))
-                                        .hover(move |style| {
-                                            style.bg(m3_state_layer(
-                                                colors.surface_container_low,
-                                                colors.on_surface,
-                                                0.08,
-                                            ))
-                                        })
-                                        .active(move |style| {
-                                            style.bg(m3_state_layer(
-                                                colors.surface_container_low,
-                                                colors.on_surface,
-                                                0.12,
-                                            ))
-                                        })
-                                        .child(label)
-                                        .on_click(cx.listener(move |shell, _, _, cx| match index {
-                                            0 => {
-                                                if let Some(draft) =
-                                                    shell.model.editor.draft.as_mut()
-                                                {
-                                                    draft.status = WorkEntryStatus::Worked;
-                                                    draft.start_time = Some(
-                                                        shell.model.settings.default_start_time,
-                                                    );
-                                                    draft.end_time =
-                                                        Some(shell.model.settings.default_end_time);
-                                                    draft.lunch_minutes =
-                                                        shell.model.settings.default_lunch_minutes;
-                                                    draft.project_name = Some(
-                                                        shell
-                                                            .model
-                                                            .settings
-                                                            .default_project
-                                                            .clone(),
-                                                    );
-                                                    draft.scheduled_minutes_override = None;
-                                                }
-                                                shell.sync_editor_inputs(cx);
-                                                cx.notify();
-                                            }
-                                            1 => shell.copy_previous(cx),
-                                            _ => shell.copy_last_week(cx),
-                                        }))
-                                }),
-                        ),
-                    )
+                    .child(self.text("Reuse a day"))
+                    .child(div().flex().gap(scale.px(8.0)).children(
+                        reuse_labels.into_iter().enumerate().map(|(index, label)| {
+                            div()
+                                .id(("reuse", index))
+                                .h(scale.px(40.0))
+                                .px(scale.px(10.0))
+                                .flex()
+                                .items_center()
+                                .rounded(scale.px(20.0))
+                                .cursor_pointer()
+                                .text_color(colors.primary)
+                                .text_size(scale.px(12.0))
+                                .hover(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.on_surface,
+                                        0.08,
+                                    ))
+                                })
+                                .active(move |style| {
+                                    style.bg(m3_state_layer(
+                                        colors.surface_container_low,
+                                        colors.on_surface,
+                                        0.12,
+                                    ))
+                                })
+                                .child(label)
+                                .on_click(cx.listener(move |shell, _, _, cx| match index {
+                                    0 => {
+                                        if let Some(draft) = shell.model.editor.draft.as_mut() {
+                                            draft.status = WorkEntryStatus::Worked;
+                                            draft.start_time =
+                                                Some(shell.model.settings.default_start_time);
+                                            draft.end_time =
+                                                Some(shell.model.settings.default_end_time);
+                                            draft.lunch_minutes =
+                                                shell.model.settings.default_lunch_minutes;
+                                            draft.project_name =
+                                                Some(shell.model.settings.default_project.clone());
+                                            draft.scheduled_minutes_override = None;
+                                        }
+                                        shell.sync_editor_inputs(cx);
+                                        cx.notify();
+                                    }
+                                    1 => shell.copy_previous(cx),
+                                    _ => shell.copy_last_week(cx),
+                                }))
+                        }),
+                    ))
                     .when(status == WorkEntryStatus::Worked, |panel| {
                         panel
                             .child(self.text("Quick Presets"))
@@ -4577,7 +4687,7 @@ impl AppShell {
                                         |(index, (label, start, end))| {
                                             div()
                                                 .id(("preset", index))
-                                                .h(scale.px(36.0))
+                                                .h(scale.px(32.0))
                                                 .px(scale.px(10.0))
                                                 .flex()
                                                 .items_center()
@@ -4622,6 +4732,18 @@ impl AppShell {
                             )
                             .child(
                                 div()
+                                    .min_h(scale.px(48.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .child(self.text("Override scheduled hours"))
+                                    .child(self.scheduled_override_switch.clone()),
+                            )
+                            .when(scheduled_override, |panel| {
+                                panel.child(self.scheduled_input.clone())
+                            })
+                            .child(
+                                div()
                                     .flex()
                                     .gap(scale.px(12.0))
                                     .child(
@@ -4657,13 +4779,21 @@ impl AppShell {
                                     } else {
                                         colors.on_surface
                                     };
+                                    let label = if minutes == 0 {
+                                        self.text("No Lunch")
+                                    } else {
+                                        format!("{minutes} min").into()
+                                    };
                                     div()
                                         .id(("lunch", minutes as usize))
-                                        .h(scale.px(36.0))
+                                        .h(scale.px(32.0))
                                         .px(scale.px(14.0))
                                         .flex()
                                         .items_center()
+                                        .gap(scale.px(6.0))
                                         .rounded(scale.px(18.0))
+                                        .border_1()
+                                        .border_color(colors.outline_variant)
                                         .cursor_pointer()
                                         .bg(background)
                                         .text_color(foreground)
@@ -4673,7 +4803,14 @@ impl AppShell {
                                         .active(move |style| {
                                             style.bg(m3_state_layer(background, foreground, 0.12))
                                         })
-                                        .child(format!("{minutes}m"))
+                                        .when(selected, |chip| {
+                                            chip.child(m3_icon_colored(
+                                                "check",
+                                                16.0 * scale.factor(),
+                                                foreground,
+                                            ))
+                                        })
+                                        .child(label)
                                         .on_click(cx.listener(move |shell, _, _, cx| {
                                             if let Some(draft) = shell.model.editor.draft.as_mut() {
                                                 draft.lunch_minutes = Minutes::new(minutes);
@@ -4682,18 +4819,6 @@ impl AppShell {
                                         }))
                                 }),
                             ))
-                            .child(
-                                div()
-                                    .min_h(scale.px(48.0))
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
-                                    .child(self.text("Override scheduled hours"))
-                                    .child(self.scheduled_override_switch.clone()),
-                            )
-                            .when(scheduled_override, |panel| {
-                                panel.child(self.scheduled_input.clone())
-                            })
                             .child(self.project_select.clone())
                     })
                     .when(status == WorkEntryStatus::Off, |panel| {
@@ -4749,7 +4874,7 @@ impl AppShell {
                     .px(scale.px(16.0))
                     .flex()
                     .items_center()
-                    .justify_end()
+                    .justify_between()
                     .gap(scale.px(8.0))
                     .border_t_1()
                     .border_color(colors.grid_line)
@@ -4763,8 +4888,14 @@ impl AppShell {
                             .items_center()
                             .rounded(scale.px(20.0))
                             .cursor_pointer()
-                            .text_color(colors.error)
-                            .hover(|style| style.bg(colors.error_container))
+                            .text_color(colors.primary)
+                            .hover(move |style| {
+                                style.bg(m3_state_layer(
+                                    colors.surface_container,
+                                    colors.primary,
+                                    0.08,
+                                ))
+                            })
                             .child(self.text("Reset"))
                             .on_click(cx.listener(move |shell, _, _, cx| {
                                 if let Err(error) = shell.model.delete_entry(date) {
@@ -4860,7 +4991,7 @@ impl AppShell {
     fn month_actions_menu(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) -> gpui::Div {
         let scale = interface_scale(&self.model);
         div()
-            .w(scale.px(240.0))
+            .w(scale.px(200.0))
             .p(scale.px(8.0))
             .flex()
             .flex_col()
@@ -5151,7 +5282,7 @@ impl AppShell {
         cx: &mut Context<Self>,
     ) -> gpui::Div {
         div()
-            .min_w(px(248.0 * scale))
+            .min_w(px(224.0 * scale))
             .p(px(8.0 * scale))
             .flex()
             .flex_col()
@@ -5167,7 +5298,7 @@ impl AppShell {
                         let active = workspace.id == active_workspace_id;
                         div()
                             .id(("workspace-menu-item", index))
-                            .h(px(52.0 * scale))
+                            .h(px(44.0 * scale))
                             .px(px(12.0 * scale))
                             .flex()
                             .items_center()
@@ -5206,7 +5337,7 @@ impl AppShell {
             .child(
                 div()
                     .id("manage-workspaces")
-                    .h(px(52.0 * scale))
+                    .h(px(44.0 * scale))
                     .px(px(12.0 * scale))
                     .flex()
                     .items_center()
@@ -5307,6 +5438,7 @@ impl Render for AppShell {
         let route_header_offset =
             (32.0 + ((pane_width - 1088.0) / 2.0).max(0.0) - header_layout.padding).max(0.0);
         self.snackbar.update(cx, |snackbar, cx| {
+            snackbar.set_dismiss_label(self.text("Close"), cx);
             snackbar.configure(
                 message.clone().map(Into::into),
                 colors,
@@ -5649,8 +5781,8 @@ impl Render for AppShell {
                                                 trigger.child(
                                                     deferred(
                                                         anchored()
-                                                            .anchor(Corner::TopRight)
-                                                            .offset(point(px(40.0 * scale), px(48.0 * scale)))
+                                                            .anchor(Corner::TopLeft)
+                                                            .offset(point(px(0.0), px(48.0 * scale)))
                                                             .snap_to_window_with_margin(px(8.0 * scale))
                                                             .child(self.month_actions_menu(colors, cx)),
                                                     )
@@ -5991,7 +6123,6 @@ impl Render for AppShell {
                         })),
                 )
             })
-            .child(self.snackbar.clone())
             .when(self.confirm_reset, |root| {
                 root.child(
                     div()
@@ -6374,6 +6505,7 @@ impl Render for AppShell {
             .when(setup_required, |root| {
                 root.child(self.setup_dialog(colors, cx))
             })
+            .child(self.snackbar.clone())
     }
 }
 
