@@ -27,6 +27,11 @@ calendar-dark|12_calendar_dark.png|1366x820|100
 editor-dark|13_day_editor_dark.png|1366x820|100
 settings-dark|14_settings_dark.png|1366x820|100
 workspaces-dark|15_workspace_dialog_dark.png|1366x820|100
+month-actions|16_month_actions_light.png|1366x820|100
+workspace-menu|17_workspace_menu_light.png|1366x820|100
+select-panel|18_select_panel_light.png|1366x820|100
+confirmation-dialog|19_confirmation_dialog_light.png|1366x820|100
+snackbar|20_snackbar_light.png|1366x820|100
 ledger|21_ledger_960x640.png|960x640|100
 ledger|22_ledger_1200x760.png|1200x760|100
 editor|23_day_editor_1600x900.png|1600x900|100

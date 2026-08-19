@@ -22,7 +22,7 @@ cargo run --release -- \
   --interface-scale 100
 ```
 
-On Niri, capture one state or the complete set without focusing the preview:
+On Niri, capture one state or the complete 26-state set without focusing the preview:
 
 ```bash
 gpui/tools/visual-diff/capture-gpui-window.sh ledger /tmp/ledger.png
