@@ -11,21 +11,21 @@
 
 ## Current GPUI comparison captures
 
-- Current behavior: The complete deterministic Electron set is current. The committed GPUI images predate the latest shell, ledger, editor, and palette changes.
+- Current behavior: All 26 deterministic Electron states now have current GPUI captures, including overlay, responsive, scale, light, and dark variants.
 - Expected parity: Every required Electron image has a current GPUI image at the same viewport, theme, fixture, and scale.
-- Reason incomplete: Niri did not write an image while the DMS fade-to-lock overlay held exclusive input and the compositor reported no focused window.
+- Reason incomplete: Pixel comparison still needs review after each visual change, and the GPUI preset color panel does not reproduce Electron's custom hue, saturation, and brightness controls.
 - Files involved: `reference/screenshots/gpui/`, `gpui/VISUAL_PARITY.md`.
-- Proposed solution: Run the committed non-focusing Niri capture tool when the session is active, or use an isolated GPU-backed compositor.
+- Proposed solution: Keep the 26-state capture matrix current and finish the remaining color-picker and interaction-state differences.
 - Test needed: Run `npm run visual:compare` for every required pair and inspect geometry and interaction states.
 
 ## Background GPUI capture
 
-- Current behavior: Tests, builds, and GPUI launches run without taking desktop focus. GPUI 0.2.2 fails to present through Xvfb and panics on a seatless headless Weston compositor. The capture tool launches typed visual states, uses an exact window size and scale, and verifies that focus does not change.
+- Current behavior: Tests, builds, and GPUI captures run without taking desktop focus. An isolated headless Sway compositor presents through the real NVIDIA Vulkan driver and records all typed visual states at exact window sizes and scales.
 - Expected parity: Automated captures must not use the active desktop.
-- Reason incomplete: The pinned Linux backend needs a real Vulkan presentation surface and assumes a Wayland seat. The Niri method still uses the active compositor, but an app-specific rule prevents focus changes.
+- Reason incomplete: The pinned Linux backend still cannot present through Xvfb or seatless Weston, so capture depends on a machine with a real Vulkan driver.
 - Files involved: `gpui/tools/visual-diff/`, `gpui/VISUAL_PARITY.md`.
-- Proposed solution: Use the committed unfocused Niri capture tool and GPUI structural checks now. Add an isolated GPU-backed virtual compositor when available.
-- Test needed: Repeat the capture in an isolated GPU-backed compositor when one is available in CI.
+- Proposed solution: Keep the non-focusing Niri fallback and document the isolated headless Sway path for GPU-capable hosts.
+- Test needed: Add the isolated capture path to a GPU-capable CI runner when one is available.
 
 ## Phase 0 platform proof
 
