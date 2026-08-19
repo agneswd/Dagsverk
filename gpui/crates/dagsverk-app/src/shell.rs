@@ -2265,7 +2265,7 @@ impl AppShell {
         let path = self.services.data.database_path();
         let folder = path.parent().unwrap_or(path.as_path());
         if let Err(error) = self.services.shell.open_folder(folder) {
-            self.notice = Some(error.to_string());
+            self.notice = Some(self.message_with("Could not open the data folder: {0}", error));
         }
     }
 
@@ -2278,6 +2278,12 @@ impl AppShell {
         let request = self.model.export_request();
         let dialog = self.services.file_dialog.clone();
         let extension = format.extension();
+        let dialog_title = self.message("Export Timesheet Report");
+        let filter_name = if matches!(format, ExportFormat::Xlsx) {
+            self.message("Excel Workbook")
+        } else {
+            self.message("OpenDocument Spreadsheet")
+        };
         let safe_name: String = request
             .employee_name
             .chars()
@@ -2296,17 +2302,9 @@ impl AppShell {
         cx.spawn(async move |this, cx| {
             let selected = dialog
                 .choose_save_file(SaveFileRequest {
-                    title: "Export Timesheet Report".to_owned(),
+                    title: dialog_title,
                     file_name: Some(file_name),
-                    filters: vec![(
-                        if matches!(format, ExportFormat::Xlsx) {
-                            "Excel Workbook"
-                        } else {
-                            "OpenDocument Spreadsheet"
-                        }
-                        .to_owned(),
-                        vec![extension.to_owned()],
-                    )],
+                    filters: vec![(filter_name, vec![extension.to_owned()])],
                     directory: None,
                 })
                 .await;
@@ -2322,7 +2320,8 @@ impl AppShell {
                 Err(error) => {
                     let _ = this.update(cx, |shell, cx| {
                         shell.maintenance_busy = false;
-                        shell.notice = Some(error.to_string());
+                        shell.notice =
+                            Some(shell.message_with("Could not open the file dialog: {0}", error));
                         cx.notify();
                     });
                     return;
@@ -2342,8 +2341,8 @@ impl AppShell {
             let _ = this.update(cx, |shell, cx| {
                 shell.maintenance_busy = false;
                 shell.notice = Some(match result {
-                    Ok(()) => format!("Report exported: {}", path.display()),
-                    Err(error) => error,
+                    Ok(()) => shell.message_with("Report exported: {0}", path.display()),
+                    Err(error) => shell.message_with("Could not export the report: {0}", error),
                 });
                 cx.notify();
             });
@@ -2367,9 +2366,13 @@ impl AppShell {
                 match result {
                     Ok(path) => {
                         shell.last_backup = Some(path.clone());
-                        shell.notice = Some(format!("Backup created: {}", path.display()));
+                        shell.notice =
+                            Some(shell.message_with("Backup created: {0}", path.display()));
                     }
-                    Err(error) => shell.notice = Some(error),
+                    Err(error) => {
+                        shell.notice =
+                            Some(shell.message_with("Could not create a backup: {0}", error));
+                    }
                 }
                 cx.notify();
             });
@@ -2379,16 +2382,19 @@ impl AppShell {
     }
 
     fn choose_restore(&mut self, cx: &mut Context<Self>) {
-        self.choose_database_file("Select a Dagsverk backup", false, cx);
+        let title = self.message("Select a Dagsverk backup");
+        self.choose_database_file(title, false, cx);
     }
 
     fn choose_tidverk_import(&mut self, cx: &mut Context<Self>) {
-        self.choose_database_file("Select a Tidverk database", true, cx);
+        let title = self.message("Select a Tidverk database");
+        self.choose_database_file(title, true, cx);
     }
 
-    fn choose_database_file(&mut self, title: &'static str, tidverk: bool, cx: &mut Context<Self>) {
+    fn choose_database_file(&mut self, title: String, tidverk: bool, cx: &mut Context<Self>) {
         self.maintenance_busy = true;
         let dialog = self.services.file_dialog.clone();
+        let filter_name = self.message("SQLite database");
         let directory = self
             .services
             .data
@@ -2398,8 +2404,8 @@ impl AppShell {
         cx.spawn(async move |this, cx| {
             let result = dialog
                 .choose_open_file(OpenFileRequest {
-                    title: title.to_owned(),
-                    filters: vec![("SQLite database".to_owned(), vec!["db".to_owned()])],
+                    title,
+                    filters: vec![(filter_name, vec!["db".to_owned()])],
                     directory,
                 })
                 .await;
@@ -2409,7 +2415,10 @@ impl AppShell {
                     Ok(Some(path)) if tidverk => shell.confirm_import = Some(path),
                     Ok(Some(path)) => shell.confirm_restore = Some(path),
                     Ok(None) => {}
-                    Err(error) => shell.notice = Some(error.to_string()),
+                    Err(error) => {
+                        shell.notice =
+                            Some(shell.message_with("Could not open the file dialog: {0}", error));
+                    }
                 }
                 cx.notify();
             });
@@ -2435,10 +2444,9 @@ impl AppShell {
         let task = cx.background_executor().spawn(async move {
             if tidverk {
                 data.import_tidverk_database(&path)
-                    .map(|result| format!("Imported {} entries from Tidverk.", result.entry_count))
+                    .map(|result| Some(result.entry_count))
             } else {
-                data.restore(&path)
-                    .map(|()| "Database restored.".to_owned())
+                data.restore(&path).map(|()| None)
             }
             .map_err(|error| error.to_string())
         });
@@ -2447,18 +2455,33 @@ impl AppShell {
             let _ = this.update(cx, |shell, cx| {
                 shell.maintenance_busy = false;
                 match result {
-                    Ok(message) => match shell.model.initialize() {
+                    Ok(imported_entries) => match shell.model.initialize() {
                         Ok(()) => {
                             shell.settings_draft = shell.model.settings.clone();
                             shell.preferences_draft = shell.model.preferences.clone();
                             shell.settings_inputs.sync(&shell.settings_draft, cx);
                             shell.sync_rate_band_inputs(cx);
                             shell.refresh_month_view(cx);
-                            shell.notice = Some(message);
+                            shell.notice = Some(imported_entries.map_or_else(
+                                || shell.message("Database restored."),
+                                |count| {
+                                    shell.message_with("Imported {0} entries from Tidverk.", count)
+                                },
+                            ));
                         }
-                        Err(error) => shell.notice = Some(error.to_string()),
+                        Err(error) => {
+                            shell.notice = Some(
+                                shell.message_with("Could not reload the database: {0}", error),
+                            );
+                        }
                     },
-                    Err(error) => shell.notice = Some(error),
+                    Err(error) => {
+                        shell.notice =
+                            Some(shell.message_with(
+                                "Could not restore or import the database: {0}",
+                                error,
+                            ));
+                    }
                 }
                 cx.notify();
             });
@@ -6965,6 +6988,14 @@ mod tests {
             shell.read_with(cx, |shell, _| shell.text("Settings").to_string()),
             "Inställningar"
         );
+        shell.update(cx, |shell, cx| shell.create_backup(cx));
+        cx.run_until_parked();
+        assert!(shell.read_with(cx, |shell, _| {
+            shell
+                .notice
+                .as_deref()
+                .is_some_and(|notice| notice.starts_with("Säkerhetskopian skapades: "))
+        }));
 
         shell.update(cx, |shell, cx| {
             shell.month_menu_open = true;
