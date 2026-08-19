@@ -152,7 +152,17 @@ impl Render for M3Switch {
                         self.colors.on_primary
                     } else {
                         self.colors.outline
-                    }),
+                    })
+                    .when(self.checked, |thumb| {
+                        thumb.child(m3_icon_colored(
+                            "check",
+                            16.0 * self.scale.factor(),
+                            self.colors.on_primary_container,
+                        ))
+                    })
+                    .flex()
+                    .items_center()
+                    .justify_center(),
             )
     }
 }

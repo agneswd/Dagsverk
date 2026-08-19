@@ -558,6 +558,15 @@ impl AppModel {
         self.apply_preferences();
     }
 
+    pub fn preview_theme(&mut self, preference: ThemePreference) {
+        self.resolved_theme = match preference {
+            ThemePreference::Dark => ResolvedTheme::Dark,
+            ThemePreference::Light => ResolvedTheme::Light,
+            ThemePreference::System if self.system_dark => ResolvedTheme::Dark,
+            ThemePreference::System => ResolvedTheme::Light,
+        };
+    }
+
     pub fn save_project(&mut self, mut project: Project) -> Result<()> {
         project.workspace_id = Some(self.active_workspace_id.clone());
         self.repository
@@ -636,7 +645,7 @@ impl AppModel {
         let dates = self.summary().missing_past_days;
         if let Some(first) = dates.first().copied() {
             self.catch_up = Some(CatchUpSession { dates, index: 0 });
-            self.open_editor(first);
+            self.open_catch_up_editor(first);
         }
     }
 
@@ -654,7 +663,16 @@ impl AppModel {
         }
         session.index = next as usize;
         let date = session.dates[session.index];
+        self.open_catch_up_editor(date);
+    }
+
+    fn open_catch_up_editor(&mut self, date: IsoDate) {
         self.open_editor(date);
+        if let Some(draft) = self.editor.draft.as_mut()
+            && draft.status == WorkEntryStatus::Incomplete
+        {
+            draft.status = WorkEntryStatus::Worked;
+        }
     }
 
     pub fn close_catch_up(&mut self) {
@@ -803,7 +821,7 @@ mod tests {
         clock::FixedClock,
         models::{
             IsoDate, Money, MonthViewPreference, Project, ProjectId, ThemePreference,
-            WorkspaceType, YearMonth,
+            WorkEntryStatus, WorkspaceType, YearMonth,
         },
         tax::TaxEngine,
     };
@@ -911,6 +929,10 @@ mod tests {
         model.start_catch_up();
         assert!(model.catch_up.is_some());
         assert!(model.editor.is_open);
+        assert_eq!(
+            model.editor.draft.as_ref().map(|draft| draft.status),
+            Some(WorkEntryStatus::Worked)
+        );
     }
 
     #[test]

@@ -169,27 +169,30 @@ impl Render for M3ChoiceGroup {
             .map(|(index, (label, focus))| {
                 let is_selected = index == selected;
                 let is_focused = focus.is_focused(window);
-                let background = if kind == M3ChoiceKind::Tabs {
+                let background = if !enabled && kind == M3ChoiceKind::Segmented {
+                    colors.on_surface.opacity(0.12)
+                } else if kind == M3ChoiceKind::Tabs {
                     colors.surface_container_low
                 } else if is_selected {
                     colors.secondary_container
                 } else {
                     colors.surface
                 };
-                let foreground = if kind == M3ChoiceKind::Tabs && is_selected {
+                let foreground = if !enabled {
+                    colors.on_surface.opacity(0.38)
+                } else if kind == M3ChoiceKind::Tabs && is_selected {
                     colors.primary
                 } else if is_selected {
                     colors.on_secondary_container
                 } else {
                     colors.on_surface_variant
                 };
-                div()
+                let item = div()
                     .id((id.clone(), index))
                     .track_focus(&focus)
                     .tab_index(index as isize)
                     .tab_stop(enabled)
                     .h_full()
-                    .px(scale.px(16.0))
                     .flex()
                     .when(kind == M3ChoiceKind::Tabs, |item| item.flex_1())
                     .items_center()
@@ -197,6 +200,20 @@ impl Render for M3ChoiceGroup {
                     .when(kind == M3ChoiceKind::Segmented && index > 0, |item| {
                         item.border_l_1().border_color(colors.outline_variant)
                     })
+                    .when(kind == M3ChoiceKind::Segmented && index == 0, |item| {
+                        item.rounded_l(scale.px(20.0))
+                    })
+                    .when(
+                        kind == M3ChoiceKind::Segmented && index + 1 == self.items.len(),
+                        |item| item.rounded_r(scale.px(20.0)),
+                    )
+                    .when(kind == M3ChoiceKind::Tabs && index == 0, |item| {
+                        item.rounded_tl(scale.px(16.0)).overflow_hidden()
+                    })
+                    .when(
+                        kind == M3ChoiceKind::Tabs && index + 1 == self.items.len(),
+                        |item| item.rounded_tr(scale.px(16.0)).overflow_hidden(),
+                    )
                     .when(kind == M3ChoiceKind::Tabs, |item| {
                         item.border_b_2().border_color(if is_selected {
                             colors.primary
@@ -204,25 +221,28 @@ impl Render for M3ChoiceGroup {
                             colors.surface_container_low
                         })
                     })
-                    .bg(background)
                     .shadow(choice_focus_shadow(is_focused, colors.primary, scale))
                     .m3_typography(TypographyRole::LabelLarge, scale)
-                    .text_color(foreground)
-                    .opacity(if enabled { 1.0 } else { 0.38 })
+                    .text_color(foreground);
+                let item = item
+                    .px(scale.px(16.0))
+                    .bg(background)
                     .when(enabled, |item| {
-                        item.cursor_pointer()
-                            .hover(move |style| {
-                                style.bg(m3_state_layer(background, foreground, HOVER_OPACITY))
-                            })
-                            .active(move |style| {
-                                style.bg(m3_state_layer(background, foreground, PRESSED_OPACITY))
-                            })
-                            .on_click(cx.listener(move |this, _, _, cx| this.select(index, cx)))
-                            .on_key_down(cx.listener(move |this, event, window, cx| {
-                                this.navigate(index, event, window, cx)
-                            }))
+                        item.hover(move |style| {
+                            style.bg(m3_state_layer(background, foreground, HOVER_OPACITY))
+                        })
+                        .active(move |style| {
+                            style.bg(m3_state_layer(background, foreground, PRESSED_OPACITY))
+                        })
                     })
-                    .child(label)
+                    .child(label);
+                item.when(enabled, |item| {
+                    item.cursor_pointer()
+                        .on_click(cx.listener(move |this, _, _, cx| this.select(index, cx)))
+                        .on_key_down(cx.listener(move |this, event, window, cx| {
+                            this.navigate(index, event, window, cx)
+                        }))
+                })
             })
             .collect::<Vec<_>>();
 

@@ -165,6 +165,11 @@ impl Render for M3Button {
             DISABLED_CONTAINER_OPACITY,
         );
         let disabled_foreground = self.colors.on_surface.opacity(DISABLED_CONTENT_OPACITY);
+        let displayed_foreground = if self.enabled {
+            foreground
+        } else {
+            disabled_foreground
+        };
         let displayed_leading = self
             .loading
             .then(|| SharedString::from("progress_activity"))
@@ -212,7 +217,7 @@ impl Render for M3Button {
                 button.child(m3_icon_colored(
                     icon,
                     18.0 * self.scale.factor(),
-                    foreground,
+                    displayed_foreground,
                 ))
             })
             .child(self.label.clone())
@@ -220,7 +225,7 @@ impl Render for M3Button {
                 button.child(m3_icon_colored(
                     icon,
                     18.0 * self.scale.factor(),
-                    foreground,
+                    displayed_foreground,
                 ))
             })
     }

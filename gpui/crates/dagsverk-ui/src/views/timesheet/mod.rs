@@ -313,6 +313,8 @@ impl MonthView {
                 div()
                     .h(scale.px(40.0))
                     .rounded_t(scale.px(16.0))
+                    .border_b_1()
+                    .border_color(colors.grid_line)
                     .grid()
                     .grid_cols(7)
                     .items_center()
@@ -320,11 +322,13 @@ impl MonthView {
                     .m3_typography(TypographyRole::LabelMedium, scale)
                     .text_color(colors.on_surface_variant)
                     .children(WEEKDAY_KEYS.map(|key| {
-                        localized(self.data.language, key)
-                            .chars()
-                            .take(3)
-                            .collect::<String>()
-                            .to_uppercase()
+                        div().flex().items_center().justify_center().child(
+                            localized(self.data.language, key)
+                                .chars()
+                                .take(3)
+                                .collect::<String>()
+                                .to_uppercase(),
+                        )
                     })),
             )
             .child(
@@ -332,6 +336,8 @@ impl MonthView {
                     .grid()
                     .grid_cols(7)
                     .gap(scale.px(1.0))
+                    .rounded_b(scale.px(16.0))
+                    .overflow_hidden()
                     .bg(colors.grid_line)
                     .children(cells.into_iter().enumerate().map(|(index, cell)| {
                         let date = cell.date;
@@ -717,7 +723,7 @@ pub fn summary_banner(
                                 .child(
                                     div()
                                         .flex()
-                                        .items_baseline()
+                                        .items_center()
                                         .gap(scale.px(8.0))
                                         .child(
                                             div()

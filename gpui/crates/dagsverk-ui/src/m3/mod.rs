@@ -26,7 +26,7 @@ pub use elevation::{
 };
 pub use icon::{m3_icon, m3_icon_colored, m3_icon_filled};
 pub use metrics::{M3Metrics, SUPPORTED_SCALE_PERCENTAGES, UiScale};
-pub use overlays::{M3Menu, M3MenuEvent, M3SnackbarEvent, M3SnackbarHost};
+pub use overlays::{M3Menu, M3MenuEvent, M3SnackbarEvent, M3SnackbarHost, m3_tooltip};
 pub use primitives::{
     M3ChoiceEvent, M3ChoiceGroup, M3ChoiceKind, M3ExpansionPanel, M3ExpansionPanelEvent,
     m3_divider, m3_progress_bar,

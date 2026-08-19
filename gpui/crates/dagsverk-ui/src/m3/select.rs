@@ -30,6 +30,7 @@ pub struct M3Select {
     open: bool,
     focus: FocusHandle,
     colors: M3ColorScheme,
+    label_background: gpui::Hsla,
     leading_icon: Option<SharedString>,
     scale: UiScale,
     bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
@@ -65,6 +66,7 @@ impl M3Select {
             open: false,
             focus: cx.focus_handle().tab_index(1).tab_stop(true),
             colors,
+            label_background: colors.surface_container_low,
             leading_icon: None,
             scale: UiScale::default(),
             bounds: Rc::new(Cell::new(None)),
@@ -93,7 +95,17 @@ impl M3Select {
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
         if self.colors != colors {
+            if self.label_background == self.colors.surface_container_low {
+                self.label_background = colors.surface_container_low;
+            }
             self.colors = colors;
+            cx.notify();
+        }
+    }
+
+    pub fn set_label_background(&mut self, background: gpui::Hsla, cx: &mut Context<Self>) {
+        if self.label_background != background {
+            self.label_background = background;
             cx.notify();
         }
     }
@@ -189,6 +201,7 @@ impl Focusable for M3Select {
 impl Render for M3Select {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focused = self.focus.is_focused(window);
+        let active = focused || self.open;
         let viewport = window.viewport_size();
         let colors = self.colors;
         let scale = self.scale;
@@ -253,15 +266,20 @@ impl Render for M3Select {
             .justify_between()
             .rounded(scale.px(4.0))
             .border_1()
-            .border_color(if focused || self.open {
+            .border_color(if active {
                 colors.primary
             } else {
                 colors.outline
             })
             .shadow(m3_focus_shadow(focused, colors.primary, scale))
-            .bg(colors.surface_container_lowest)
             .cursor_pointer()
-            .hover(move |style| style.border_color(colors.on_surface))
+            .hover(move |style| {
+                style.border_color(if active {
+                    colors.primary
+                } else {
+                    colors.on_surface
+                })
+            })
             .on_click(cx.listener(|select, _, window, cx| select.toggle(&ToggleSelect, window, cx)))
             .when_some(self.leading_icon.clone(), |field, icon| {
                 field.child(m3_icon_colored(
@@ -274,22 +292,10 @@ impl Render for M3Select {
                 div()
                     .min_w_0()
                     .flex_1()
-                    .flex()
-                    .flex_col()
-                    .child(
-                        div()
-                            .text_size(scale.px(12.0))
-                            .line_height(scale.px(16.0))
-                            .text_color(colors.on_surface_variant)
-                            .child(self.label.clone()),
-                    )
-                    .child(
-                        div()
-                            .truncate()
-                            .text_size(scale.px(16.0))
-                            .line_height(scale.px(24.0))
-                            .child(value),
-                    ),
+                    .truncate()
+                    .text_size(scale.px(16.0))
+                    .line_height(scale.px(24.0))
+                    .child(value),
             )
             .child(m3_icon_colored(
                 if self.open {
@@ -347,7 +353,24 @@ impl Render for M3Select {
         let bounds = self.bounds.clone();
         div()
             .w_full()
+            .relative()
             .child(field)
+            .child(
+                div()
+                    .absolute()
+                    .top(scale.px(-8.0))
+                    .left(scale.px(12.0))
+                    .px(scale.px(4.0))
+                    .bg(self.label_background)
+                    .text_size(scale.px(12.0))
+                    .line_height(scale.px(16.0))
+                    .text_color(if active {
+                        colors.primary
+                    } else {
+                        colors.on_surface_variant
+                    })
+                    .child(self.label.clone()),
+            )
             .on_children_prepainted(move |children, window, _| {
                 let next = children.first().copied();
                 if bounds.get() != next {

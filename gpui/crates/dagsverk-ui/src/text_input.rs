@@ -49,6 +49,7 @@ pub struct TextInput {
     last_bounds: Option<Bounds<Pixels>>,
     is_selecting: bool,
     colors: M3ColorScheme,
+    label_background: gpui::Hsla,
     multiline: bool,
     leading_icon: Option<&'static str>,
     suffix: Option<SharedString>,
@@ -76,6 +77,7 @@ impl TextInput {
             last_bounds: None,
             is_selecting: false,
             colors: M3ColorScheme::light(),
+            label_background: M3ColorScheme::light().surface_container_low,
             multiline: false,
             leading_icon: None,
             suffix: None,
@@ -93,7 +95,17 @@ impl TextInput {
 
     pub fn set_colors(&mut self, colors: M3ColorScheme, cx: &mut Context<Self>) {
         if self.colors != colors {
+            if self.label_background == self.colors.surface_container_low {
+                self.label_background = colors.surface_container_low;
+            }
             self.colors = colors;
+            cx.notify();
+        }
+    }
+
+    pub fn set_label_background(&mut self, background: gpui::Hsla, cx: &mut Context<Self>) {
+        if self.label_background != background {
+            self.label_background = background;
             cx.notify();
         }
     }
@@ -747,11 +759,14 @@ impl Render for TextInput {
         };
         let hover_outline = if has_error {
             self.colors.error
+        } else if focused {
+            self.colors.primary
         } else {
             self.colors.on_surface
         };
         let field = div()
             .key_context("TextInput")
+            .relative()
             .track_focus(&self.focus_handle)
             .cursor(CursorStyle::IBeam)
             .on_action(cx.listener(Self::backspace))
@@ -783,7 +798,6 @@ impl Render for TextInput {
             .items_center()
             .gap(self.scale.px(8.0))
             .justify_center()
-            .overflow_hidden()
             .rounded(self.scale.px(4.0))
             .border_1()
             .border_color(outline)
@@ -798,7 +812,6 @@ impl Render for TextInput {
                 Vec::new()
             })
             .hover(move |style| style.border_color(hover_outline))
-            .bg(self.colors.surface_container_lowest)
             .text_color(self.colors.on_surface)
             .text_size(self.scale.px(16.0))
             .line_height(self.scale.px(24.0))
@@ -813,25 +826,12 @@ impl Render for TextInput {
                 div()
                     .min_w_0()
                     .flex_1()
-                    .flex()
-                    .flex_col()
-                    .child(
-                        div()
-                            .text_size(self.scale.px(12.0))
-                            .line_height(self.scale.px(16.0))
-                            .text_color(self.colors.on_surface_variant)
-                            .child(self.placeholder.clone()),
-                    )
-                    .child(
-                        div()
-                            .h(if self.multiline {
-                                self.scale.px(48.0)
-                            } else {
-                                self.scale.px(24.0)
-                            })
-                            .w_full()
-                            .child(TextElement { input: cx.entity() }),
-                    ),
+                    .h(if self.multiline {
+                        self.scale.px(48.0)
+                    } else {
+                        self.scale.px(24.0)
+                    })
+                    .child(TextElement { input: cx.entity() }),
             )
             .when_some(self.suffix.clone(), |field, suffix| {
                 field.child(
@@ -844,10 +844,27 @@ impl Render for TextInput {
         let supporting = self.error_text.clone().or(self.supporting_text.clone());
         div()
             .w_full()
+            .relative()
             .flex()
             .flex_col()
             .gap(self.scale.px(4.0))
             .child(field)
+            .child(
+                div()
+                    .absolute()
+                    .top(self.scale.px(-8.0))
+                    .left(self.scale.px(12.0))
+                    .px(self.scale.px(4.0))
+                    .bg(self.label_background)
+                    .text_size(self.scale.px(12.0))
+                    .line_height(self.scale.px(16.0))
+                    .text_color(if focused {
+                        self.colors.primary
+                    } else {
+                        self.colors.on_surface_variant
+                    })
+                    .child(self.placeholder.clone()),
+            )
             .when_some(supporting, |wrapper, message| {
                 wrapper.child(
                     div()

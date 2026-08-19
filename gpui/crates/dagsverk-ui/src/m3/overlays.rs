@@ -1,9 +1,46 @@
+use std::time::Duration;
+
 use gpui::{
-    App, Context, EventEmitter, FocusHandle, KeyBinding, MouseButton, Pixels, Render, SharedString,
-    Window, actions, div, prelude::*, px,
+    AnyView, App, Context, EventEmitter, FocusHandle, KeyBinding, MouseButton, Pixels, Render,
+    SharedString, Window, actions, div, prelude::*, px,
 };
 
-use super::{M3ColorScheme, ROBOTO_FAMILY, UiScale, m3_focus_shadow};
+use super::{M3ColorScheme, ROBOTO_FAMILY, UiScale, m3_focus_shadow, m3_state_layer};
+
+struct M3Tooltip {
+    label: SharedString,
+    colors: M3ColorScheme,
+    scale: UiScale,
+}
+
+impl Render for M3Tooltip {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .px(self.scale.px(12.0))
+            .py(self.scale.px(6.0))
+            .rounded(self.scale.px(4.0))
+            .bg(self.colors.surface_container_highest)
+            .text_color(self.colors.on_surface)
+            .text_size(self.scale.px(12.0))
+            .child(self.label.clone())
+    }
+}
+
+pub fn m3_tooltip(
+    label: impl Into<SharedString>,
+    colors: M3ColorScheme,
+    scale: UiScale,
+) -> impl Fn(&mut Window, &mut App) -> AnyView {
+    let label = label.into();
+    move |_, cx| {
+        cx.new(|_| M3Tooltip {
+            label: label.clone(),
+            colors,
+            scale,
+        })
+        .into()
+    }
+}
 
 actions!(m3_menu, [DismissMenu, MenuNext, MenuPrevious]);
 
@@ -203,6 +240,7 @@ pub struct M3SnackbarHost {
     right: Pixels,
     bottom: Pixels,
     max_width: Pixels,
+    message_generation: u64,
 }
 
 impl M3SnackbarHost {
@@ -217,6 +255,7 @@ impl M3SnackbarHost {
             right: px(24.0),
             bottom: px(24.0),
             max_width: px(560.0),
+            message_generation: 0,
         }
     }
 
@@ -259,7 +298,8 @@ impl M3SnackbarHost {
         max_width: Pixels,
         cx: &mut Context<Self>,
     ) {
-        let changed = self.message != message
+        let message_changed = self.message != message;
+        let changed = message_changed
             || self.colors != colors
             || self.scale != scale
             || [self.left, self.right, self.bottom] != insets
@@ -269,6 +309,19 @@ impl M3SnackbarHost {
         self.scale = scale;
         [self.left, self.right, self.bottom] = insets;
         self.max_width = max_width;
+        if message_changed && self.message.is_some() {
+            self.message_generation = self.message_generation.wrapping_add(1);
+            let generation = self.message_generation;
+            cx.spawn(async move |this, cx| {
+                cx.background_executor().timer(Duration::from_secs(4)).await;
+                let _ = this.update(cx, |host, cx| {
+                    if host.message_generation == generation {
+                        host.dismiss(cx);
+                    }
+                });
+            })
+            .detach();
+        }
         if changed {
             cx.notify();
         }
@@ -332,6 +385,20 @@ impl Render for M3SnackbarHost {
                                 .rounded(scale.px(8.0))
                                 .text_color(self.colors.primary)
                                 .cursor_pointer()
+                                .hover(|style| {
+                                    style.bg(m3_state_layer(
+                                        self.colors.surface_container_highest,
+                                        self.colors.primary,
+                                        0.08,
+                                    ))
+                                })
+                                .active(|style| {
+                                    style.bg(m3_state_layer(
+                                        self.colors.surface_container_highest,
+                                        self.colors.primary,
+                                        0.12,
+                                    ))
+                                })
                                 .on_click(cx.listener(|this, _, _, cx| this.dismiss(cx)))
                                 .child(self.dismiss_label.clone()),
                         ),
