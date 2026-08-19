@@ -27,9 +27,9 @@ use dagsverk_ui::{
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
 };
 use gpui::{
-    App, AppContext, Context, Corner, ElementId, Entity, FocusHandle, Focusable, KeyBinding,
-    Render, SharedString, Stateful, Window, WindowAppearance, actions, anchored, deferred, div,
-    point, prelude::*, px, relative,
+    App, AppContext, BoxShadow, Context, Corner, ElementId, Entity, FocusHandle, Focusable,
+    KeyBinding, Pixels, Render, SharedString, Stateful, Window, WindowAppearance, actions,
+    anchored, deferred, div, point, prelude::*, px, relative,
 };
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 
@@ -50,7 +50,9 @@ actions!(
         StartCatchUp,
         ExportReport,
         SaveActive,
-        CloseSurface
+        CloseSurface,
+        Tab,
+        TabPrevious
     ]
 );
 
@@ -130,6 +132,23 @@ const OVERTIME_DAY_OPTIONS: [OvertimeDayCategory; 14] = [
     OvertimeDayCategory::Weekends,
     OvertimeDayCategory::MajorHolidays,
 ];
+
+trait ShellFocusable {
+    fn m3_focusable(self, enabled: bool, color: gpui::Hsla, spread: Pixels) -> Self;
+}
+
+impl ShellFocusable for Stateful<gpui::Div> {
+    fn m3_focusable(self, enabled: bool, color: gpui::Hsla, spread: Pixels) -> Self {
+        self.tab_index(0).tab_stop(enabled).focus(move |style| {
+            style.shadow(vec![BoxShadow {
+                color: color.opacity(0.12),
+                offset: point(px(0.0), px(0.0)),
+                blur_radius: px(0.0),
+                spread_radius: spread,
+            }])
+        })
+    }
+}
 
 impl ExportFormat {
     const fn extension(self) -> &'static str {
@@ -698,6 +717,8 @@ impl AppShell {
     pub fn register_key_bindings(cx: &mut App) {
         M3Select::register_key_bindings(cx);
         cx.bind_keys([
+            KeyBinding::new("tab", Tab, None),
+            KeyBinding::new("shift-tab", TabPrevious, None),
             KeyBinding::new("ctrl-1", ShowLedger, None),
             KeyBinding::new("ctrl-2", ShowCalendar, None),
             KeyBinding::new("ctrl-,", ShowSettings, None),
@@ -2212,6 +2233,7 @@ impl AppShell {
         };
         div()
             .id(id)
+            .m3_focusable(true, colors.primary, px(3.0 * scale))
             .h(px(if collapsed { 64.0 } else { 52.0 } * scale))
             .when_else(
                 collapsed,
@@ -2770,6 +2792,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("new-project-color")
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
                                     .size(scale.px(40.0))
                                     .flex_none()
                                     .flex()
@@ -2821,6 +2844,7 @@ impl AppShell {
                     .child(
                         div()
                             .id("add-project")
+                            .m3_focusable(can_add_project, colors.primary, scale.px(3.0))
                             .h(scale.px(40.0))
                             .flex()
                             .items_center()
@@ -2949,6 +2973,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .id(("color-project", index))
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
                                     .size(scale.px(40.0))
                                     .flex()
                                     .items_center()
@@ -3000,6 +3025,7 @@ impl AppShell {
                                 row.child(
                                     div()
                                         .id(("default-project", index))
+                                        .m3_focusable(true, colors.primary, scale.px(3.0))
                                         .h(scale.px(40.0))
                                         .px(scale.px(12.0))
                                         .flex()
@@ -3029,6 +3055,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .id(("toggle-project", index))
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
                                     .size(scale.px(40.0))
                                     .flex()
                                     .items_center()
@@ -3066,6 +3093,7 @@ impl AppShell {
                                 row.child(
                                     div()
                                         .id(("delete-project", index))
+                                        .m3_focusable(true, colors.primary, scale.px(3.0))
                                         .size(scale.px(40.0))
                                         .flex()
                                         .items_center()
@@ -3141,6 +3169,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("close-workspaces")
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
                                     .size(scale.px(40.0))
                                     .flex()
                                     .items_center()
@@ -3198,6 +3227,11 @@ impl AppShell {
                                                     };
                                                     div()
                                                         .id(("workspace-type", index))
+                                                        .m3_focusable(
+                                                            true,
+                                                            colors.primary,
+                                                            scale.px(3.0),
+                                                        )
                                                         .h(scale.px(36.0))
                                                         .px(scale.px(10.0))
                                                         .flex()
@@ -3234,6 +3268,7 @@ impl AppShell {
                                     .child(
                                         div()
                                             .id("new-workspace-color")
+                                            .m3_focusable(true, colors.primary, scale.px(3.0))
                                             .size(scale.px(40.0))
                                             .flex()
                                             .items_center()
@@ -3288,6 +3323,11 @@ impl AppShell {
                                     .child(
                                         div()
                                             .id("create-workspace")
+                                            .m3_focusable(
+                                                can_create_workspace,
+                                                colors.primary,
+                                                scale.px(3.0),
+                                            )
                                             .h(scale.px(40.0))
                                             .flex()
                                             .items_center()
@@ -3414,6 +3454,11 @@ impl AppShell {
                                             row.child(
                                                 div()
                                                     .id(("switch-workspace", index))
+                                                    .m3_focusable(
+                                                        true,
+                                                        colors.primary,
+                                                        scale.px(3.0),
+                                                    )
                                                     .h(scale.px(36.0))
                                                     .px(scale.px(12.0))
                                                     .flex()
@@ -3445,6 +3490,7 @@ impl AppShell {
                                         .child(
                                             div()
                                                 .id(("workspace-color", index))
+                                                .m3_focusable(true, colors.primary, scale.px(3.0))
                                                 .size(scale.px(40.0))
                                                 .flex()
                                                 .items_center()
@@ -3503,6 +3549,7 @@ impl AppShell {
                                         .child(
                                             div()
                                                 .id(("delete-workspace", index))
+                                                .m3_focusable(true, colors.primary, scale.px(3.0))
                                                 .opacity(if can_delete { 1.0 } else { 0.38 })
                                                 .text_color(colors.error)
                                                 .child(self.text("Delete"))
@@ -3781,6 +3828,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("discard-settings")
+                                    .m3_focusable(dirty, colors.primary, scale.px(3.0))
                                     .h(scale.px(40.0))
                                     .px(scale.px(18.0))
                                     .flex()
@@ -3813,6 +3861,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("save-settings")
+                                    .m3_focusable(dirty, colors.primary, scale.px(3.0))
                                     .h(scale.px(40.0))
                                     .px(scale.px(18.0))
                                     .flex()
@@ -4134,6 +4183,7 @@ impl AppShell {
             .child(
                 div()
                     .id("add-overtime-rule")
+                    .m3_focusable(true, colors.primary, scale.px(3.0))
                     .h(scale.px(38.0))
                     .px(scale.px(14.0))
                     .flex()
@@ -4164,6 +4214,7 @@ impl AppShell {
             .child(
                 div()
                     .id("add-ob-rule")
+                    .m3_focusable(true, colors.primary, scale.px(3.0))
                     .h(scale.px(38.0))
                     .px(scale.px(14.0))
                     .flex()
@@ -4258,6 +4309,11 @@ impl AppShell {
                                                 .child(
                                                     div()
                                                         .id(("remove-band", index))
+                                                        .m3_focusable(
+                                                            true,
+                                                            colors.primary,
+                                                            scale.px(3.0),
+                                                        )
                                                         .h(scale.px(40.0))
                                                         .px(scale.px(10.0))
                                                         .flex()
@@ -4446,6 +4502,7 @@ impl AppShell {
             .child(
                 div()
                     .id("open-data-backups")
+                    .m3_focusable(true, colors.primary, scale.px(3.0))
                     .h(scale.px(40.0))
                     .flex()
                     .items_center()
@@ -4563,6 +4620,7 @@ impl AppShell {
                         .child(
                             div()
                                 .id("start-month")
+                                .m3_focusable(true, colors.primary, scale.px(3.0))
                                 .h(scale.px(40.0))
                                 .px(scale.px(16.0))
                                 .flex()
@@ -4686,6 +4744,7 @@ impl AppShell {
                     .child(
                         div()
                             .id("close-editor")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
                             .size(scale.px(40.0))
                             .flex()
                             .items_center()
@@ -4752,6 +4811,7 @@ impl AppShell {
                                         };
                                         div()
                                             .id(id)
+                                            .m3_focusable(true, colors.primary, scale.px(3.0))
                                             .h(scale.px(40.0))
                                             .px(scale.px(12.0))
                                             .flex_1()
@@ -4816,6 +4876,7 @@ impl AppShell {
                         reuse_labels.into_iter().enumerate().map(|(index, label)| {
                             div()
                                 .id(("reuse", index))
+                                .m3_focusable(true, colors.primary, scale.px(3.0))
                                 .h(scale.px(40.0))
                                 .px(scale.px(10.0))
                                 .flex()
@@ -4877,6 +4938,7 @@ impl AppShell {
                                         |(index, (label, start, end))| {
                                             div()
                                                 .id(("preset", index))
+                                                .m3_focusable(true, colors.primary, scale.px(3.0))
                                                 .h(scale.px(32.0))
                                                 .px(scale.px(10.0))
                                                 .flex()
@@ -4976,6 +5038,7 @@ impl AppShell {
                                     };
                                     div()
                                         .id(("lunch", minutes as usize))
+                                        .m3_focusable(true, colors.primary, scale.px(3.0))
                                         .h(scale.px(32.0))
                                         .px(scale.px(14.0))
                                         .flex()
@@ -5072,6 +5135,7 @@ impl AppShell {
                     .child(
                         div()
                             .id("reset-entry")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
                             .h(scale.px(40.0))
                             .px(scale.px(12.0))
                             .flex()
@@ -5101,6 +5165,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("catch-up-back")
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
                                     .h(scale.px(40.0))
                                     .px(scale.px(12.0))
                                     .flex()
@@ -5119,6 +5184,7 @@ impl AppShell {
                             .child(
                                 div()
                                     .id("catch-up-skip")
+                                    .m3_focusable(true, colors.primary, scale.px(3.0))
                                     .h(scale.px(40.0))
                                     .px(scale.px(12.0))
                                     .flex()
@@ -5138,6 +5204,7 @@ impl AppShell {
                     .child(
                         div()
                             .id("cancel-editor")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
                             .h(scale.px(40.0))
                             .px(scale.px(12.0))
                             .flex()
@@ -5155,6 +5222,7 @@ impl AppShell {
                     .child(
                         div()
                             .id("save-entry")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
                             .h(scale.px(40.0))
                             .min_w(scale.px(128.0))
                             .px(scale.px(20.0))
@@ -5343,6 +5411,7 @@ impl AppShell {
                     .child(
                         div()
                             .id("previous-year")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
                             .p(scale.px(8.0))
                             .rounded_full()
                             .cursor_pointer()
@@ -5360,6 +5429,7 @@ impl AppShell {
                     .child(
                         div()
                             .id("next-year")
+                            .m3_focusable(true, colors.primary, scale.px(3.0))
                             .p(scale.px(8.0))
                             .rounded_full()
                             .cursor_pointer()
@@ -5379,6 +5449,7 @@ impl AppShell {
                     let selected = index as u32 + 1 == month;
                     div()
                         .id(("select-month", index))
+                        .m3_focusable(true, colors.primary, scale.px(3.0))
                         .h(scale.px(40.0))
                         .px(scale.px(8.0))
                         .flex()
@@ -5456,8 +5527,7 @@ impl AppShell {
                             let is_selected = selected == color;
                             div()
                                 .id(("color-preset", index))
-                                .tab_index(index as isize)
-                                .tab_stop(true)
+                                .m3_focusable(true, colors.primary, scale.px(3.0))
                                 .size(scale.px(32.0))
                                 .flex()
                                 .items_center()
@@ -5575,6 +5645,7 @@ impl AppShell {
                         let active = workspace.id == active_workspace_id;
                         div()
                             .id(("workspace-menu-item", index))
+                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                             .h(px(52.0 * scale))
                             .px(px(12.0 * scale))
                             .flex()
@@ -5614,6 +5685,7 @@ impl AppShell {
             .child(
                 div()
                     .id("manage-workspaces")
+                    .m3_focusable(true, colors.primary, px(3.0 * scale))
                     .h(px(52.0 * scale))
                     .px(px(12.0 * scale))
                     .flex()
@@ -5733,6 +5805,8 @@ impl Render for AppShell {
         div()
             .track_focus(&self.focus)
             .key_context("Dagsverk")
+            .on_action(|_: &Tab, window, _| window.focus_next())
+            .on_action(|_: &TabPrevious, window, _| window.focus_prev())
             .on_action(cx.listener(|shell, _: &ShowLedger, _, cx| {
                 shell.set_view(MonthViewPreference::Ledger, cx)
             }))
@@ -5765,6 +5839,7 @@ impl Render for AppShell {
                     .child(
                         div()
                             .id("toggle-sidebar")
+                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                             .h(px(68.0 * scale))
                             .pl(px(20.0 * scale))
                             .pr(px(12.0 * scale))
@@ -5802,6 +5877,7 @@ impl Render for AppShell {
                             .child(
                                 div()
                                     .id("workspace-switcher")
+                                    .m3_focusable(true, colors.primary, px(3.0 * scale))
                                     .h(px(56.0 * scale))
                                     .w_full()
                                     .px(px(12.0 * scale))
@@ -5940,6 +6016,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("previous-month")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                                             .when(!header_layout.show_arrows, |button| button.hidden())
                                             .p(px(8.0 * scale))
                                             .rounded_full()
@@ -5957,6 +6034,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("month-selector")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                                             .w(px(header_layout.month_width * scale))
                                             .h(px(40.0 * scale))
                                             .px(px(12.0 * scale))
@@ -5993,6 +6071,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("next-month")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                                             .when(!header_layout.show_arrows, |button| button.hidden())
                                             .p(px(8.0 * scale))
                                             .rounded_full()
@@ -6010,6 +6089,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("today")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                                             .when(!header_layout.show_today, |button| button.hidden())
                                             .h(px(40.0 * scale))
                                             .ml(px(8.0 * scale))
@@ -6035,6 +6115,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("month-actions")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                                             .when(!header_layout.show_month_actions, |button| {
                                                 button.hidden()
                                             })
@@ -6084,6 +6165,7 @@ impl Render for AppShell {
                                             .child(
                                                 div()
                                             .id("view-ledger")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                                             .h_full()
                                             .px(px(16.0 * scale))
                                                     .flex()
@@ -6124,6 +6206,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("view-calendar")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                                             .h_full()
                                             .px(px(16.0 * scale))
                                                     .flex()
@@ -6176,6 +6259,7 @@ impl Render for AppShell {
                                         actions.child(
                                             div()
                                                 .id("catch-up")
+                                                .m3_focusable(true, colors.primary, px(3.0 * scale))
                                                 .h(px(40.0 * scale))
                                                 .px(px(16.0 * scale))
                                                 .flex()
@@ -6213,6 +6297,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("export-report")
+                                            .m3_focusable(can_export, colors.primary, px(3.0 * scale))
                                             .when(!header_layout.show_export, |button| {
                                                 button.hidden()
                                             })
@@ -6253,6 +6338,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("toggle-theme")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                                             .p(px(8.0 * scale))
                                             .rounded_full()
                                             .cursor_pointer()
@@ -6285,6 +6371,7 @@ impl Render for AppShell {
                                                 title.child(
                                                     div()
                                                         .id("back-to-settings")
+                                                        .m3_focusable(true, colors.primary, px(3.0 * scale))
                                                         .size(px(40.0 * scale))
                                                         .flex()
                                                         .items_center()
@@ -6315,6 +6402,7 @@ impl Render for AppShell {
                                     .child(
                                         div()
                                             .id("toggle-theme-route")
+                                            .m3_focusable(true, colors.primary, px(3.0 * scale))
                                             .size(px(40.0 * scale))
                                             .flex()
                                             .items_center()
@@ -7089,6 +7177,7 @@ fn setting_chip(
     };
     div()
         .id(id)
+        .m3_focusable(true, colors.primary, scale.px(3.0))
         .h(scale.px(36.0))
         .px(scale.px(12.0))
         .flex()
@@ -7111,6 +7200,7 @@ fn dialog_action(
     let label: SharedString = label.into();
     div()
         .id(id)
+        .m3_focusable(true, colors.primary, px(3.0 * scale))
         .h(px(40.0 * scale))
         .px(px(12.0 * scale))
         .flex()
@@ -7146,6 +7236,7 @@ fn maintenance_button(
     let foreground = colors.on_secondary_container;
     div()
         .id(id)
+        .m3_focusable(enabled, colors.primary, scale.px(3.0))
         .h(scale.px(40.0))
         .px(scale.px(18.0))
         .flex()
@@ -7175,6 +7266,7 @@ fn header_menu_item(
     let foreground = colors.on_surface;
     div()
         .id(id)
+        .m3_focusable(enabled, colors.primary, scale.px(3.0))
         .h(scale.px(48.0))
         .px(scale.px(12.0))
         .flex()
@@ -7238,13 +7330,16 @@ mod tests {
         tax::TaxEngine,
     };
     use dagsverk_data::Database;
-    use gpui::{Focusable, TestAppContext};
+    use gpui::{
+        Context, Focusable, KeyUpEvent, Keystroke, Render, TestAppContext, Window, div, prelude::*,
+        px,
+    };
     use tempfile::tempdir;
 
     use super::{
-        AppShell, AppShellServices, format_editor_date, format_month_title, header_layout,
-        hex_to_hsl, hsl_to_hex, overtime_day_category_label, parse_non_negative_decimal,
-        parse_scheduled_minutes, responsive_layout, route_page_layout,
+        AppShell, AppShellServices, ShellFocusable, Tab, TabPrevious, format_editor_date,
+        format_month_title, header_layout, hex_to_hsl, hsl_to_hex, overtime_day_category_label,
+        parse_non_negative_decimal, parse_scheduled_minutes, responsive_layout, route_page_layout,
     };
     use crate::{
         platform::{
@@ -7255,6 +7350,49 @@ mod tests {
     };
 
     struct SaveDialog(PathBuf);
+
+    struct FocusSurface {
+        activated: bool,
+        focus: gpui::FocusHandle,
+    }
+
+    impl Render for FocusSurface {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let colors = dagsverk_ui::m3::M3ColorScheme::light();
+            div()
+                .track_focus(&self.focus)
+                .key_context("Dagsverk")
+                .on_action(|_: &Tab, window, _| window.focus_next())
+                .on_action(|_: &TabPrevious, window, _| window.focus_prev())
+                .child(
+                    div()
+                        .id("focus-surface")
+                        .m3_focusable(true, colors.primary, px(3.0))
+                        .child("Activate")
+                        .on_click(cx.listener(|surface, _, _, cx| {
+                            surface.activated = true;
+                            cx.notify();
+                        })),
+                )
+        }
+    }
+
+    #[gpui::test]
+    fn shell_focus_surfaces_activate_from_the_keyboard(cx: &mut TestAppContext) {
+        cx.update(AppShell::register_key_bindings);
+        let (surface, cx) = cx.add_window_view(|_, cx| FocusSurface {
+            activated: false,
+            focus: cx.focus_handle(),
+        });
+        let root_focus = surface.read_with(cx, |surface, _| surface.focus.clone());
+        cx.update(|window, _| window.focus(&root_focus));
+        cx.refresh().expect("refresh focus surface");
+        cx.simulate_keystrokes("tab");
+        cx.simulate_event(KeyUpEvent {
+            keystroke: Keystroke::parse("enter").expect("enter keystroke"),
+        });
+        assert!(surface.read_with(cx, |surface, _| surface.activated));
+    }
 
     #[test]
     fn every_literal_shell_translation_key_exists_in_both_catalogs() {
