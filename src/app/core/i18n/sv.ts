@@ -416,4 +416,22 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Select a Dagsverk backup': 'Välj en säkerhetskopia från Dagsverk',
   'Select a Tidverk database': 'Välj en Tidverk-databas',
   'SQLite database': 'SQLite-databas',
+  'A rule end time is invalid.': 'Regelns sluttid är ogiltig.',
+  'A rule start time is invalid.': 'Regelns starttid är ogiltig.',
+  'Default end time is invalid.': 'Standardtiden för slut är ogiltig.',
+  'Default start time is invalid.': 'Standardtiden för start är ogiltig.',
+  'Employment percent must be from 1 to 100.': 'Sysselsättningsgraden måste vara från 1 till 100.',
+  'Enter a rule name.': 'Ange ett regelnamn.',
+  'Enter a valid non-negative number.': 'Ange ett giltigt tal som inte är negativt.',
+  'Enter a valid non-negative whole number.':
+    'Ange ett giltigt heltal som inte är negativt.',
+  'Enter a valid time.': 'Ange en giltig tid.',
+  'Enter a valid whole number.': 'Ange ett giltigt heltal.',
+  'Interface scale is invalid.': 'Gränssnittsskalan är ogiltig.',
+  'Overtime rule fields are out of sync.': 'Fälten för övertidsregeln är inte synkroniserade.',
+  'Scheduled hours must be a non-negative number.':
+    'Schemalagda timmar måste vara ett tal som inte är negativt.',
+  'Starting balance is too large.': 'Startsaldot är för stort.',
+  'Tax column must be from 1 to 6.': 'Skattekolumnen måste vara från 1 till 6.',
+  'Tax table must be positive.': 'Skattetabellen måste vara positiv.',
 };

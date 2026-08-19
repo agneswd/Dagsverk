@@ -1412,11 +1412,12 @@ impl AppShell {
             let start = normalize_time(self.start_input.read(cx).text());
             let end = normalize_time(self.end_input.read(cx).text());
             let (Some(start), Some(end)) = (start, end) else {
+                let message = self.message("Enter a valid time.");
                 self.start_input.update(cx, |input, cx| {
-                    input.set_error(start.is_none().then(|| "Enter a valid time.".into()), cx)
+                    input.set_error(start.is_none().then(|| message.clone().into()), cx)
                 });
                 self.end_input.update(cx, |input, cx| {
-                    input.set_error(end.is_none().then(|| "Enter a valid time.".into()), cx)
+                    input.set_error(end.is_none().then(|| message.clone().into()), cx)
                 });
                 self.model.editor.validation_error = None;
                 cx.notify();
@@ -1436,6 +1437,7 @@ impl AppShell {
             match parse_scheduled_minutes(self.scheduled_input.read(cx).text()) {
                 Ok(minutes) => draft.scheduled_minutes_override = Some(minutes),
                 Err(message) => {
+                    let message = self.message(message);
                     self.scheduled_input
                         .update(cx, |input, cx| input.set_error(Some(message.into()), cx));
                     self.model.editor.validation_error = None;
@@ -1907,7 +1909,7 @@ impl AppShell {
     fn save_settings(&mut self, cx: &mut Context<Self>) {
         let result = self.parse_settings_inputs(cx);
         let Ok(mut settings) = result else {
-            self.model.transient_error = result.err().map(str::to_owned);
+            self.model.transient_error = result.err().map(|error| self.message(error));
             cx.notify();
             return;
         };
@@ -6996,6 +6998,17 @@ mod tests {
                 .as_deref()
                 .is_some_and(|notice| notice.starts_with("Säkerhetskopian skapades: "))
         }));
+        shell.update(cx, |shell, cx| {
+            shell
+                .settings_inputs
+                .tax_column
+                .update(cx, |input, cx| input.set_text("7", cx));
+            shell.save_settings(cx);
+        });
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.model.transient_error.clone()),
+            Some("Skattekolumnen måste vara från 1 till 6.".to_owned())
+        );
 
         shell.update(cx, |shell, cx| {
             shell.month_menu_open = true;
