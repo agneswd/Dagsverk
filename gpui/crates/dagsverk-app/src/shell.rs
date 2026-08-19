@@ -1230,6 +1230,14 @@ impl AppShell {
         translate(self.ui_language(), key).into_owned().into()
     }
 
+    fn message(&self, key: &str) -> String {
+        translate(self.ui_language(), key).into_owned()
+    }
+
+    fn message_with(&self, key: &str, value: impl std::fmt::Display) -> String {
+        self.message(key).replace("{0}", &value.to_string())
+    }
+
     fn ui_language(&self) -> LanguagePreference {
         match self.model.language {
             crate::state::Language::English => LanguagePreference::English,
@@ -1458,7 +1466,7 @@ impl AppShell {
     ) {
         let Some(source) = source.filter(|entry| entry.status == WorkEntryStatus::Worked) else {
             self.model.editor.validation_error =
-                Some("No completed day is available to copy.".to_owned());
+                Some(self.message("No completed day is available to copy."));
             cx.notify();
             return;
         };
@@ -1594,7 +1602,7 @@ impl AppShell {
 
     fn fill_month(&mut self, cx: &mut Context<Self>) {
         match self.model.fill_normal_workdays() {
-            Ok(count) => self.notice = Some(format!("Added {count} workdays.")),
+            Ok(count) => self.notice = Some(self.message_with("{0} normal workdays added.", count)),
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         self.refresh_month_view(cx);
@@ -1603,13 +1611,16 @@ impl AppShell {
 
     fn copy_month(&mut self, cx: &mut Context<Self>) {
         let count = self.model.copy_month();
-        self.notice = Some(format!("Copied {count} entries."));
+        self.notice = Some(self.message_with(
+            "{0} copied. Open another month and choose Paste month.",
+            count,
+        ));
         cx.notify();
     }
 
     fn paste_month(&mut self, cx: &mut Context<Self>) {
         match self.model.paste_month() {
-            Ok(count) => self.notice = Some(format!("Pasted {count} entries.")),
+            Ok(count) => self.notice = Some(self.message_with("{0} entries pasted.", count)),
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         self.refresh_month_view(cx);
@@ -1618,7 +1629,7 @@ impl AppShell {
 
     fn reset_month(&mut self, cx: &mut Context<Self>) {
         match self.model.reset_month() {
-            Ok(()) => self.notice = Some("Month reset.".to_owned()),
+            Ok(()) => self.notice = Some(self.message("Month reset.")),
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         self.confirm_reset = false;
@@ -1631,7 +1642,7 @@ impl AppShell {
         let color = self.project_color_input.read(cx).text().trim().to_owned();
         if name.is_empty() || !is_hex_color(&color) {
             self.model.transient_error =
-                Some("Enter a project name and a six-digit hex color.".to_owned());
+                Some(self.message("Enter a project name and a six-digit hex color."));
             cx.notify();
             return;
         }
@@ -1655,7 +1666,7 @@ impl AppShell {
             Ok(()) => {
                 self.project_name_input
                     .update(cx, |input, cx| input.set_text("", cx));
-                self.notice = Some("Project added.".to_owned());
+                self.notice = Some(self.message("Project added."));
             }
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
@@ -1665,7 +1676,7 @@ impl AppShell {
 
     fn set_default_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
         match self.model.set_default_project(id) {
-            Ok(()) => self.notice = Some("Default project changed.".to_owned()),
+            Ok(()) => self.notice = Some(self.message("Default project changed.")),
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         cx.notify();
@@ -1683,7 +1694,7 @@ impl AppShell {
         };
         project.is_active = !project.is_active;
         match self.model.save_project(project) {
-            Ok(()) => self.notice = Some("Project updated.".to_owned()),
+            Ok(()) => self.notice = Some(self.message("Project updated.")),
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         self.refresh_month_view(cx);
@@ -1693,7 +1704,7 @@ impl AppShell {
     fn update_project_color(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
         let color = self.project_color_input.read(cx).text().trim().to_owned();
         if !is_hex_color(&color) {
-            self.model.transient_error = Some("Enter a six-digit hex color.".to_owned());
+            self.model.transient_error = Some(self.message("Enter a six-digit hex color."));
             cx.notify();
             return;
         }
@@ -1708,7 +1719,7 @@ impl AppShell {
         };
         project.color = Some(color);
         match self.model.save_project(project) {
-            Ok(()) => self.notice = Some("Project color updated.".to_owned()),
+            Ok(()) => self.notice = Some(self.message("Project color updated.")),
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         self.refresh_month_view(cx);
@@ -1717,7 +1728,7 @@ impl AppShell {
 
     fn delete_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
         match self.model.delete_project(id) {
-            Ok(()) => self.notice = Some("Project deleted.".to_owned()),
+            Ok(()) => self.notice = Some(self.message("Project deleted.")),
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         self.confirm_project_delete = None;
@@ -1730,7 +1741,7 @@ impl AppShell {
         let color = self.workspace_color_input.read(cx).text().trim().to_owned();
         if name.is_empty() || !is_hex_color(&color) {
             self.model.transient_error =
-                Some("Enter a workspace name and a six-digit hex color.".to_owned());
+                Some(self.message("Enter a workspace name and a six-digit hex color."));
             cx.notify();
             return;
         }
@@ -1746,7 +1757,7 @@ impl AppShell {
             Ok(_) => {
                 self.workspace_name_input
                     .update(cx, |input, cx| input.set_text("", cx));
-                self.notice = Some("Workspace created.".to_owned());
+                self.notice = Some(self.message("Workspace created."));
             }
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
@@ -1756,7 +1767,7 @@ impl AppShell {
     fn save_setup(&mut self, cx: &mut Context<Self>) {
         let name = self.workspace_name_input.read(cx).text().trim().to_owned();
         if name.is_empty() {
-            self.model.transient_error = Some("Enter a workspace name.".to_owned());
+            self.model.transient_error = Some(self.message("Enter a workspace name."));
             cx.notify();
             return;
         }
@@ -1768,12 +1779,13 @@ impl AppShell {
         };
         let salary = parse_non_negative_decimal(salary_input.read(cx).text());
         let (Ok(hours), Ok(salary)) = (hours, salary) else {
-            self.model.transient_error = Some("Enter valid non-negative hours and pay.".to_owned());
+            self.model.transient_error =
+                Some(self.message("Enter valid non-negative hours and pay."));
             cx.notify();
             return;
         };
         let Some(mut workspace) = self.model.active_workspace().cloned() else {
-            self.model.transient_error = Some("The active workspace is unavailable.".to_owned());
+            self.model.transient_error = Some(self.message("The active workspace is unavailable."));
             cx.notify();
             return;
         };
@@ -1812,7 +1824,7 @@ impl AppShell {
                     .update(cx, |input, cx| input.set_text("", cx));
                 self.workspace_organization_input
                     .update(cx, |input, cx| input.set_text("", cx));
-                self.notice = Some("Setup complete.".to_owned());
+                self.notice = Some(self.message("Setup complete."));
                 self.refresh_month_view(cx);
             }
             Err(error) => self.model.transient_error = Some(error.to_string()),
@@ -1823,7 +1835,7 @@ impl AppShell {
     fn switch_workspace(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
         match self.model.switch_workspace(id) {
             Ok(()) => {
-                self.notice = Some("Workspace changed.".to_owned());
+                self.notice = Some(self.message("Workspace changed."));
                 self.manage_workspaces = false;
                 self.workspace_menu_open = false;
             }
@@ -1836,7 +1848,7 @@ impl AppShell {
     fn update_workspace_color(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
         let color = self.workspace_color_input.read(cx).text().trim().to_owned();
         if !is_hex_color(&color) {
-            self.model.transient_error = Some("Enter a six-digit hex color.".to_owned());
+            self.model.transient_error = Some(self.message("Enter a six-digit hex color."));
             cx.notify();
             return;
         }
@@ -1851,7 +1863,7 @@ impl AppShell {
         };
         workspace.color = color;
         match self.model.save_workspace(workspace) {
-            Ok(()) => self.notice = Some("Workspace color updated.".to_owned()),
+            Ok(()) => self.notice = Some(self.message("Workspace color updated.")),
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         cx.notify();
@@ -1884,7 +1896,7 @@ impl AppShell {
 
     fn delete_workspace(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
         match self.model.delete_workspace(id) {
-            Ok(()) => self.notice = Some("Workspace deleted.".to_owned()),
+            Ok(()) => self.notice = Some(self.message("Workspace deleted.")),
             Err(error) => self.model.transient_error = Some(error.to_string()),
         }
         self.confirm_workspace_delete = None;
@@ -1915,7 +1927,7 @@ impl AppShell {
         }
         self.settings_draft = settings;
         self.preferences_draft = self.model.preferences.clone();
-        self.notice = Some("Settings saved.".to_owned());
+        self.notice = Some(self.message("Settings saved successfully"));
         self.refresh_month_view(cx);
         cx.notify();
     }
@@ -6699,21 +6711,22 @@ mod tests {
 
     #[test]
     fn every_literal_shell_translation_key_exists_in_both_catalogs() {
-        let mut source = include_str!("shell.rs");
-        let marker = "self.text(\"";
-        while let Some(start) = source.find(marker) {
-            source = &source[start + marker.len()..];
-            let end = source.find('"').expect("translation key ends");
-            let key = &source[..end];
-            assert!(
-                resources(LanguagePreference::English).contains_key(key),
-                "missing English translation key: {key}"
-            );
-            assert!(
-                resources(LanguagePreference::Swedish).contains_key(key),
-                "missing Swedish translation key: {key}"
-            );
-            source = &source[end + 1..];
+        for marker in ["self.text(\"", "self.message(\"", "self.message_with(\""] {
+            let mut source = include_str!("shell.rs");
+            while let Some(start) = source.find(marker) {
+                source = &source[start + marker.len()..];
+                let end = source.find('"').expect("translation key ends");
+                let key = &source[..end];
+                assert!(
+                    resources(LanguagePreference::English).contains_key(key),
+                    "missing English translation key: {key}"
+                );
+                assert!(
+                    resources(LanguagePreference::Swedish).contains_key(key),
+                    "missing Swedish translation key: {key}"
+                );
+                source = &source[end + 1..];
+            }
         }
     }
 

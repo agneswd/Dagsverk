@@ -379,4 +379,24 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   Type: 'Typ',
   'Updates are unavailable in development builds.':
     'Uppdateringar är inte tillgängliga i utvecklingsversioner.',
+  'No completed day is available to copy.': 'Det finns ingen slutförd dag att kopiera.',
+  'Month reset.': 'Månaden återställdes.',
+  'Enter a project name and a six-digit hex color.':
+    'Ange ett projektnamn och en sexsiffrig hexfärg.',
+  'Project added.': 'Projektet lades till.',
+  'Default project changed.': 'Standardprojektet ändrades.',
+  'Project updated.': 'Projektet uppdaterades.',
+  'Enter a six-digit hex color.': 'Ange en sexsiffrig hexfärg.',
+  'Project color updated.': 'Projektfärgen uppdaterades.',
+  'Project deleted.': 'Projektet togs bort.',
+  'Enter a workspace name and a six-digit hex color.':
+    'Ange ett namn på arbetsytan och en sexsiffrig hexfärg.',
+  'Workspace created.': 'Arbetsytan skapades.',
+  'Enter a workspace name.': 'Ange ett namn på arbetsytan.',
+  'Enter valid non-negative hours and pay.': 'Ange giltiga timmar och lön som inte är negativa.',
+  'The active workspace is unavailable.': 'Den aktiva arbetsytan är inte tillgänglig.',
+  'Setup complete.': 'Konfigurationen är klar.',
+  'Workspace changed.': 'Arbetsytan byttes.',
+  'Workspace color updated.': 'Arbetsytans färg uppdaterades.',
+  'Workspace deleted.': 'Arbetsytan togs bort.',
 };

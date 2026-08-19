@@ -379,4 +379,24 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   Type: 'Type',
   'Updates are unavailable in development builds.':
     'Updates are unavailable in development builds.',
+  'No completed day is available to copy.': 'No completed day is available to copy.',
+  'Month reset.': 'Month reset.',
+  'Enter a project name and a six-digit hex color.':
+    'Enter a project name and a six-digit hex color.',
+  'Project added.': 'Project added.',
+  'Default project changed.': 'Default project changed.',
+  'Project updated.': 'Project updated.',
+  'Enter a six-digit hex color.': 'Enter a six-digit hex color.',
+  'Project color updated.': 'Project color updated.',
+  'Project deleted.': 'Project deleted.',
+  'Enter a workspace name and a six-digit hex color.':
+    'Enter a workspace name and a six-digit hex color.',
+  'Workspace created.': 'Workspace created.',
+  'Enter a workspace name.': 'Enter a workspace name.',
+  'Enter valid non-negative hours and pay.': 'Enter valid non-negative hours and pay.',
+  'The active workspace is unavailable.': 'The active workspace is unavailable.',
+  'Setup complete.': 'Setup complete.',
+  'Workspace changed.': 'Workspace changed.',
+  'Workspace color updated.': 'Workspace color updated.',
+  'Workspace deleted.': 'Workspace deleted.',
 };
