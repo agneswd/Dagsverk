@@ -9,15 +9,6 @@
 - Proposed solution: Apply the shared Material state-layer helper to all remaining clickable surfaces.
 - Test needed: Component interaction tests and light/dark visual review.
 
-## Current GPUI comparison captures
-
-- Current behavior: All 26 deterministic Electron states now have current GPUI captures, including overlay, responsive, scale, light, and dark variants.
-- Expected parity: Every required Electron image has a current GPUI image at the same viewport, theme, fixture, and scale.
-- Reason incomplete: Pixel comparison still needs review after each visual change, and the GPUI preset color panel does not reproduce Electron's custom hue, saturation, and brightness controls.
-- Files involved: `reference/screenshots/gpui/`, `gpui/VISUAL_PARITY.md`.
-- Proposed solution: Keep the 26-state capture matrix current and finish the remaining color-picker and interaction-state differences.
-- Test needed: Run `npm run visual:compare` for every required pair and inspect geometry and interaction states.
-
 ## Background GPUI capture
 
 - Current behavior: Tests, builds, and GPUI captures run without taking desktop focus. An isolated headless Sway compositor presents through the real NVIDIA Vulkan driver and records all typed visual states at exact window sizes and scales.

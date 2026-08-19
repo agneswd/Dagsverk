@@ -53,6 +53,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - The day editor is 416 px wide.
 - Header menus use trigger-relative GPUI anchors with an 8 px viewport margin.
 - Projects and workspaces use the 12 Electron color presets.
+- The color picker also matches Electron's custom hue, saturation, and brightness controls with live gradients, pointer dragging, and Arrow/Home/End keyboard input.
 - Text edits update the editor draft and pay estimate while typing.
 - Notes preserve typed and pasted line breaks.
 - Project and day-off fields use outlined, trigger-anchored selects with keyboard navigation.
@@ -71,6 +72,7 @@ The local Niri rule matches only `dev.agneswd.dagsverk-gpui-preview` and sets `o
 - Overtime and OB Settings uses outlined Material selects for its top-level modes and shows mode-specific fields conditionally.
 - Overtime and OB rate bands use compact expansion-panel summaries. Enter and Space open the focused panel, and opening one panel closes the others.
 - Overtime and OB rate bands use outlined Material selects for rule type, day category, and rate type.
+- All 26 current GPUI captures were regenerated and compared against the matching Electron dimensions on 2026-08-19. Select panels use measured trigger bounds, and the workspace menu uses the source sidebar anchor geometry.
 
 ## Comparison tolerances
 
