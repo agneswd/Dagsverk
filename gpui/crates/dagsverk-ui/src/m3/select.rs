@@ -1,6 +1,8 @@
+use std::{cell::Cell, rc::Rc};
+
 use gpui::{
-    App, Context, Corner, EventEmitter, FocusHandle, Focusable, KeyBinding, MouseButton, Render,
-    SharedString, Window, actions, anchored, deferred, div, point, prelude::*, px,
+    App, Bounds, Context, Corner, EventEmitter, FocusHandle, Focusable, KeyBinding, MouseButton,
+    Pixels, Render, SharedString, Window, actions, anchored, deferred, div, point, prelude::*, px,
 };
 
 use super::{M3ColorScheme, UiScale, m3_focus_shadow, m3_icon_colored, menu_elevation};
@@ -30,6 +32,7 @@ pub struct M3Select {
     colors: M3ColorScheme,
     leading_icon: Option<SharedString>,
     scale: UiScale,
+    bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
 }
 
 impl M3Select {
@@ -64,6 +67,7 @@ impl M3Select {
             colors,
             leading_icon: None,
             scale: UiScale::default(),
+            bounds: Rc::new(Cell::new(None)),
         }
     }
 
@@ -188,6 +192,10 @@ impl Render for M3Select {
         let viewport = window.viewport_size();
         let colors = self.colors;
         let scale = self.scale;
+        let last_bounds = self.bounds.get();
+        let panel_position =
+            last_bounds.map(|bounds| point(bounds.left(), bounds.bottom() + scale.px(8.0)));
+        let panel_width = last_bounds.map_or(scale.px(368.0), |bounds| bounds.size.width);
         let value = self.options.get(self.selected).cloned().unwrap_or_default();
         let options = self
             .options
@@ -224,7 +232,7 @@ impl Render for M3Select {
                     .on_click(cx.listener(move |select, _, _, cx| select.choose(index, cx)))
             });
 
-        div()
+        let field = div()
             .id("m3-select")
             .key_context("M3Select")
             .relative()
@@ -315,13 +323,13 @@ impl Render for M3Select {
                     .child(
                         deferred(
                             anchored()
+                                .position(panel_position.unwrap_or_default())
                                 .anchor(Corner::TopLeft)
-                                .offset(point(px(0.0), scale.px(64.0)))
                                 .snap_to_window_with_margin(scale.px(8.0))
                                 .child(
                                     div()
                                         .id("m3-select-panel")
-                                        .w(scale.px(368.0))
+                                        .w(panel_width)
                                         .max_h(scale.px(384.0))
                                         .overflow_y_scroll()
                                         .p(scale.px(8.0))
@@ -335,6 +343,17 @@ impl Render for M3Select {
                         )
                         .priority(2),
                     )
+            });
+        let bounds = self.bounds.clone();
+        div()
+            .w_full()
+            .child(field)
+            .on_children_prepainted(move |children, window, _| {
+                let next = children.first().copied();
+                if bounds.get() != next {
+                    bounds.set(next);
+                    window.refresh();
+                }
             })
     }
 }

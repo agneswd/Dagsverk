@@ -9,6 +9,7 @@ mod primitives;
 mod select;
 mod selection;
 mod shape;
+mod slider;
 mod spacing;
 mod state;
 mod theme;
@@ -33,6 +34,7 @@ pub use primitives::{
 pub use select::{M3Select, M3SelectEvent};
 pub use selection::{M3Chip, M3ChipEvent, M3Status, M3Switch, M3SwitchEvent, m3_status_chip};
 pub use shape::M3Shape;
+pub use slider::{M3Slider, M3SliderEvent};
 pub use spacing::M3Spacing;
 pub use state::{
     DISABLED_CONTAINER_OPACITY, DISABLED_CONTENT_OPACITY, FOCUS_OPACITY, HOVER_OPACITY,

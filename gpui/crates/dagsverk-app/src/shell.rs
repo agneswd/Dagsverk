@@ -18,9 +18,10 @@ use dagsverk_export::{export_ods, export_xlsx};
 use dagsverk_ui::{
     m3::{
         M3ChoiceEvent, M3ChoiceGroup, M3ChoiceKind, M3ColorScheme, M3ExpansionPanel,
-        M3ExpansionPanelEvent, M3Select, M3SelectEvent, M3SnackbarEvent, M3SnackbarHost, M3Switch,
-        M3SwitchEvent, ResolvedTheme as UiTheme, UiScale, m3_icon, m3_icon_colored, m3_icon_filled,
-        m3_state_layer, menu_elevation, side_sheet_elevation, workspace_menu_elevation,
+        M3ExpansionPanelEvent, M3Select, M3SelectEvent, M3Slider, M3SliderEvent, M3SnackbarEvent,
+        M3SnackbarHost, M3Switch, M3SwitchEvent, ResolvedTheme as UiTheme, UiScale, m3_icon,
+        m3_icon_colored, m3_icon_filled, m3_state_layer, menu_elevation, side_sheet_elevation,
+        workspace_menu_elevation,
     },
     text_input::{TextInput, TextInputEvent},
     views::timesheet::{MonthView, MonthViewData, MonthViewEvent, summary_banner},
@@ -651,6 +652,9 @@ pub struct AppShell {
     workspace_worker_input: Entity<TextInput>,
     workspace_organization_input: Entity<TextInput>,
     workspace_color_input: Entity<TextInput>,
+    color_hue_slider: Entity<M3Slider>,
+    color_saturation_slider: Entity<M3Slider>,
+    color_lightness_slider: Entity<M3Slider>,
     settings_inputs: SettingsInputs,
     rate_band_inputs: Vec<RateBandInputs>,
     focus: FocusHandle,
@@ -904,6 +908,12 @@ impl AppShell {
         let workspace_organization_input = cx.new(|cx| TextInput::new(cx, "Organization"));
         let workspace_color_input = cx.new(|cx| TextInput::new(cx, "#5F875F"));
         workspace_color_input.update(cx, |input, cx| input.set_text("#5F875F", cx));
+        let (hue, saturation, lightness) = hex_to_hsl("#5F875F").unwrap_or((120, 25, 45));
+        let color_hue_slider = cx.new(|cx| M3Slider::new(hue, 0, 359, M3ColorScheme::light(), cx));
+        let color_saturation_slider =
+            cx.new(|cx| M3Slider::new(saturation, 0, 100, M3ColorScheme::light(), cx));
+        let color_lightness_slider =
+            cx.new(|cx| M3Slider::new(lightness, 10, 90, M3ColorScheme::light(), cx));
         if !model.preferences.has_completed_setup
             && let Some(workspace) = model.active_workspace()
         {
@@ -1023,6 +1033,16 @@ impl AppShell {
             cx.notify();
         })
         .detach();
+        for slider in [
+            &color_hue_slider,
+            &color_saturation_slider,
+            &color_lightness_slider,
+        ] {
+            cx.subscribe(slider, |shell, _, _: &M3SliderEvent, cx| {
+                shell.apply_custom_picker_color(cx);
+            })
+            .detach();
+        }
         cx.subscribe(&project_select, |shell, _, event: &M3SelectEvent, cx| {
             let options = editor_project_options(&shell.model);
             if let Some(draft) = shell.model.editor.draft.as_mut() {
@@ -1217,6 +1237,9 @@ impl AppShell {
             workspace_worker_input,
             workspace_organization_input,
             workspace_color_input,
+            color_hue_slider,
+            color_saturation_slider,
+            color_lightness_slider,
             settings_inputs,
             rate_band_inputs,
             focus,
@@ -1242,6 +1265,7 @@ impl AppShell {
             color_picker_target: None,
         };
         shell.sync_control_scales(cx);
+        shell.sync_color_sliders("#5F875F", cx);
         shell
     }
 
@@ -1338,6 +1362,13 @@ impl AppShell {
             &self.exclude_holidays_switch,
         ] {
             switch.update(cx, |switch, cx| switch.set_scale(scale, cx));
+        }
+        for slider in [
+            &self.color_hue_slider,
+            &self.color_saturation_slider,
+            &self.color_lightness_slider,
+        ] {
+            slider.update(cx, |slider, cx| slider.set_scale(scale, cx));
         }
         self.settings_tabs
             .update(cx, |tabs, cx| tabs.set_scale(scale, cx));
@@ -1901,25 +1932,108 @@ impl AppShell {
         cx.notify();
     }
 
-    fn apply_picker_color(&mut self, color: &'static str, cx: &mut Context<Self>) {
-        let Some(target) = self.color_picker_target.take() else {
+    fn open_color_picker(
+        &mut self,
+        target: ColorPickerTarget,
+        selected: &str,
+        cx: &mut Context<Self>,
+    ) {
+        if self.color_picker_target.as_ref() == Some(&target) {
+            self.color_picker_target = None;
+        } else {
+            self.sync_color_sliders(selected, cx);
+            self.color_picker_target = Some(target);
+        }
+        cx.notify();
+    }
+
+    fn sync_color_sliders(&mut self, color: &str, cx: &mut Context<Self>) {
+        let Some((hue, saturation, lightness)) = hex_to_hsl(color) else {
             return;
         };
+        self.color_hue_slider
+            .update(cx, |slider, cx| slider.set_value(hue, cx));
+        self.color_saturation_slider
+            .update(cx, |slider, cx| slider.set_value(saturation, cx));
+        self.color_lightness_slider.update(cx, |slider, cx| {
+            slider.set_value(lightness.clamp(10, 90), cx)
+        });
+        self.sync_color_slider_tracks(cx);
+    }
+
+    fn sync_color_slider_tracks(&mut self, cx: &mut Context<Self>) {
+        let hue = self.color_hue_slider.read(cx).value();
+        let saturation = self.color_saturation_slider.read(cx).value();
+        self.color_hue_slider.update(cx, |slider, cx| {
+            slider.set_track_colors(
+                [
+                    gpui::red(),
+                    gpui::yellow(),
+                    gpui::green(),
+                    gpui::rgb(0x00FFFF).into(),
+                    gpui::blue(),
+                    gpui::rgb(0xFF00FF).into(),
+                    gpui::red(),
+                ],
+                cx,
+            )
+        });
+        self.color_saturation_slider.update(cx, |slider, cx| {
+            slider.set_track_colors(
+                [
+                    gpui::hsla(hue as f32 / 360.0, 0.0, 0.5, 1.0),
+                    gpui::hsla(hue as f32 / 360.0, 1.0, 0.5, 1.0),
+                ],
+                cx,
+            )
+        });
+        self.color_lightness_slider.update(cx, |slider, cx| {
+            slider.set_track_colors(
+                [
+                    gpui::hsla(hue as f32 / 360.0, saturation as f32 / 100.0, 0.1, 1.0),
+                    gpui::hsla(hue as f32 / 360.0, saturation as f32 / 100.0, 0.5, 1.0),
+                    gpui::hsla(hue as f32 / 360.0, saturation as f32 / 100.0, 0.9, 1.0),
+                ],
+                cx,
+            )
+        });
+    }
+
+    fn apply_custom_picker_color(&mut self, cx: &mut Context<Self>) {
+        if self.color_picker_target.is_none() {
+            return;
+        }
+        self.sync_color_slider_tracks(cx);
+        let color = hsl_to_hex(
+            self.color_hue_slider.read(cx).value(),
+            self.color_saturation_slider.read(cx).value(),
+            self.color_lightness_slider.read(cx).value(),
+        );
+        self.apply_picker_color(&color, false, cx);
+    }
+
+    fn apply_picker_color(&mut self, color: &str, close: bool, cx: &mut Context<Self>) {
+        let Some(target) = self.color_picker_target.clone() else {
+            return;
+        };
+        if close {
+            self.color_picker_target = None;
+        }
         match target {
             ColorPickerTarget::NewProject => self
                 .project_color_input
-                .update(cx, |input, cx| input.set_text(color, cx)),
+                .update(cx, |input, cx| input.set_text(color.to_owned(), cx)),
             ColorPickerTarget::NewWorkspace => self
                 .workspace_color_input
-                .update(cx, |input, cx| input.set_text(color, cx)),
+                .update(cx, |input, cx| input.set_text(color.to_owned(), cx)),
             ColorPickerTarget::Project(id) => {
                 self.project_color_input
-                    .update(cx, |input, cx| input.set_text(color, cx));
+                    .update(cx, |input, cx| input.set_text(color.to_owned(), cx));
                 self.update_project_color(&id, cx);
             }
             ColorPickerTarget::Workspace(id) => {
                 self.workspace_color_input
-                    .update(cx, |input, cx| input.set_text(color, cx));
+                    .update(cx, |input, cx| input.set_text(color.to_owned(), cx));
                 self.update_workspace_color(&id, cx);
             }
         }
@@ -2196,7 +2310,8 @@ impl AppShell {
         div()
             .max_w(scale.px(1088.0))
             .mx_auto()
-            .pt(scale.px(24.0))
+            .relative()
+            .pt(scale.px(68.0))
             .px(scale.px(page_padding))
             .pb(scale.px(48.0))
             .flex()
@@ -2613,6 +2728,16 @@ impl AppShell {
             .gap(scale.px(24.0))
             .child(
                 div()
+                    .absolute()
+                    .top(scale.px(24.0))
+                    .left(scale.px(page_padding))
+                    .text_size(scale.px(14.0))
+                    .line_height(scale.px(20.0))
+                    .text_color(colors.on_surface_variant)
+                    .child(self.text("Group time entries by client, contract, or workstream.")),
+            )
+            .child(
+                div()
                     .when_else(
                         stacked,
                         |card| card.w_full(),
@@ -2621,64 +2746,82 @@ impl AppShell {
                     .p(scale.px(24.0))
                     .flex()
                     .flex_col()
-                    .gap(scale.px(14.0))
                     .rounded(scale.px(16.0))
                     .bg(colors.surface_container_low)
                     .child(
                         div()
-                            .text_size(scale.px(20.0))
+                            .mb(scale.px(16.0))
+                            .text_size(scale.px(16.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
                             .child(self.text("Add project")),
                     )
-                    .child(self.text("Name"))
-                    .child(self.project_name_input.clone())
-                    .child(self.text("Color"))
                     .child(
                         div()
-                            .id("new-project-color")
-                            .size(scale.px(40.0))
+                            .mb(scale.px(24.0))
                             .flex()
                             .items_center()
-                            .justify_center()
-                            .rounded_full()
-                            .cursor_pointer()
-                            .hover(|style| style.bg(colors.surface_container_high))
+                            .gap(scale.px(12.0))
                             .child(
                                 div()
-                                    .size(scale.px(28.0))
-                                    .rounded_full()
-                                    .border_1()
-                                    .border_color(gpui::black().opacity(0.2))
-                                    .bg(new_color_swatch),
+                                    .min_w_0()
+                                    .flex_1()
+                                    .child(self.project_name_input.clone()),
                             )
-                            .on_click(cx.listener(|shell, _, _, cx| {
-                                shell.color_picker_target = Some(ColorPickerTarget::NewProject);
-                                cx.notify();
-                            }))
-                            .when(
-                                self.color_picker_target == Some(ColorPickerTarget::NewProject),
-                                |trigger| {
-                                    trigger.child(
-                                        deferred(
-                                            anchored()
-                                                .anchor(Corner::TopLeft)
-                                                .offset(point(scale.px(0.0), scale.px(48.0)))
-                                                .snap_to_window_with_margin(scale.px(8.0))
-                                                .child(
-                                                    self.color_palette(
-                                                        &new_color, colors, scale, cx,
-                                                    ),
-                                                ),
-                                        )
-                                        .priority(3),
+                            .child(
+                                div()
+                                    .id("new-project-color")
+                                    .size(scale.px(40.0))
+                                    .flex_none()
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .child(
+                                        div()
+                                            .size(scale.px(28.0))
+                                            .rounded_full()
+                                            .border_1()
+                                            .border_color(gpui::black().opacity(0.2))
+                                            .bg(new_color_swatch),
                                     )
-                                },
+                                    .on_click(cx.listener(|shell, _, _, cx| {
+                                        let color =
+                                            shell.project_color_input.read(cx).text().to_owned();
+                                        shell.open_color_picker(
+                                            ColorPickerTarget::NewProject,
+                                            &color,
+                                            cx,
+                                        );
+                                    }))
+                                    .when(
+                                        self.color_picker_target
+                                            == Some(ColorPickerTarget::NewProject),
+                                        |trigger| {
+                                            trigger.child(
+                                                deferred(
+                                                    anchored()
+                                                        .anchor(Corner::TopLeft)
+                                                        .offset(point(
+                                                            scale.px(0.0),
+                                                            scale.px(48.0),
+                                                        ))
+                                                        .snap_to_window_with_margin(scale.px(8.0))
+                                                        .child(self.color_palette(
+                                                            &new_color, colors, scale, cx,
+                                                        )),
+                                                )
+                                                .priority(3),
+                                            )
+                                        },
+                                    ),
                             ),
                     )
                     .child(
                         div()
                             .id("add-project")
                             .h(scale.px(40.0))
-                            .mt(scale.px(10.0))
                             .flex()
                             .items_center()
                             .justify_center()
@@ -2725,8 +2868,14 @@ impl AppShell {
                     .bg(colors.surface_container_low)
                     .child(
                         div()
-                            .text_size(scale.px(20.0))
-                            .child(format!("Projects ({})", projects.len())),
+                            .mb(scale.px(4.0))
+                            .text_size(scale.px(16.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
+                            .child(format!(
+                                "{} ({})",
+                                self.text("Active projects"),
+                                projects.len()
+                            )),
                     )
                     .children(projects.into_iter().enumerate().map(|(index, project)| {
                         let default_id = project.id.clone();
@@ -2738,6 +2887,7 @@ impl AppShell {
                             .color
                             .clone()
                             .unwrap_or_else(|| "#5F875F".to_owned());
+                        let picker_color_value = color_value.clone();
                         let color = color_from_hex(&color_value).unwrap_or(colors.primary);
                         div()
                             .h(scale.px(64.0))
@@ -2746,7 +2896,8 @@ impl AppShell {
                             .items_center()
                             .gap(scale.px(12.0))
                             .rounded(scale.px(12.0))
-                            .bg(colors.surface_container)
+                            .bg(colors.surface_container_low)
+                            .hover(move |style| style.bg(colors.surface_container))
                             .child(
                                 div()
                                     .w(scale.px(4.0))
@@ -2755,27 +2906,96 @@ impl AppShell {
                                     .bg(color),
                             )
                             .child(
-                                div().flex_1().flex().flex_col().child(project.name).child(
-                                    div()
-                                        .text_size(scale.px(12.0))
-                                        .text_color(colors.on_surface_variant)
-                                        .child(if project.is_active {
-                                            self.text("Active")
-                                        } else {
-                                            self.text("Archived")
-                                        }),
-                                ),
+                                div()
+                                    .min_w_0()
+                                    .flex_1()
+                                    .flex()
+                                    .flex_col()
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap(scale.px(8.0))
+                                            .child(
+                                                div()
+                                                    .truncate()
+                                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                                    .child(project.name),
+                                            )
+                                            .when(project.is_default, |line| {
+                                                line.child(
+                                                    div()
+                                                        .px(scale.px(8.0))
+                                                        .py(scale.px(4.0))
+                                                        .rounded(scale.px(10.0))
+                                                        .bg(colors.primary_container)
+                                                        .text_size(scale.px(11.0))
+                                                        .font_weight(gpui::FontWeight::MEDIUM)
+                                                        .child(self.text("Default")),
+                                                )
+                                            }),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(scale.px(12.0))
+                                            .text_color(colors.on_surface_variant)
+                                            .child(if project.is_active {
+                                                self.text("Active")
+                                            } else {
+                                                self.text("Archived")
+                                            }),
+                                    ),
                             )
-                            .when(project.is_default, |row| {
-                                row.child(
-                                    div()
-                                        .px(scale.px(10.0))
-                                        .py(scale.px(4.0))
-                                        .rounded(scale.px(12.0))
-                                        .bg(colors.primary_container)
-                                        .child(self.text("Default")),
-                                )
-                            })
+                            .child(
+                                div()
+                                    .id(("color-project", index))
+                                    .size(scale.px(40.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(colors.surface_container_high))
+                                    .child(
+                                        div()
+                                            .size(scale.px(28.0))
+                                            .rounded_full()
+                                            .border_1()
+                                            .border_color(gpui::black().opacity(0.2))
+                                            .bg(color),
+                                    )
+                                    .on_click(cx.listener(move |shell, _, _, cx| {
+                                        shell.open_color_picker(
+                                            ColorPickerTarget::Project(color_id.clone()),
+                                            &picker_color_value,
+                                            cx,
+                                        );
+                                    }))
+                                    .when(
+                                        self.color_picker_target
+                                            == Some(ColorPickerTarget::Project(picker_id)),
+                                        |trigger| {
+                                            trigger.child(
+                                                deferred(
+                                                    anchored()
+                                                        .anchor(Corner::TopRight)
+                                                        .offset(point(
+                                                            scale.px(40.0),
+                                                            scale.px(48.0),
+                                                        ))
+                                                        .snap_to_window_with_margin(scale.px(8.0))
+                                                        .child(self.color_palette(
+                                                            &color_value,
+                                                            colors,
+                                                            scale,
+                                                            cx,
+                                                        )),
+                                                )
+                                                .priority(3),
+                                            )
+                                        },
+                                    ),
+                            )
                             .when(!project.is_default, |row| {
                                 row.child(
                                     div()
@@ -2808,60 +3028,12 @@ impl AppShell {
                             })
                             .child(
                                 div()
-                                    .id(("color-project", index))
+                                    .id(("toggle-project", index))
                                     .size(scale.px(40.0))
                                     .flex()
                                     .items_center()
                                     .justify_center()
                                     .rounded_full()
-                                    .cursor_pointer()
-                                    .hover(|style| style.bg(colors.surface_container_high))
-                                    .child(
-                                        div()
-                                            .size(scale.px(28.0))
-                                            .rounded_full()
-                                            .border_1()
-                                            .border_color(gpui::black().opacity(0.2))
-                                            .bg(color),
-                                    )
-                                    .on_click(cx.listener(move |shell, _, _, cx| {
-                                        shell.color_picker_target =
-                                            Some(ColorPickerTarget::Project(color_id.clone()));
-                                        cx.notify();
-                                    }))
-                                    .when(
-                                        self.color_picker_target
-                                            == Some(ColorPickerTarget::Project(picker_id)),
-                                        |trigger| {
-                                            trigger.child(
-                                                deferred(
-                                                    anchored()
-                                                        .anchor(Corner::TopRight)
-                                                        .offset(point(
-                                                            scale.px(40.0),
-                                                            scale.px(48.0),
-                                                        ))
-                                                        .snap_to_window_with_margin(scale.px(8.0))
-                                                        .child(self.color_palette(
-                                                            &color_value,
-                                                            colors,
-                                                            scale,
-                                                            cx,
-                                                        )),
-                                                )
-                                                .priority(3),
-                                            )
-                                        },
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .id(("toggle-project", index))
-                                    .h(scale.px(40.0))
-                                    .px(scale.px(10.0))
-                                    .flex()
-                                    .items_center()
-                                    .rounded(scale.px(20.0))
                                     .cursor_pointer()
                                     .hover(move |style| {
                                         style.bg(m3_state_layer(
@@ -2877,11 +3049,15 @@ impl AppShell {
                                             0.12,
                                         ))
                                     })
-                                    .child(if project.is_active {
-                                        self.text("Archive")
-                                    } else {
-                                        self.text("Unarchive")
-                                    })
+                                    .child(m3_icon(
+                                        if project.is_active {
+                                            "archive"
+                                        } else {
+                                            "unarchive"
+                                        },
+                                        20.0 * scale.factor(),
+                                        colors,
+                                    ))
                                     .on_click(cx.listener(move |shell, _, _, cx| {
                                         shell.toggle_project(&toggle_id, cx)
                                     })),
@@ -2890,11 +3066,11 @@ impl AppShell {
                                 row.child(
                                     div()
                                         .id(("delete-project", index))
-                                        .h(scale.px(40.0))
-                                        .px(scale.px(10.0))
+                                        .size(scale.px(40.0))
                                         .flex()
                                         .items_center()
-                                        .rounded(scale.px(20.0))
+                                        .justify_center()
+                                        .rounded_full()
                                         .cursor_pointer()
                                         .text_color(colors.error)
                                         .hover(move |style| {
@@ -2911,7 +3087,11 @@ impl AppShell {
                                                 0.12,
                                             ))
                                         })
-                                        .child(self.text("Delete"))
+                                        .child(m3_icon_colored(
+                                            "delete_outline",
+                                            20.0 * scale.factor(),
+                                            colors.error,
+                                        ))
                                         .on_click(cx.listener(move |shell, _, _, cx| {
                                             shell.confirm_project_delete = Some(delete_id.clone());
                                             cx.notify();
@@ -3070,9 +3250,16 @@ impl AppShell {
                                                     .bg(new_color_swatch),
                                             )
                                             .on_click(cx.listener(|shell, _, _, cx| {
-                                                shell.color_picker_target =
-                                                    Some(ColorPickerTarget::NewWorkspace);
-                                                cx.notify();
+                                                let color = shell
+                                                    .workspace_color_input
+                                                    .read(cx)
+                                                    .text()
+                                                    .to_owned();
+                                                shell.open_color_picker(
+                                                    ColorPickerTarget::NewWorkspace,
+                                                    &color,
+                                                    cx,
+                                                );
                                             }))
                                             .when(
                                                 self.color_picker_target
@@ -3156,6 +3343,7 @@ impl AppShell {
                                     let delete_id = workspace.id.clone();
                                     let is_active = workspace.id == active;
                                     let color_value = workspace.color.clone();
+                                    let picker_color_value = color_value.clone();
                                     let swatch =
                                         color_from_hex(&color_value).unwrap_or(colors.primary);
                                     let subtitle = workspace
@@ -3275,11 +3463,13 @@ impl AppShell {
                                                         .bg(swatch),
                                                 )
                                                 .on_click(cx.listener(move |shell, _, _, cx| {
-                                                    shell.color_picker_target =
-                                                        Some(ColorPickerTarget::Workspace(
+                                                    shell.open_color_picker(
+                                                        ColorPickerTarget::Workspace(
                                                             color_id.clone(),
-                                                        ));
-                                                    cx.notify();
+                                                        ),
+                                                        &picker_color_value,
+                                                        cx,
+                                                    );
                                                 }))
                                                 .when(
                                                     self.color_picker_target
@@ -5223,12 +5413,22 @@ impl AppShell {
         cx: &mut Context<Self>,
     ) -> gpui::Div {
         let selected = selected.to_ascii_uppercase();
+        let selected_swatch = color_from_hex(&selected).unwrap_or(colors.primary);
+        for slider in [
+            &self.color_hue_slider,
+            &self.color_saturation_slider,
+            &self.color_lightness_slider,
+        ] {
+            slider.update(cx, |slider, cx| {
+                slider.set_colors(colors, cx);
+                slider.set_scale(scale, cx);
+            });
+        }
         div()
             .min_w(scale.px(232.0))
             .p(scale.px(16.0))
-            .grid()
-            .grid_cols(6)
-            .gap(scale.px(8.0))
+            .flex()
+            .flex_col()
             .rounded(scale.px(16.0))
             .bg(colors.surface_container_high)
             .shadow(workspace_menu_elevation())
@@ -5236,40 +5436,107 @@ impl AppShell {
                 shell.color_picker_target = None;
                 cx.notify();
             }))
-            .children(
-                MATERIAL_COLOR_PRESETS
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, color)| {
-                        let swatch = color_from_hex(color).unwrap_or(colors.primary);
-                        let is_selected = selected == color;
+            .child(
+                div()
+                    .mb(scale.px(8.0))
+                    .text_size(scale.px(11.0))
+                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .text_color(colors.on_surface_variant)
+                    .child("COLOR"),
+            )
+            .child(
+                div()
+                    .grid()
+                    .grid_cols(6)
+                    .gap(scale.px(8.0))
+                    .mb(scale.px(16.0))
+                    .children(MATERIAL_COLOR_PRESETS.into_iter().enumerate().map(
+                        |(index, color)| {
+                            let swatch = color_from_hex(color).unwrap_or(colors.primary);
+                            let is_selected = selected == color;
+                            div()
+                                .id(("color-preset", index))
+                                .tab_index(index as isize)
+                                .tab_stop(true)
+                                .size(scale.px(32.0))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded_full()
+                                .border_1()
+                                .border_color(if is_selected {
+                                    colors.primary
+                                } else {
+                                    gpui::black().opacity(0.2)
+                                })
+                                .bg(swatch)
+                                .cursor_pointer()
+                                .hover(|style| style.border_color(colors.on_surface))
+                                .when(is_selected, |item| {
+                                    item.child(m3_icon_colored(
+                                        "check",
+                                        18.0 * scale.factor(),
+                                        gpui::white(),
+                                    ))
+                                })
+                                .on_click(cx.listener(move |shell, _, _, cx| {
+                                    shell.apply_picker_color(color, true, cx)
+                                }))
+                                .on_key_down(cx.listener(
+                                    move |shell, event: &gpui::KeyDownEvent, _, cx| {
+                                        if matches!(event.keystroke.key.as_str(), "enter" | "space")
+                                        {
+                                            shell.apply_picker_color(color, true, cx);
+                                        }
+                                    },
+                                ))
+                        },
+                    )),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(scale.px(10.0))
+                    .child(
                         div()
-                            .id(("color-preset", index))
-                            .size(scale.px(32.0))
                             .flex()
                             .items_center()
-                            .justify_center()
-                            .rounded_full()
-                            .border_1()
-                            .border_color(if is_selected {
-                                colors.primary
-                            } else {
-                                gpui::black().opacity(0.2)
-                            })
-                            .bg(swatch)
-                            .cursor_pointer()
-                            .hover(|style| style.border_color(colors.on_surface))
-                            .when(is_selected, |item| {
-                                item.child(m3_icon_colored(
-                                    "check",
-                                    18.0 * scale.factor(),
-                                    gpui::white(),
-                                ))
-                            })
-                            .on_click(cx.listener(move |shell, _, _, cx| {
-                                shell.apply_picker_color(color, cx)
-                            }))
-                    }),
+                            .justify_between()
+                            .child(
+                                div()
+                                    .text_size(scale.px(11.0))
+                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                    .text_color(colors.on_surface_variant)
+                                    .child("CUSTOM COLOR"),
+                            )
+                            .child(
+                                div()
+                                    .size(scale.px(24.0))
+                                    .rounded_full()
+                                    .border_1()
+                                    .border_color(gpui::black().opacity(0.2))
+                                    .bg(selected_swatch),
+                            ),
+                    )
+                    .child(color_slider_row(
+                        "HUE",
+                        self.color_hue_slider.clone(),
+                        colors,
+                        scale,
+                    ))
+                    .child(color_slider_row(
+                        "SATURATION",
+                        self.color_saturation_slider.clone(),
+                        colors,
+                        scale,
+                    ))
+                    .child(color_slider_row(
+                        "BRIGHTNESS",
+                        self.color_lightness_slider.clone(),
+                        colors,
+                        scale,
+                    )),
             )
     }
 
@@ -5282,13 +5549,23 @@ impl AppShell {
         cx: &mut Context<Self>,
     ) -> gpui::Div {
         div()
-            .min_w(px(224.0 * scale))
+            .min_w(px(248.0 * scale))
             .p(px(8.0 * scale))
             .flex()
             .flex_col()
             .rounded(px(16.0 * scale))
             .bg(colors.surface_container_high)
             .shadow(workspace_menu_elevation())
+            .child(
+                div()
+                    .px(px(12.0 * scale))
+                    .pt(px(8.0 * scale))
+                    .pb(px(4.0 * scale))
+                    .text_size(px(11.0 * scale))
+                    .font_weight(gpui::FontWeight::MEDIUM)
+                    .text_color(colors.on_surface_variant)
+                    .child(self.text("Switch workspace")),
+            )
             .children(
                 workspaces
                     .into_iter()
@@ -5298,7 +5575,7 @@ impl AppShell {
                         let active = workspace.id == active_workspace_id;
                         div()
                             .id(("workspace-menu-item", index))
-                            .h(px(44.0 * scale))
+                            .h(px(52.0 * scale))
                             .px(px(12.0 * scale))
                             .flex()
                             .items_center()
@@ -5337,7 +5614,7 @@ impl AppShell {
             .child(
                 div()
                     .id("manage-workspaces")
-                    .h(px(44.0 * scale))
+                    .h(px(52.0 * scale))
                     .px(px(12.0 * scale))
                     .flex()
                     .items_center()
@@ -5590,11 +5867,11 @@ impl Render for AppShell {
                                         trigger.child(
                                             deferred(
                                                 anchored()
-                                                    .anchor(Corner::TopLeft)
-                                                    .offset(point(
-                                                        px(0.0),
-                                                        px(64.0 * scale),
+                                                    .position(point(
+                                                        px(12.0 * scale),
+                                                        px(132.0 * scale),
                                                     ))
+                                                    .anchor(Corner::TopLeft)
                                                     .snap_to_window_with_margin(px(8.0 * scale))
                                                     .child(self.workspace_menu(
                                                         workspace_menu_items,
@@ -6732,6 +7009,54 @@ fn color_from_hex(value: &str) -> Option<gpui::Hsla> {
         .map(|value| gpui::rgb(value).into())
 }
 
+fn hex_to_hsl(value: &str) -> Option<(i32, i32, i32)> {
+    let color = color_from_hex(value)?;
+    Some((
+        (color.h * 360.0).round() as i32 % 360,
+        (color.s * 100.0).round() as i32,
+        (color.l * 100.0).round() as i32,
+    ))
+}
+
+fn hsl_to_hex(hue: i32, saturation: i32, lightness: i32) -> String {
+    let color = gpui::hsla(
+        hue.clamp(0, 359) as f32 / 360.0,
+        saturation.clamp(0, 100) as f32 / 100.0,
+        lightness.clamp(0, 100) as f32 / 100.0,
+        1.0,
+    )
+    .to_rgb();
+    format!(
+        "#{:02X}{:02X}{:02X}",
+        (color.r * 255.0).round() as u8,
+        (color.g * 255.0).round() as u8,
+        (color.b * 255.0).round() as u8,
+    )
+}
+
+fn color_slider_row(
+    label: &'static str,
+    slider: Entity<M3Slider>,
+    colors: M3ColorScheme,
+    scale: UiScale,
+) -> gpui::Div {
+    div()
+        .w_full()
+        .flex()
+        .items_center()
+        .gap(scale.px(8.0))
+        .child(
+            div()
+                .w(scale.px(72.0))
+                .flex_none()
+                .text_size(scale.px(11.0))
+                .font_weight(gpui::FontWeight::SEMIBOLD)
+                .text_color(colors.on_surface_variant)
+                .child(label),
+        )
+        .child(div().min_w_0().flex_1().child(slider))
+}
+
 fn nonempty(value: &str) -> Option<String> {
     let value = value.trim();
     (!value.is_empty()).then(|| value.to_owned())
@@ -6918,8 +7243,8 @@ mod tests {
 
     use super::{
         AppShell, AppShellServices, format_editor_date, format_month_title, header_layout,
-        overtime_day_category_label, parse_non_negative_decimal, parse_scheduled_minutes,
-        responsive_layout, route_page_layout,
+        hex_to_hsl, hsl_to_hex, overtime_day_category_label, parse_non_negative_decimal,
+        parse_scheduled_minutes, responsive_layout, route_page_layout,
     };
     use crate::{
         platform::{
@@ -7095,6 +7420,30 @@ mod tests {
                     .is_some_and(|date| date.to_string() == "2026-08-04")
         }));
 
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::ColorPicker, cx)
+        });
+        cx.refresh().expect("refresh color picker");
+        let hue_slider = shell.read_with(cx, |shell, _| shell.color_hue_slider.clone());
+        cx.update(|window, app| window.focus(&hue_slider.read(app).focus_handle()));
+        cx.simulate_keystrokes("home right");
+        assert_eq!(hue_slider.read_with(cx, |slider, _| slider.value()), 1);
+        assert_eq!(
+            shell.read_with(cx, |shell, app| shell
+                .project_color_input
+                .read(app)
+                .text()
+                .to_owned()),
+            hsl_to_hex(1, 17, 45)
+        );
+        cx.simulate_keystrokes("escape");
+        assert!(shell.read_with(cx, |shell, _| shell.color_picker_target.is_none()));
+        shell.update(cx, |shell, cx| {
+            shell.apply_visual_state(VisualState::Ledger, cx)
+        });
+        let shell_focus = shell.read_with(cx, |shell, _| shell.focus.clone());
+        cx.update(|window, _| window.focus(&shell_focus));
+
         shell.update(cx, |shell, cx| shell.create_backup(cx));
         cx.run_until_parked();
         assert!(shell.read_with(cx, |shell, _| {
@@ -7230,6 +7579,10 @@ mod tests {
 
     #[test]
     fn scheduled_override_accepts_zero_and_rejects_invalid_values() {
+        assert_eq!(hex_to_hsl("#FF0000"), Some((0, 100, 50)));
+        assert_eq!(hex_to_hsl("#5F875F"), Some((120, 17, 45)));
+        assert_eq!(hsl_to_hex(0, 100, 50), "#FF0000");
+        assert_eq!(hsl_to_hex(120, 17, 45), "#5F865F");
         assert_eq!(parse_scheduled_minutes("0").expect("zero hours").value(), 0);
         assert_eq!(
             parse_scheduled_minutes("7.5")
