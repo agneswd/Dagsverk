@@ -6670,6 +6670,7 @@ mod tests {
     use chrono::{DateTime, Utc};
     use dagsverk_core::{
         clock::FixedClock,
+        i18n::resources,
         models::{
             CompensationRateType, CompensationRuleType, CurrencyPreference, LanguagePreference,
             MonthViewPreference, OvertimeCompensationMode, OvertimeDayCategory,
@@ -6695,6 +6696,26 @@ mod tests {
     };
 
     struct SaveDialog(PathBuf);
+
+    #[test]
+    fn every_literal_shell_translation_key_exists_in_both_catalogs() {
+        let mut source = include_str!("shell.rs");
+        let marker = "self.text(\"";
+        while let Some(start) = source.find(marker) {
+            source = &source[start + marker.len()..];
+            let end = source.find('"').expect("translation key ends");
+            let key = &source[..end];
+            assert!(
+                resources(LanguagePreference::English).contains_key(key),
+                "missing English translation key: {key}"
+            );
+            assert!(
+                resources(LanguagePreference::Swedish).contains_key(key),
+                "missing Swedish translation key: {key}"
+            );
+            source = &source[end + 1..];
+        }
+    }
 
     impl FileDialogService for SaveDialog {
         fn choose_open_file(&self, _: OpenFileRequest) -> PlatformFuture<'_, Option<PathBuf>> {
