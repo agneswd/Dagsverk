@@ -433,4 +433,15 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   'Starting balance is too large.': 'Starting balance is too large.',
   'Tax column must be from 1 to 6.': 'Tax column must be from 1 to 6.',
   'Tax table must be positive.': 'Tax table must be positive.',
+  'cannot delete the last remaining workspace': 'Cannot delete the last remaining workspace.',
+  'select the Tidverk database, not the current Dagsverk database':
+    'Select the Tidverk database, not the current Dagsverk database.',
+  'source and target month are the same': 'Source and target month are the same.',
+  'source and target workspace differ': 'Source and target workspace differ.',
+  'the database contains no workspaces': 'The database contains no workspaces.',
+  'the selected file is not a Dagsverk database': 'The selected file is not a Dagsverk database.',
+  'the selected file is not a supported Tidverk database':
+    'The selected file is not a supported Tidverk database.',
+  'the Tidverk database does not contain settings':
+    'The Tidverk database does not contain settings.',
 };

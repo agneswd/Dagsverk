@@ -434,4 +434,15 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Starting balance is too large.': 'Startsaldot är för stort.',
   'Tax column must be from 1 to 6.': 'Skattekolumnen måste vara från 1 till 6.',
   'Tax table must be positive.': 'Skattetabellen måste vara positiv.',
+  'cannot delete the last remaining workspace': 'Det går inte att ta bort den sista arbetsytan.',
+  'select the Tidverk database, not the current Dagsverk database':
+    'Välj Tidverk-databasen, inte den aktuella Dagsverk-databasen.',
+  'source and target month are the same': 'Källmånaden och målmånaden är samma månad.',
+  'source and target workspace differ': 'Källan och målet tillhör olika arbetsytor.',
+  'the database contains no workspaces': 'Databasen innehåller inga arbetsytor.',
+  'the selected file is not a Dagsverk database': 'Den valda filen är inte en Dagsverk-databas.',
+  'the selected file is not a supported Tidverk database':
+    'Den valda filen är inte en Tidverk-databas som stöds.',
+  'the Tidverk database does not contain settings':
+    'Tidverk-databasen innehåller inga inställningar.',
 };

@@ -1238,6 +1238,10 @@ impl AppShell {
         self.message(key).replace("{0}", &value.to_string())
     }
 
+    fn localized_error(&self, error: impl std::fmt::Display) -> String {
+        self.message(&error.to_string())
+    }
+
     fn ui_language(&self) -> LanguagePreference {
         match self.model.language {
             crate::state::Language::English => LanguagePreference::English,
@@ -1265,7 +1269,7 @@ impl AppShell {
 
     fn set_view(&mut self, view: MonthViewPreference, cx: &mut Context<Self>) {
         if let Err(error) = self.model.set_view(view) {
-            self.model.transient_error = Some(error.to_string());
+            self.model.transient_error = Some(self.localized_error(error));
         } else {
             self.model.route = Route::Timesheet;
         }
@@ -1456,7 +1460,7 @@ impl AppShell {
                 }
                 self.refresh_month_view(cx);
             }
-            Err(error) => self.model.editor.validation_error = Some(error.to_string()),
+            Err(error) => self.model.editor.validation_error = Some(self.localized_error(error)),
         }
         cx.notify();
     }
@@ -1521,7 +1525,7 @@ impl AppShell {
                 self.model.transient_error = None;
                 self.refresh_month_view(cx);
             }
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         cx.notify();
     }
@@ -1605,7 +1609,7 @@ impl AppShell {
     fn fill_month(&mut self, cx: &mut Context<Self>) {
         match self.model.fill_normal_workdays() {
             Ok(count) => self.notice = Some(self.message_with("{0} normal workdays added.", count)),
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         self.refresh_month_view(cx);
         cx.notify();
@@ -1623,7 +1627,7 @@ impl AppShell {
     fn paste_month(&mut self, cx: &mut Context<Self>) {
         match self.model.paste_month() {
             Ok(count) => self.notice = Some(self.message_with("{0} entries pasted.", count)),
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         self.refresh_month_view(cx);
         cx.notify();
@@ -1632,7 +1636,7 @@ impl AppShell {
     fn reset_month(&mut self, cx: &mut Context<Self>) {
         match self.model.reset_month() {
             Ok(()) => self.notice = Some(self.message("Month reset.")),
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         self.confirm_reset = false;
         self.refresh_month_view(cx);
@@ -1651,7 +1655,7 @@ impl AppShell {
         let id = match ProjectId::new(uuid::Uuid::new_v4().to_string()) {
             Ok(id) => id,
             Err(error) => {
-                self.model.transient_error = Some(error.to_string());
+                self.model.transient_error = Some(self.localized_error(error));
                 cx.notify();
                 return;
             }
@@ -1670,7 +1674,7 @@ impl AppShell {
                     .update(cx, |input, cx| input.set_text("", cx));
                 self.notice = Some(self.message("Project added."));
             }
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         self.refresh_month_view(cx);
         cx.notify();
@@ -1679,7 +1683,7 @@ impl AppShell {
     fn set_default_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
         match self.model.set_default_project(id) {
             Ok(()) => self.notice = Some(self.message("Default project changed.")),
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         cx.notify();
     }
@@ -1697,7 +1701,7 @@ impl AppShell {
         project.is_active = !project.is_active;
         match self.model.save_project(project) {
             Ok(()) => self.notice = Some(self.message("Project updated.")),
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         self.refresh_month_view(cx);
         cx.notify();
@@ -1722,7 +1726,7 @@ impl AppShell {
         project.color = Some(color);
         match self.model.save_project(project) {
             Ok(()) => self.notice = Some(self.message("Project color updated.")),
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         self.refresh_month_view(cx);
         cx.notify();
@@ -1731,7 +1735,7 @@ impl AppShell {
     fn delete_project(&mut self, id: &ProjectId, cx: &mut Context<Self>) {
         match self.model.delete_project(id) {
             Ok(()) => self.notice = Some(self.message("Project deleted.")),
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         self.confirm_project_delete = None;
         self.refresh_month_view(cx);
@@ -1761,7 +1765,7 @@ impl AppShell {
                     .update(cx, |input, cx| input.set_text("", cx));
                 self.notice = Some(self.message("Workspace created."));
             }
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         cx.notify();
     }
@@ -1829,7 +1833,7 @@ impl AppShell {
                 self.notice = Some(self.message("Setup complete."));
                 self.refresh_month_view(cx);
             }
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         cx.notify();
     }
@@ -1841,7 +1845,7 @@ impl AppShell {
                 self.manage_workspaces = false;
                 self.workspace_menu_open = false;
             }
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         self.refresh_month_view(cx);
         cx.notify();
@@ -1866,7 +1870,7 @@ impl AppShell {
         workspace.color = color;
         match self.model.save_workspace(workspace) {
             Ok(()) => self.notice = Some(self.message("Workspace color updated.")),
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         cx.notify();
     }
@@ -1899,7 +1903,7 @@ impl AppShell {
     fn delete_workspace(&mut self, id: &WorkspaceId, cx: &mut Context<Self>) {
         match self.model.delete_workspace(id) {
             Ok(()) => self.notice = Some(self.message("Workspace deleted.")),
-            Err(error) => self.model.transient_error = Some(error.to_string()),
+            Err(error) => self.model.transient_error = Some(self.localized_error(error)),
         }
         self.confirm_workspace_delete = None;
         self.refresh_month_view(cx);
@@ -1915,7 +1919,7 @@ impl AppShell {
         };
         settings.workspace_id = Some(self.model.active_workspace_id.clone());
         if let Err(error) = self.model.update_settings(settings.clone()) {
-            self.model.transient_error = Some(error.to_string());
+            self.model.transient_error = Some(self.localized_error(error));
             cx.notify();
             return;
         }
@@ -1923,7 +1927,7 @@ impl AppShell {
             .model
             .update_preferences(self.preferences_draft.clone())
         {
-            self.model.transient_error = Some(error.to_string());
+            self.model.transient_error = Some(self.localized_error(error));
             cx.notify();
             return;
         }
@@ -4714,7 +4718,8 @@ impl AppShell {
                             .child(self.text("Reset"))
                             .on_click(cx.listener(move |shell, _, _, cx| {
                                 if let Err(error) = shell.model.delete_entry(date) {
-                                    shell.model.editor.validation_error = Some(error.to_string());
+                                    shell.model.editor.validation_error =
+                                        Some(shell.localized_error(error));
                                 }
                                 shell.refresh_month_view(cx);
                                 cx.notify();
@@ -5796,7 +5801,7 @@ impl Render for AppShell {
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 if let Err(error) = shell.model.toggle_theme() {
                                                     shell.model.transient_error =
-                                                        Some(error.to_string());
+                                                        Some(shell.localized_error(error));
                                                 }
                                                 shell.refresh_month_view(cx);
                                                 cx.notify();
@@ -5857,7 +5862,7 @@ impl Render for AppShell {
                                             .on_click(cx.listener(|shell, _, _, cx| {
                                                 if let Err(error) = shell.model.toggle_theme() {
                                                     shell.model.transient_error =
-                                                        Some(error.to_string());
+                                                        Some(shell.localized_error(error));
                                                 }
                                                 shell.refresh_month_view(cx);
                                                 cx.notify();
@@ -7008,6 +7013,15 @@ mod tests {
         assert_eq!(
             shell.read_with(cx, |shell, _| shell.model.transient_error.clone()),
             Some("Skattekolumnen måste vara från 1 till 6.".to_owned())
+        );
+        let active_workspace =
+            shell.read_with(cx, |shell, _| shell.model.active_workspace_id.clone());
+        shell.update(cx, |shell, cx| {
+            shell.delete_workspace(&active_workspace, cx)
+        });
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.model.transient_error.clone()),
+            Some("Det går inte att ta bort den sista arbetsytan.".to_owned())
         );
 
         shell.update(cx, |shell, cx| {
