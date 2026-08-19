@@ -4,6 +4,8 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   Workspaces: 'Workspaces',
   Projects: 'Projects',
   'Active projects': 'Active projects',
+  COLOR: 'COLOR',
+  'Evening OB': 'Evening OB',
   Settings: 'Settings',
   'Data & backups': 'Data & backups',
   'Switch workspace': 'Switch workspace',

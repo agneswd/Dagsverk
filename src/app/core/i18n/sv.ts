@@ -4,6 +4,8 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   Workspaces: 'Arbetsytor',
   Projects: 'Projekt',
   'Active projects': 'Aktiva projekt',
+  COLOR: 'FÄRG',
+  'Evening OB': 'Kvälls-OB',
   Settings: 'Inställningar',
   'Data & backups': 'Data och säkerhetskopior',
   'Switch workspace': 'Byt arbetsyta',

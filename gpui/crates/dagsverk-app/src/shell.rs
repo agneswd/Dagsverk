@@ -4127,7 +4127,7 @@ impl AppShell {
             };
             let description = format!(
                 "{} • {}-{} • {}",
-                overtime_day_category_label(band.day_category),
+                self.text(overtime_day_category_label(band.day_category)),
                 band.start_time,
                 band.end_time,
                 band.rate_value
@@ -4534,9 +4534,9 @@ impl AppShell {
     fn add_rate_band(&mut self, compensation_type: CompensationRuleType, cx: &mut Context<Self>) {
         let band = OvertimeRateBand {
             name: if compensation_type == CompensationRuleType::Overtime {
-                "Overtime".to_owned()
+                self.message("Overtime")
             } else {
-                "Evening OB".to_owned()
+                self.message("Evening OB")
             },
             compensation_type,
             day_category: OvertimeDayCategory::ScheduledWorkdays,
@@ -5513,7 +5513,7 @@ impl AppShell {
                     .text_size(scale.px(11.0))
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .text_color(colors.on_surface_variant)
-                    .child("COLOR"),
+                    .child(self.text("COLOR")),
             )
             .child(
                 div()
@@ -5578,7 +5578,7 @@ impl AppShell {
                                     .text_size(scale.px(11.0))
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .text_color(colors.on_surface_variant)
-                                    .child("CUSTOM COLOR"),
+                                    .child(self.text("CUSTOM COLOR")),
                             )
                             .child(
                                 div()
@@ -5590,19 +5590,19 @@ impl AppShell {
                             ),
                     )
                     .child(color_slider_row(
-                        "HUE",
+                        self.text("HUE"),
                         self.color_hue_slider.clone(),
                         colors,
                         scale,
                     ))
                     .child(color_slider_row(
-                        "SATURATION",
+                        self.text("SATURATION"),
                         self.color_saturation_slider.clone(),
                         colors,
                         scale,
                     ))
                     .child(color_slider_row(
-                        "BRIGHTNESS",
+                        self.text("BRIGHTNESS"),
                         self.color_lightness_slider.clone(),
                         colors,
                         scale,
@@ -7123,7 +7123,7 @@ fn hsl_to_hex(hue: i32, saturation: i32, lightness: i32) -> String {
 }
 
 fn color_slider_row(
-    label: &'static str,
+    label: SharedString,
     slider: Entity<M3Slider>,
     colors: M3ColorScheme,
     scale: UiScale,
@@ -7673,6 +7673,14 @@ mod tests {
         assert_eq!(
             shell.read_with(cx, |shell, _| shell.text("Settings").to_string()),
             "Inställningar"
+        );
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.text("COLOR").to_string()),
+            "FÄRG"
+        );
+        assert_eq!(
+            shell.read_with(cx, |shell, _| shell.message("Evening OB")),
+            "Kvälls-OB"
         );
         shell.update(cx, |shell, cx| shell.create_backup(cx));
         cx.run_until_parked();
