@@ -86,7 +86,7 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   Currency: 'Valuta',
   'Opening Time Balance': 'Ingående tidsbalans',
   'Expected Work Schedule': 'Förväntat arbetsschema',
-  'Target Hours / Workday': 'Måltimmar per arbetsdag',
+  'Target Hours / Workday': 'Förväntade timmar per arbetsdag',
   'Default Day Timers': 'Standardtider för arbetsdag',
   'Default Start': 'Standardstart',
   'Default End': 'Standardslut',
@@ -168,10 +168,10 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Column 2 (Age 66+)': 'Kolumn 2 (66 år eller äldre)',
   'Column 3 (Pension)': 'Kolumn 3 (pension)',
   'Define baseline working hours used to compute daily targets and flex balances.':
-    'Ange arbetsschemat som används för mål och flexsaldo.',
+    'Ange arbetsschemat som används för förväntade timmar och flexsaldo.',
   'SCHEDULED WORKDAYS': 'SCHEMALAGDA ARBETSDAGAR',
   'Exclude Swedish statutory public holidays from expected target hours':
-    'Undanta svenska helgdagar från måltiden',
+    'Undanta svenska helgdagar från förväntade timmar',
   'Standard prefill values when creating a new worked day entry.':
     'Standardvärden för en ny arbetsdag.',
   'Overtime Baseline Policy': 'Övertidsregler',
