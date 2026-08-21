@@ -70,6 +70,14 @@
                   (colorChange)="onProjectColorChange(p, $event)"
                   label="Change project color"
                 />
+                <button
+                  mat-icon-button
+                  (click)="onRenameProject(p)"
+                  matTooltip="Rename Project"
+                  [attr.aria-label]="'Rename ' + p.name"
+                >
+                  <mat-icon>edit</mat-icon>
+                </button>
                 @if (!p.isDefault) {
                   <button
                     mat-button

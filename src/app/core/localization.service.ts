@@ -162,6 +162,7 @@ export class LocalizationService {
       [/^Set (.+) as default project$/, (match) => `Ange ${match[1]} som standardprojekt`],
       [/^Activate (.+)$/, (match) => `Aktivera ${match[1]}`],
       [/^Delete (.+)$/, (match) => `Ta bort ${match[1]}`],
+      [/^Rename (.+)$/, (match) => `Byt namn på ${match[1]}`],
     ];
     if (this.language() === 'sv') {
       for (const [pattern, replace] of patterns) {

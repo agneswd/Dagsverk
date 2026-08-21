@@ -157,6 +157,15 @@
                 label="Change workspace color"
               />
 
+              <button
+                mat-icon-button
+                (click)="onRenameWorkspace(ws)"
+                matTooltip="Rename Workspace"
+                [attr.aria-label]="'Rename ' + ws.name"
+              >
+                <mat-icon>edit</mat-icon>
+              </button>
+
               @if (state.workspaces().length > 1) {
                 <button
                   mat-icon-button

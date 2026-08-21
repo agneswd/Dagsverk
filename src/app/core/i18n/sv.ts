@@ -396,4 +396,10 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Quick time presets': 'Snabbval av tider',
   'Lunch break duration': 'Lunchrastens längd',
   'Monthly timesheet ledger': 'Månadens tidrapport',
+  'Rename workspace': 'Byt namn på arbetsytan',
+  'Rename project': 'Byt namn på projektet',
+  Rename: 'Byt namn',
+  'New name': 'Nytt namn',
+  'Rename Workspace': 'Byt namn på arbetsyta',
+  'Rename Project': 'Byt namn på projekt',
 };

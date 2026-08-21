@@ -395,4 +395,10 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   'Quick time presets': 'Quick time presets',
   'Lunch break duration': 'Lunch break duration',
   'Monthly timesheet ledger': 'Monthly timesheet ledger',
+  'Rename workspace': 'Rename workspace',
+  'Rename project': 'Rename project',
+  Rename: 'Rename',
+  'New name': 'New name',
+  'Rename Workspace': 'Rename workspace',
+  'Rename Project': 'Rename project',
 };

@@ -64,6 +64,13 @@
         </button>
       }
 
+      <button mat-menu-item (click)="onRenameWorkspace()" class="manage-ws-item">
+        <span class="ws-menu-leading">
+          <mat-icon class="manage-ws-icon">edit</mat-icon>
+        </span>
+        <span class="body-medium">Rename workspace</span>
+      </button>
+
       <button mat-menu-item (click)="onManageWorkspaces()" class="manage-ws-item">
         <span class="ws-menu-leading">
           <mat-icon class="manage-ws-icon">settings</mat-icon>
