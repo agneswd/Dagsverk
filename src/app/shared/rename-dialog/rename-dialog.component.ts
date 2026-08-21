@@ -51,6 +51,28 @@ export interface RenameDialogData {
       </button>
     </mat-dialog-actions>
   `,
+  styles: [
+    `
+      .full-width {
+        width: 100%;
+      }
+
+      :host ::ng-deep .mat-mdc-text-field-wrapper {
+        min-height: 56px;
+      }
+
+      :host ::ng-deep .mat-mdc-form-field-infix {
+        min-height: 56px;
+        padding-top: 16px !important;
+        padding-bottom: 16px !important;
+      }
+
+      :host ::ng-deep input.mat-mdc-input-element {
+        height: 24px;
+        line-height: 24px;
+      }
+    `,
+  ],
 })
 export class RenameDialogComponent {
   public dialogRef = inject(MatDialogRef<RenameDialogComponent, string | undefined>);
