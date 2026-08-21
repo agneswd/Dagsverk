@@ -362,6 +362,14 @@ body {
   overflow: hidden;
 }
 
+.cdk-overlay-pane .mat-mdc-dialog-content {
+  overflow: visible;
+}
+
+.cdk-overlay-pane .mdc-notched-outline__notch {
+  overflow: visible;
+}
+
 .mat-mdc-slide-toggle .mdc-form-field {
   min-height: 48px;
   align-items: center;

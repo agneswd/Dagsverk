@@ -57,6 +57,11 @@ export interface RenameDialogData {
         width: 100%;
       }
 
+      :host ::ng-deep .mat-mdc-dialog-content {
+        overflow: visible;
+        padding-top: 8px;
+      }
+
       :host ::ng-deep .mat-mdc-text-field-wrapper {
         min-height: 56px;
       }
@@ -70,6 +75,10 @@ export interface RenameDialogData {
       :host ::ng-deep input.mat-mdc-input-element {
         height: 24px;
         line-height: 24px;
+      }
+
+      :host ::ng-deep .mdc-notched-outline__notch {
+        overflow: visible;
       }
     `,
   ],
