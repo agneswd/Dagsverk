@@ -127,6 +127,41 @@ export class LocalizationService {
         /^Set the balance carried into (.+)\.$/,
         (match) => `Ange saldot som förs över till ${match[1]}.`,
       ],
+      [/^Downloading version (.+)\.\.\.$/, (match) => `Hämtar version ${match[1]}...`],
+      [/^Workspace "(.+)" created$/, (match) => `Arbetsytan "${match[1]}" skapades`],
+      [/^Workspace "(.+)" deleted$/, (match) => `Arbetsytan "${match[1]}" togs bort`],
+      [/^Backup saved: (.+)$/, (match) => `Säkerhetskopia sparad: ${match[1]}`],
+      [/^Backup failed: (.+)$/, (match) => `Säkerhetskopiering misslyckades: ${match[1]}`],
+      [/^Restore failed: (.+)$/, (match) => `Återställning misslyckades: ${match[1]}`],
+      [/^Import failed: (.+)$/, (match) => `Import misslyckades: ${match[1]}`],
+      [
+        /^Imported (\d+) entries into (.+)$/,
+        (match) => `Importerade ${match[1]} poster till ${match[2]}`,
+      ],
+      [
+        /^Delete "(.+)" and all its entries, projects, and settings\?$/,
+        (match) => `Ta bort "${match[1]}" och alla dess poster, projekt och inställningar?`,
+      ],
+      [
+        /^Delete "(.+)"\? Existing time entries keep the project name\.$/,
+        (match) => `Ta bort "${match[1]}"? Befintliga tidsposter behåller projektnamnet.`,
+      ],
+      [
+        /^Replace the current database with (.+)\? Dagsverk will create a safety backup first\.$/,
+        (match) =>
+          `Ersätt den aktuella databasen med ${match[1]}? Dagsverk skapar först en säkerhetskopia.`,
+      ],
+      [
+        /^(.+) saved entries and (.+) worked hours\.$/,
+        (match) => `${match[1]} sparade poster och ${match[2]} arbetstimmar.`,
+      ],
+      [
+        /^(\d+) past workdays are still unlogged\.$/,
+        (match) => `${match[1]} arbetsdagar har fortfarande ingen registrerad tid.`,
+      ],
+      [/^Set (.+) as default project$/, (match) => `Ange ${match[1]} som standardprojekt`],
+      [/^Activate (.+)$/, (match) => `Aktivera ${match[1]}`],
+      [/^Delete (.+)$/, (match) => `Ta bort ${match[1]}`],
     ];
     if (this.language() === 'sv') {
       for (const [pattern, replace] of patterns) {

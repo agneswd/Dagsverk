@@ -36,7 +36,7 @@
         </span>
         <span class="metric-qualifier body-small">
           @if (usesMonthlyHourlyPayBasis()) {
-            +{{ compTimeEarnedHours() | number: '1.2-2' }}h comp
+            +{{ compTimeEarnedHours() | number: '1.2-2' }}h {{ 'comp' }}
           } @else if (
             state.settings().overtimeCompensation.mode === OvertimeCompensationMode.CompTime
           ) {

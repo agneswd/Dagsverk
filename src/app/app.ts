@@ -64,15 +64,15 @@ import { LanguagePreference, MonthViewPreference, SalaryType, WorkspaceType } fr
           ></mat-form-field
         >
         <mat-form-field appearance="outline"
-          ><mat-label>Salary model</mat-label
+          ><mat-label>Salary Model</mat-label
           ><mat-select [(ngModel)]="salaryType"
-            ><mat-option [value]="SalaryType.Hourly">Hourly rate</mat-option
-            ><mat-option [value]="SalaryType.Monthly">Monthly salary</mat-option></mat-select
+            ><mat-option [value]="SalaryType.Hourly">Hourly Rate</mat-option
+            ><mat-option [value]="SalaryType.Monthly">Monthly Salary</mat-option></mat-select
           ></mat-form-field
         >
         <mat-form-field appearance="outline"
           ><mat-label>{{
-            salaryType === SalaryType.Hourly ? 'Hourly rate' : 'Monthly salary'
+            salaryType === SalaryType.Hourly ? 'Hourly Rate' : 'Monthly Salary'
           }}</mat-label
           ><input matInput type="number" min="0" [(ngModel)]="salaryValue"
         /></mat-form-field>

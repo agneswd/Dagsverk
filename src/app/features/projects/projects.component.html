@@ -44,7 +44,9 @@
     <mat-card appearance="outlined" class="m3-outlined-card list-card">
       <mat-card-content class="card-content">
         <div class="list-card-header">
-          <h2 class="card-title title-medium">Active projects ({{ state.projects().length }})</h2>
+          <h2 class="card-title title-medium">
+            {{ 'Active projects (' + state.projects().length + ')' }}
+          </h2>
         </div>
 
         <div class="projects-list">

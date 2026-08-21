@@ -150,9 +150,9 @@ export class SettingsComponent {
       case 'available':
         return `Downloading version ${update.availableVersion}...`;
       case 'downloading':
-        return `Downloading update - ${update.progress || 0}%`;
+        return `Downloading update ${update.progress || 0}%`;
       case 'ready':
-        return `Version ${update.availableVersion} is ready to install.`;
+        return `Dagsverk ${update.availableVersion} is ready to install.`;
       case 'current':
         return 'Dagsverk is up to date.';
       case 'error':
