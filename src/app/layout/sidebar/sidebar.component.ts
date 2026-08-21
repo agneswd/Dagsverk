@@ -9,11 +9,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatRippleModule } from '@angular/material/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { firstValueFrom } from 'rxjs';
 import { AppStateService } from '../../core/app-state.service';
 import { Workspace } from '../../core/models';
 import { WorkspacesComponent } from '../../features/workspaces/workspaces.component';
-import { RenameDialogComponent } from '../../shared/rename-dialog/rename-dialog.component';
 import { ElectronBridgeService } from '../../core/electron-bridge.service';
 
 interface NavItem {
@@ -101,24 +99,6 @@ export class SidebarComponent {
       maxHeight: 'calc(100vh - 32px)',
       panelClass: 'workspace-manager-dialog',
     });
-  }
-
-  public async onRenameWorkspace(): Promise<void> {
-    const workspace = this.state.activeWorkspace();
-    const name = await this.openRenameDialog('Rename workspace', workspace.name);
-    if (name === undefined || name === workspace.name) return;
-    await this.state.saveWorkspace({ ...workspace, name, updatedAt: new Date().toISOString() });
-  }
-
-  private openRenameDialog(title: string, initialName: string): Promise<string | undefined> {
-    return firstValueFrom(
-      this.dialog
-        .open(RenameDialogComponent, {
-          width: '440px',
-          data: { title, label: 'New name', initialName },
-        })
-        .afterClosed(),
-    );
   }
 
   public toggleCollapsed(): void {
