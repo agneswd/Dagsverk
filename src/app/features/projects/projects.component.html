@@ -44,7 +44,9 @@
     <mat-card appearance="outlined" class="m3-outlined-card list-card">
       <mat-card-content class="card-content">
         <div class="list-card-header">
-          <h2 class="card-title title-medium">Active projects ({{ state.projects().length }})</h2>
+          <h2 class="card-title title-medium">
+            {{ 'Active projects (' + state.projects().length + ')' }}
+          </h2>
         </div>
 
         <div class="projects-list">
@@ -68,6 +70,14 @@
                   (colorChange)="onProjectColorChange(p, $event)"
                   label="Change project color"
                 />
+                <button
+                  mat-icon-button
+                  (click)="onRenameProject(p)"
+                  matTooltip="Rename Project"
+                  [attr.aria-label]="'Rename ' + p.name"
+                >
+                  <mat-icon>edit</mat-icon>
+                </button>
                 @if (!p.isDefault) {
                   <button
                     mat-button

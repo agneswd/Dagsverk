@@ -120,7 +120,7 @@
   <mat-card appearance="outlined" class="m3-outlined-card list-card">
     <mat-card-content class="card-content">
       <h2 class="card-title title-medium">
-        Available workspaces ({{ state.workspaces().length }})
+        {{ 'Available workspaces (' + state.workspaces().length + ')' }}
       </h2>
 
       <div class="workspaces-list">
@@ -156,6 +156,15 @@
                 (colorChange)="onWorkspaceColorChange(ws, $event)"
                 label="Change workspace color"
               />
+
+              <button
+                mat-icon-button
+                (click)="onRenameWorkspace(ws)"
+                matTooltip="Rename Workspace"
+                [attr.aria-label]="'Rename ' + ws.name"
+              >
+                <mat-icon>edit</mat-icon>
+              </button>
 
               @if (state.workspaces().length > 1) {
                 <button

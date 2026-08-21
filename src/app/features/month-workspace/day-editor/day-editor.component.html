@@ -4,7 +4,7 @@
     <div class="header-title-box">
       <h3 class="date-title title-medium">{{ formattedDateTitle }}</h3>
       @if (state.isCatchUpOpen()) {
-        <span class="body-small">Catch up - {{ state.catchUpProgress() }}</span>
+        <span class="body-small">{{ 'Catch up - ' + state.catchUpProgress() }}</span>
       }
       @if (holidayName) {
         <span class="holiday-pill label-small">🎉 {{ holidayName }}</span>

@@ -31,10 +31,7 @@ import { LocalizationService } from '../../core/localization.service';
     <h2 mat-dialog-title>Export monthly report</h2>
     <mat-dialog-content class="report-dialog-content">
       <p class="report-context">{{ data.workspaceName }} - {{ data.month }}</p>
-      <p class="report-summary">
-        {{ data.entryCount }} saved entries and {{ data.workedHours | number: '1.2-2' }} worked
-        hours.
-      </p>
+      <p class="report-summary">{{ entrySummaryText }}</p>
       @if (data.missingCount > 0) {
         <p class="report-warning">
           <mat-icon aria-hidden="true">warning</mat-icon>
@@ -92,6 +89,7 @@ import { LocalizationService } from '../../core/localization.service';
 })
 export class ReportPreviewDialogComponent {
   public dialogRef = inject(MatDialogRef<ReportPreviewDialogComponent>);
+  private localization = inject(LocalizationService);
   public data = inject<{
     workspaceName: string;
     month: string;
@@ -99,6 +97,15 @@ export class ReportPreviewDialogComponent {
     workedHours: number;
     missingCount: number;
   }>(MAT_DIALOG_DATA);
+
+  public get entrySummaryText(): string {
+    const lang = this.localization.language() === 'sv' ? 'sv-SE' : 'en-US';
+    const hours = this.data.workedHours.toLocaleString(lang, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return `${this.data.entryCount} saved entries and ${hours} worked hours.`;
+  }
 }
 
 @Component({
@@ -187,6 +194,7 @@ export class HeaderComponent {
       this.dialog
         .open(ReportPreviewDialogComponent, {
           width: '440px',
+          autoFocus: false,
           data: {
             workspaceName: this.state.activeWorkspace().name,
             month: this.state.formattedMonthTitle(),

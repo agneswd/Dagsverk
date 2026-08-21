@@ -14,6 +14,7 @@ import { AppStateService } from '../../core/app-state.service';
 import { Project } from '../../core/models';
 import { ConfirmDialogComponent } from '../../core/confirm-dialog.component';
 import { ColorPickerComponent } from '../../shared/color-picker/color-picker.component';
+import { RenameDialogComponent } from '../../shared/rename-dialog/rename-dialog.component';
 
 @Component({
   selector: 'app-projects',
@@ -67,6 +68,19 @@ export class ProjectsComponent {
 
   public onProjectColorChange(project: Project, color: string): void {
     void this.state.saveProject({ ...project, color });
+  }
+
+  public async onRenameProject(project: Project): Promise<void> {
+    const name = await firstValueFrom(
+      this.dialog
+        .open(RenameDialogComponent, {
+          width: '440px',
+          data: { title: 'Rename project', label: 'New name', initialName: project.name },
+        })
+        .afterClosed(),
+    );
+    if (name === undefined || name === project.name) return;
+    await this.state.saveProject({ ...project, name });
   }
 
   public async onToggleActive(project: Project): Promise<void> {
