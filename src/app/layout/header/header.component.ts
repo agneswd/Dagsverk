@@ -194,6 +194,7 @@ export class HeaderComponent {
       this.dialog
         .open(ReportPreviewDialogComponent, {
           width: '440px',
+          autoFocus: false,
           data: {
             workspaceName: this.state.activeWorkspace().name,
             month: this.state.formattedMonthTitle(),
