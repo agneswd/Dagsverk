@@ -218,16 +218,6 @@
                   <span matTextSuffix>hours</span>
                 </mat-form-field>
               </div>
-              <a
-                mat-button
-                class="tax-guide-link"
-                href="https://www.skatteverket.se/privat/skatter/arbeteochinkomst/askattsedelochskattetabeller.4.18e1b10334ebe8bc80005221.html"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <mat-icon>open_in_new</mat-icon>
-                Find my tax table
-              </a>
             }
             <div class="form-grid-2">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -548,6 +538,16 @@
                   </mat-select>
                 </mat-form-field>
               </div>
+              <a
+                mat-button
+                class="tax-guide-link"
+                href="https://www.skatteverket.se/privat/skatter/arbeteochinkomst/askattsedelochskattetabeller.4.18e1b10334ebe8bc80005221.html"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <mat-icon>open_in_new</mat-icon>
+                Find my tax table
+              </a>
             }
             @if (model.taxSettings.mode === TaxMode.ManualMonthlyDeduction) {
               <div class="form-grid-2">
