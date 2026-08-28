@@ -9,10 +9,9 @@ Dagsverk is an offline-first desktop app for timesheets, time balance, salary es
 - Workday, day-off, lunch, project, and note tracking
 - Expected hours, public holidays, overtime, OB, and comp-time calculations
 - Hourly and monthly salary estimates
-- Swedish preliminary tax estimates from bundled tax tables
+- Preliminary tax estimates from bundled tax tables
 - Excel and OpenDocument report exports
 - Local SQLite storage with backup, restore, and Tidverk import
-- English and Swedish interfaces
 - Light, dark, and system themes
 - Automatic updates through GitHub Releases
 
