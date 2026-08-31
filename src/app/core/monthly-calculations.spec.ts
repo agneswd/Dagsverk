@@ -67,8 +67,10 @@ describe('MonthlyCalculations & Engine', () => {
       endTime: '18:30',
       lunchMinutes: 30, // Worked = 10h (600m)
       projectName: 'General',
+      dayOffReason: null,
       notes: null,
       scheduledMinutesOverride: null,
+      compTimeMinutes: 0,
     };
 
     const split = MonthlyCalculations.splitOvertime(
@@ -79,6 +81,38 @@ describe('MonthlyCalculations & Engine', () => {
     );
     expect(split.regularMinutes).toBe(480); // 8h
     expect(split.overtimeMinutes).toBe(120); // 2h
+  });
+
+  it('limits comp time to the unworked scheduled time', () => {
+    const partialDay = workedEntry('2026-08-28', 330);
+    const dayOff: WorkEntry = {
+      ...partialDay,
+      status: WorkEntryStatus.Off,
+      startTime: null,
+      endTime: null,
+    };
+
+    expect(
+      MonthlyCalculations.availableCompTimeMinutes(
+        partialDay,
+        standardSchedule,
+        holidays,
+      ),
+    ).toBe(150);
+    expect(
+      MonthlyCalculations.availableCompTimeMinutes(
+        dayOff,
+        standardSchedule,
+        holidays,
+      ),
+    ).toBe(480);
+    expect(
+      MonthlyCalculations.availableCompTimeMinutes(
+        { ...dayOff, date: '2026-08-29' },
+        standardSchedule,
+        holidays,
+      ),
+    ).toBe(0);
   });
 
   it('should compute monthly summary with time balance roll-forward', () => {
@@ -98,8 +132,10 @@ describe('MonthlyCalculations & Engine', () => {
         endTime: '17:00',
         lunchMinutes: 30, // 8.5h worked (+30m delta)
         projectName: 'General',
+        dayOffReason: null,
         notes: null,
         scheduledMinutesOverride: null,
+        compTimeMinutes: 0,
       },
     ];
 
@@ -203,6 +239,61 @@ describe('MonthlyCalculations & Engine', () => {
     expect(summary.ordinaryPaidHours).toBe(136);
     expect(summary.grossSalary).toBe(24480);
     expect(summary.monthlyDifferenceMinutes).toBe(300);
+  });
+
+  it('pays used comp time while preserving worked time and the net balance', () => {
+    const workedDays = [
+      [3, 480],
+      [4, 480],
+      [5, 480],
+      [6, 480],
+      [7, 480],
+      [10, 540],
+      [11, 480],
+      [12, 690],
+      [13, 810],
+      [17, 570],
+      [18, 510],
+      [19, 600],
+      [20, 810],
+      [25, 510],
+      [26, 510],
+      [27, 480],
+      [28, 330],
+    ].map(([day, minutes]) => workedEntry(`2026-08-${String(day).padStart(2, '0')}`, minutes));
+    const compDays = [14, 21, 24, 31].map<WorkEntry>((day) => ({
+      date: `2026-08-${day}`,
+      status: WorkEntryStatus.Off,
+      startTime: null,
+      endTime: null,
+      lunchMinutes: 0,
+      projectName: null,
+      dayOffReason: 'Comp time',
+      notes: null,
+      scheduledMinutesOverride: null,
+      compTimeMinutes: 480,
+    }));
+
+    const summary = MonthlyCalculations.calculateMonthlySummary(
+      month(2026, 8, 168 * 60),
+      [...workedDays, ...compDays],
+      standardSchedule,
+      {
+        ...hourlySalary,
+        hourlyRate: 202,
+        hourlyPayBasis: HourlyPayBasis.MonthlyExpectedHours,
+      },
+      compTimeOvertime,
+      holidays,
+      '2026-08-31',
+    );
+
+    expect(summary.workedHours).toBe(154);
+    expect(summary.ordinaryPaidHours).toBe(168);
+    expect(summary.compTimeEarnedHours).toBe(18);
+    expect(summary.compTimeUsedHours).toBe(32);
+    expect(summary.monthlyDifferenceMinutes).toBe(-14 * 60);
+    expect(summary.grossSalary).toBe(33936);
   });
 
   it('uses accrued expected hours for in-progress monthly pay and comp time', () => {
@@ -351,7 +442,9 @@ function workedEntry(
     endTime,
     lunchMinutes,
     projectName: null,
+    dayOffReason: null,
     notes: null,
     scheduledMinutesOverride: null,
+    compTimeMinutes: 0,
   };
 }

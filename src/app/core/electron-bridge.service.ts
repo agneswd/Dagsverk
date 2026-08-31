@@ -252,7 +252,13 @@ export class ElectronBridgeService {
 
   private getLocalEntries(workspaceId: string): WorkEntry[] {
     const raw = this.getItem(`dagsverk_entries_${workspaceId}`);
-    return raw ? JSON.parse(raw) : [];
+    return raw
+      ? JSON.parse(raw).map((entry: WorkEntry) => ({
+          ...entry,
+          dayOffReason: entry.dayOffReason ?? null,
+          compTimeMinutes: entry.compTimeMinutes || 0,
+        }))
+      : [];
   }
 
   // --- MonthRecords ---

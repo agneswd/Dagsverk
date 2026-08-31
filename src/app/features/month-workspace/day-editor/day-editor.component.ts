@@ -11,7 +11,14 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { AppSettings, WorkEntry, WorkEntryStatus } from '../../../core/models';
+import {
+  AppSettings,
+  HourlyPayBasis,
+  OvertimeCompensationMode,
+  SalaryType,
+  WorkEntry,
+  WorkEntryStatus,
+} from '../../../core/models';
 import { MinuteMath, MonthlyCalculations, TimeInput } from '../../../core/monthly-calculations';
 import { SwedishHolidayService } from '../../../core/swedish-holiday.service';
 import { AppStateService } from '../../../core/app-state.service';
@@ -49,9 +56,11 @@ export class DayEditorComponent {
   public endTime = signal<string>('16:30');
   public lunchMinutes = signal<number>(30);
   public projectName = signal<string>('General');
+  public dayOffReason = signal<string>('');
   public notes = signal<string>('');
   public useScheduledHoursOverride = signal<boolean>(false);
   public scheduledHours = signal<number>(8);
+  public compTimeHours = signal<number>(0);
   public errorText = signal<string>('');
 
   public timePresets = [
@@ -69,6 +78,7 @@ export class DayEditorComponent {
     'Leave of absence',
     'Parental leave',
     'Public holiday',
+    'Comp time',
   ];
 
   public constructor() {
@@ -85,11 +95,14 @@ export class DayEditorComponent {
         this.endTime.set(e.endTime || s.defaultEndTime || '16:30');
         this.lunchMinutes.set(e.lunchMinutes ?? s.defaultLunchMinutes ?? 30);
         this.projectName.set(e.projectName || s.defaultProject || 'General');
-        this.notes.set(e.notes || '');
+        const legacyReason = this.dayOffReasons.includes(e.notes || '') ? e.notes || '' : '';
+        this.dayOffReason.set(e.dayOffReason || legacyReason);
+        this.notes.set(!e.dayOffReason && legacyReason ? '' : e.notes || '');
         this.useScheduledHoursOverride.set(e.scheduledMinutesOverride !== null);
         this.scheduledHours.set(
           (e.scheduledMinutesOverride ?? s.expectedHours.hoursPerWorkday * 60) / 60,
         );
+        this.compTimeHours.set((e.compTimeMinutes || 0) / 60);
         this.errorText.set('');
       }
     });
@@ -134,7 +147,9 @@ export class DayEditorComponent {
       endTime: this.endTime(),
       lunchMinutes: this.lunchMinutes(),
       projectName: this.projectName(),
+      dayOffReason: null,
       notes: this.notes(),
+      compTimeMinutes: Math.round(this.compTimeHours() * 60),
       scheduledMinutesOverride: this.useScheduledHoursOverride()
         ? Math.round(this.scheduledHours() * 60)
         : null,
@@ -162,7 +177,9 @@ export class DayEditorComponent {
     this.endTime.set(settings.defaultEndTime);
     this.lunchMinutes.set(settings.defaultLunchMinutes);
     this.projectName.set(settings.defaultProject);
+    this.dayOffReason.set('');
     this.useScheduledHoursOverride.set(false);
+    this.compTimeHours.set(0);
     this.errorText.set('');
   }
 
@@ -191,8 +208,10 @@ export class DayEditorComponent {
     this.endTime.set(entry.endTime || '16:30');
     this.lunchMinutes.set(entry.lunchMinutes);
     this.projectName.set(entry.projectName || this.state.settings().defaultProject);
+    this.dayOffReason.set('');
     this.useScheduledHoursOverride.set(entry.scheduledMinutesOverride !== null);
     this.scheduledHours.set((entry.scheduledMinutesOverride || 0) / 60);
+    this.compTimeHours.set(0);
     this.errorText.set('');
   }
 
@@ -211,6 +230,53 @@ export class DayEditorComponent {
     }
   }
 
+  public usesMonthlyHourlyPayBasis(): boolean {
+    const settings = this.state.settings();
+    return (
+      settings.salary.type === SalaryType.Hourly &&
+      settings.salary.hourlyPayBasis === HourlyPayBasis.MonthlyExpectedHours &&
+      settings.overtimeCompensation.mode === OvertimeCompensationMode.CompTime
+    );
+  }
+
+  public onStatusChange(status: WorkEntryStatus): void {
+    this.status.set(status);
+    if (status === WorkEntryStatus.Incomplete) this.compTimeHours.set(0);
+  }
+
+  public onDayOffReasonChange(reason: string): void {
+    this.dayOffReason.set(reason);
+    if (reason === 'Comp time' && this.compTimeHours() === 0) {
+      this.compTimeHours.set(this.availableCompTimeHours());
+    } else if (reason !== 'Comp time' && this.status() === WorkEntryStatus.Off) {
+      this.compTimeHours.set(0);
+    }
+  }
+
+  public availableCompTimeHours(): number {
+    const entry: WorkEntry = {
+      date: this.currentDateString,
+      status: this.status(),
+      startTime: this.status() === WorkEntryStatus.Worked ? this.startTime() : null,
+      endTime: this.status() === WorkEntryStatus.Worked ? this.endTime() : null,
+      lunchMinutes: this.status() === WorkEntryStatus.Worked ? this.lunchMinutes() : 0,
+      projectName: null,
+      dayOffReason: this.status() === WorkEntryStatus.Off ? this.dayOffReason() || null : null,
+      notes: null,
+      scheduledMinutesOverride: this.useScheduledHoursOverride()
+        ? Math.round(this.scheduledHours() * 60)
+        : null,
+      compTimeMinutes: 0,
+    };
+    return (
+      MonthlyCalculations.availableCompTimeMinutes(
+        entry,
+        this.state.settings().expectedHours,
+        this.holidays,
+      ) / 60
+    );
+  }
+
   public async onSave(saveAndNext = false): Promise<void> {
     const e = this.state.selectedEntry();
     if (!e) return;
@@ -221,6 +287,25 @@ export class DayEditorComponent {
       this.errorText.set('Scheduled hours must be zero or more.');
       return;
     }
+    const compTimeHours = this.compTimeHours();
+    if (
+      !Number.isFinite(compTimeHours) ||
+      compTimeHours < 0 ||
+      compTimeHours > this.availableCompTimeHours()
+    ) {
+      this.errorText.set(
+        `Comp time used must be between 0 and ${this.availableCompTimeHours()} hours.`,
+      );
+      return;
+    }
+    if (
+      this.status() === WorkEntryStatus.Off &&
+      ((this.dayOffReason() === 'Comp time' && compTimeHours === 0) ||
+        (this.dayOffReason() !== 'Comp time' && compTimeHours > 0))
+    ) {
+      this.errorText.set('Select Comp time as the day off type before using comp hours.');
+      return;
+    }
     const updated: WorkEntry = {
       ...e,
       status: this.status(),
@@ -228,10 +313,12 @@ export class DayEditorComponent {
       endTime: this.status() === WorkEntryStatus.Worked ? this.endTime() : null,
       lunchMinutes: this.status() === WorkEntryStatus.Worked ? this.lunchMinutes() : 0,
       projectName: this.status() === WorkEntryStatus.Worked ? this.projectName() : null,
+      dayOffReason: this.status() === WorkEntryStatus.Off ? this.dayOffReason() || null : null,
       notes: this.notes() || null,
       scheduledMinutesOverride: this.useScheduledHoursOverride()
         ? Math.round(this.scheduledHours() * 60)
         : null,
+      compTimeMinutes: Math.round(compTimeHours * 60),
     };
     await this.state.saveEntry(updated);
     if (saveAndNext && this.state.isCatchUpOpen()) this.state.moveCatchUp(1);

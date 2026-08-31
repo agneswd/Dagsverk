@@ -345,8 +345,13 @@ export const SWEDISH_RESOURCES: Record<string, string> = {
   'Monthly expected hours': 'Förväntade timmar per månad',
   'Monthly Fixed Salary': 'Fast månadslön',
   'Day Off Type': 'Typ av ledighet',
+  'Comp time': 'Komptid',
+  'Comp time used': 'Uttagen komptid',
+  'Available for this day:': 'Tillgängligt för dagen:',
   'No completed day is available to copy.': 'Ingen genomförd dag finns att kopiera.',
   'Scheduled hours must be zero or more.': 'Schemalagda timmar måste vara noll eller fler.',
+  'Select Comp time as the day off type before using comp hours.':
+    'Välj Komptid som typ av ledighet innan du anger komptimmar.',
   'Paid Time & Comp': 'Betalad tid och komp',
   comp: 'komp',
   Paid: 'Betalad',

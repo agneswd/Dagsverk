@@ -335,6 +335,33 @@ export class MonthlyCalculations {
     return Math.round(overtimeCompensation.dailyThresholdHours * 60);
   }
 
+  public static availableCompTimeMinutes(
+    entry: WorkEntry,
+    expectedHours: ExpectedHoursSettings,
+    holidays: SwedishHolidayService,
+  ): number {
+    if (entry.status === WorkEntryStatus.Incomplete) return 0;
+    const scheduled = this.scheduledMinutesForEntry(entry, expectedHours, holidays);
+    const worked =
+      entry.status === WorkEntryStatus.Worked && entry.startTime && entry.endTime
+        ? MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes)
+        : 0;
+    return Math.max(0, scheduled - Math.min(worked, scheduled));
+  }
+
+  public static scheduledMinutesForEntry(
+    entry: WorkEntry,
+    expectedHours: ExpectedHoursSettings,
+    holidays: SwedishHolidayService,
+  ): number {
+    if (entry.scheduledMinutesOverride !== null && entry.scheduledMinutesOverride !== undefined) {
+      return entry.scheduledMinutesOverride;
+    }
+    return this.isScheduledWorkday(entry.date, expectedHours, holidays)
+      ? Math.round(expectedHours.hoursPerWorkday * 60)
+      : 0;
+  }
+
   public static splitOvertime(
     entry: WorkEntry,
     expectedHours: ExpectedHoursSettings,
@@ -477,6 +504,7 @@ export class MonthlyCalculations {
     let totalWorkedMinutes = 0;
     let totalRegularMinutes = 0;
     let totalOvertimeMinutes = 0;
+    let totalCompTimeUsedMinutes = 0;
     let totalOvertimePay = 0;
     let totalObPay = 0;
     let totalObMinutes = 0;
@@ -486,6 +514,7 @@ export class MonthlyCalculations {
     let completedDayCount = 0;
 
     for (const entry of entriesByDate.values()) {
+      totalCompTimeUsedMinutes += entry.compTimeMinutes || 0;
       if (entry.status === WorkEntryStatus.Worked && entry.startTime && entry.endTime) {
         completedDayCount++;
         const worked = MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes);
@@ -521,13 +550,22 @@ export class MonthlyCalculations {
         : totalRegularMinutes;
 
     let ordinaryPaidMinutes = salary.type === SalaryType.Hourly ? totalRegularMinutes : 0;
+    let compTimeEarnedMinutes =
+      overtimeCompensation.mode === OvertimeCompensationMode.CompTime ? totalOvertimeMinutes : 0;
     if (
       salary.type === SalaryType.Hourly &&
       overtimeCompensation.mode === OvertimeCompensationMode.CompTime &&
       (salary.hourlyPayBasis ?? HourlyPayBasis.DailyRegularHours) ===
         HourlyPayBasis.MonthlyExpectedHours
     ) {
-      ordinaryPaidMinutes = Math.min(totalWorkedMinutes, expectedMinutes);
+      ordinaryPaidMinutes = Math.min(
+        totalWorkedMinutes + totalCompTimeUsedMinutes,
+        expectedMinutes,
+      );
+      compTimeEarnedMinutes = Math.max(
+        0,
+        totalWorkedMinutes + totalCompTimeUsedMinutes - expectedMinutes,
+      );
       totalGrossSalary = new Decimal(ordinaryPaidMinutes)
         .times(salary.hourlyRate)
         .dividedBy(60)
@@ -558,6 +596,8 @@ export class MonthlyCalculations {
       regularMinutes: totalRegularMinutes,
       overtimeMinutes: totalOvertimeMinutes,
       ordinaryPaidMinutes,
+      compTimeEarnedMinutes,
+      compTimeUsedMinutes: totalCompTimeUsedMinutes,
       balanceEligibleMinutes,
       expectedMinutes,
       monthlyDifferenceMinutes,
@@ -574,6 +614,8 @@ export class MonthlyCalculations {
       regularHours: Math.round((totalRegularMinutes / 60) * 100) / 100,
       overtimeHours: Math.round((totalOvertimeMinutes / 60) * 100) / 100,
       ordinaryPaidHours: ordinaryPaidMinutes / 60,
+      compTimeEarnedHours: compTimeEarnedMinutes / 60,
+      compTimeUsedHours: totalCompTimeUsedMinutes / 60,
       obHours: Math.round((totalObMinutes / 60) * 100) / 100,
       expectedHours: Math.round((expectedMinutes / 60) * 100) / 100,
     };

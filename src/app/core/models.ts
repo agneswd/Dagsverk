@@ -137,8 +137,10 @@ export interface WorkEntry {
   endTime: string | null; // HH:mm
   lunchMinutes: number;
   projectName: string | null;
+  dayOffReason: string | null;
   notes: string | null;
   scheduledMinutesOverride: number | null;
+  compTimeMinutes: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -239,6 +241,8 @@ export interface MonthlySummary {
   regularMinutes: number;
   overtimeMinutes: number;
   ordinaryPaidMinutes: number;
+  compTimeEarnedMinutes: number;
+  compTimeUsedMinutes: number;
   balanceEligibleMinutes: number;
   expectedMinutes: number;
   monthlyDifferenceMinutes: number;
@@ -255,6 +259,8 @@ export interface MonthlySummary {
   regularHours: number;
   overtimeHours: number;
   ordinaryPaidHours: number;
+  compTimeEarnedHours: number;
+  compTimeUsedHours: number;
   obHours: number;
   expectedHours: number;
 }
@@ -289,6 +295,7 @@ export interface ReportExportRequest {
   dailyOvertimeThresholdHours: number;
   hourlyPayBasis: HourlyPayBasis;
   thresholdMinutesByDate: Record<string, number>;
+  scheduledMinutesByDate: Record<string, number>;
 }
 
 export const DEFAULT_WORKSPACE: Workspace = {

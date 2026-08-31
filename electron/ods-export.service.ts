@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import JSZip from 'jszip';
 import {
+  compTimeUsedHours,
   hasOb,
   monthTitle,
   overtimeOrCompTimeHours,
@@ -59,6 +60,7 @@ export class OdsExportService {
         { value: text(request, 'Hours', 'Timmar'), style: 'heading' },
         { value: 'Status', style: 'heading' },
         { value: text(request, 'Project', 'Projekt'), style: 'heading' },
+        { value: text(request, 'Comp used', 'Uttagen komp'), style: 'heading' },
       ],
     ];
     const entries = new Map(request.entries.map((entry) => [entry.date, entry]));
@@ -75,9 +77,23 @@ export class OdsExportService {
           { value: workedMinutes(entry) / 60 },
           {},
           { value: entry.projectName || '' },
+          { value: entry.compTimeMinutes / 60 },
         ]);
       } else if (entry?.status === 2) {
-        rows.push([{ value: day }, {}, {}, {}, {}, { value: text(request, 'Day off', 'Ledig') }]);
+        rows.push([
+          { value: day },
+          {},
+          {},
+          {},
+          {},
+          {
+            value: entry.compTimeMinutes
+              ? text(request, 'Comp time', 'Komptid')
+              : text(request, 'Day off', 'Ledig'),
+          },
+          {},
+          { value: entry.compTimeMinutes / 60 },
+        ]);
       } else {
         rows.push([{ value: day }]);
       }
@@ -107,6 +123,15 @@ export class OdsExportService {
       },
       { value: overtimeOrCompTimeHours(request), style: 'bold' },
     ]);
+    if (usesMonthlyHourlyPayBasis(request)) {
+      rows.push([
+        {},
+        {},
+        {},
+        { value: text(request, 'Comp time used', 'Uttagen komptid'), style: 'bold' },
+        { value: compTimeUsedHours(request), style: 'bold' },
+      ]);
+    }
     if (hasOb(request)) {
       rows.push([
         {},
@@ -142,22 +167,34 @@ export class OdsExportService {
         },
         { value: paidOrdinaryHours(request) },
       ],
-      [
-        {
-          value: usesMonthlyHourlyPayBasis(request)
-            ? text(request, 'Comp time earned', 'Intjänad komptid')
-            : text(request, 'Overtime', 'Övertid'),
-          style: 'bold',
-        },
-        { value: overtimeOrCompTimeHours(request) },
-      ],
-      [
-        { value: text(request, 'Worked hours', 'Arbetade timmar'), style: 'bold' },
-        {
-          value: request.summary.workedHours,
-        },
-      ],
     ];
+    if (usesMonthlyHourlyPayBasis(request)) {
+      rows.push(
+        [
+          { value: text(request, 'Worked hours', 'Arbetade timmar'), style: 'bold' },
+          { value: request.summary.workedHours },
+        ],
+        [
+          { value: text(request, 'Comp time earned', 'Intjänad komptid'), style: 'bold' },
+          { value: overtimeOrCompTimeHours(request) },
+        ],
+        [
+          { value: text(request, 'Comp time used', 'Uttagen komptid'), style: 'bold' },
+          { value: compTimeUsedHours(request) },
+        ],
+      );
+    } else {
+      rows.push(
+        [
+          { value: text(request, 'Overtime', 'Övertid'), style: 'bold' },
+          { value: overtimeOrCompTimeHours(request) },
+        ],
+        [
+          { value: text(request, 'Worked hours', 'Arbetade timmar'), style: 'bold' },
+          { value: request.summary.workedHours },
+        ],
+      );
+    }
     if (hasOb(request)) {
       rows.push([
         { value: text(request, 'OB hours', 'OB-timmar'), style: 'bold' },

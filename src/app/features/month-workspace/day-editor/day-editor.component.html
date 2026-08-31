@@ -25,7 +25,7 @@
       <mat-button-toggle-group
         class="m3-status-toggle"
         [value]="status()"
-        (change)="status.set($event.value)"
+        (change)="onStatusChange($event.value)"
         hideSingleSelectionIndicator="true"
         aria-label="Work status"
       >
@@ -183,12 +183,32 @@
     @if (status() === WorkEntryStatus.Off) {
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
         <mat-label>Day Off Type</mat-label>
-        <mat-select [ngModel]="notes()" (ngModelChange)="notes.set($event)">
+        <mat-select [ngModel]="dayOffReason()" (ngModelChange)="onDayOffReasonChange($event)">
           @for (reason of dayOffReasons; track reason) {
             <mat-option [value]="reason">{{ reason }}</mat-option>
           }
         </mat-select>
         <mat-icon matPrefix class="field-icon">beach_access</mat-icon>
+      </mat-form-field>
+    }
+
+    @if (usesMonthlyHourlyPayBasis() && status() !== WorkEntryStatus.Incomplete) {
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+        <mat-label>Comp time used</mat-label>
+        <input
+          matInput
+          type="number"
+          min="0"
+          [max]="availableCompTimeHours()"
+          step="0.25"
+          [ngModel]="compTimeHours()"
+          (ngModelChange)="compTimeHours.set($event)"
+          class="numeric"
+        />
+        <span matTextSuffix>hours</span>
+        <mat-hint
+          >Available for this day: {{ availableCompTimeHours() | number: '1.0-2' }}h</mat-hint
+        >
       </mat-form-field>
     }
 

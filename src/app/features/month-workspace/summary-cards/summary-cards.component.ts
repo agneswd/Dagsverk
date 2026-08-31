@@ -37,9 +37,4 @@ export class SummaryCardsComponent {
       settings.overtimeCompensation.mode === OvertimeCompensationMode.CompTime
     );
   }
-
-  public compTimeEarnedHours(): number {
-    const summary = this.state.summary();
-    return Math.max(0, summary.workedHours - summary.ordinaryPaidHours);
-  }
 }

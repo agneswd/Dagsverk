@@ -345,8 +345,13 @@ export const ENGLISH_RESOURCES: Record<string, string> = {
   'Monthly expected hours': 'Monthly expected hours',
   'Monthly Fixed Salary': 'Monthly fixed salary',
   'Day Off Type': 'Day off type',
+  'Comp time': 'Comp time',
+  'Comp time used': 'Comp time used',
+  'Available for this day:': 'Available for this day:',
   'No completed day is available to copy.': 'No completed day is available to copy.',
   'Scheduled hours must be zero or more.': 'Scheduled hours must be zero or more.',
+  'Select Comp time as the day off type before using comp hours.':
+    'Select Comp time as the day off type before using comp hours.',
   'Paid Time & Comp': 'Paid time and comp',
   comp: 'comp',
   Paid: 'Paid',

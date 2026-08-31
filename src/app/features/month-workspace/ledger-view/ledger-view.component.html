@@ -31,9 +31,14 @@
             <span class="chip-label">Worked</span>
           </div>
         } @else if (row.status === WorkEntryStatus.Off) {
-          <div class="status-chip off-chip" matTooltip="{{ row.notes || 'Day Off' }}">
+          <div
+            class="status-chip off-chip"
+            matTooltip="{{ row.notes || row.dayOffReason || 'Day Off' }}"
+          >
             <mat-icon class="chip-icon">beach_access</mat-icon>
-            <span class="chip-label">Day Off</span>
+            <span class="chip-label">{{
+              row.dayOffReason || (row.compTimeHours > 0 ? 'Comp time' : 'Day Off')
+            }}</span>
           </div>
         } @else if (row.isMissing) {
           <div class="status-chip unlogged-chip">
@@ -76,6 +81,11 @@
       <td mat-cell *matCellDef="let row" class="col-hours">
         @if (row.status === WorkEntryStatus.Worked && row.workedHours > 0) {
           <span class="hours-val numeric">{{ row.workedHours | number: '1.2-2' }}h</span>
+          @if (row.compTimeHours > 0) {
+            <span class="hours-val numeric">+{{ row.compTimeHours | number: '1.0-2' }}h comp</span>
+          }
+        } @else if (row.compTimeHours > 0) {
+          <span class="hours-val numeric">{{ row.compTimeHours | number: '1.0-2' }}h comp</span>
         } @else {
           <span class="empty-dash">-</span>
         }

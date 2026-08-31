@@ -12,6 +12,7 @@ export interface ReportExportRequest {
   dailyOvertimeThresholdHours: number;
   hourlyPayBasis?: number; // 0=DailyRegularHours, 1=MonthlyExpectedHours
   thresholdMinutesByDate?: Record<string, number>;
+  scheduledMinutesByDate?: Record<string, number>;
   overtimeSettings?: { rateBands?: Array<{ compensationType: number }> };
 }
 
@@ -22,8 +23,10 @@ export interface ReportEntry {
   endTime: string | null;
   lunchMinutes: number;
   projectName: string | null;
+  dayOffReason?: string | null;
   notes?: string | null;
   scheduledMinutesOverride: number | null;
+  compTimeMinutes: number;
 }
 
 export interface ReportSummary {
@@ -31,6 +34,8 @@ export interface ReportSummary {
   regularHours: number;
   overtimeHours: number;
   ordinaryPaidHours?: number;
+  compTimeEarnedHours?: number;
+  compTimeUsedHours?: number;
   obHours: number;
   expectedHours: number;
   monthlyDifferenceMinutes: number;
@@ -68,7 +73,7 @@ export class ExcelExportService {
 
     report.getCell('A1').value = text(request, 'Dagsverk - Time report', 'Dagsverk - Tidrapport');
     report.getCell('A1').font = { bold: true, size: 16 };
-    report.mergeCells('A1:G1');
+    report.mergeCells('A1:H1');
     report.getCell('A2').value = request.employeeName;
     report.getCell('D2').value = request.employerName;
 
@@ -80,6 +85,7 @@ export class ExcelExportService {
       text(request, 'Hours', 'Timmar'),
       'Status',
       text(request, 'Project', 'Projekt'),
+      text(request, 'Comp used', 'Uttagen komp'),
     ];
     for (let column = 1; column <= headings.length; column++) {
       const cell = report.getCell(headerRow, column);
@@ -113,16 +119,19 @@ export class ExcelExportService {
           result: workedHours,
         };
         const thresholdHours = thresholdMinutes(request, entry) / 60;
-        report.getCell(row, 8).value = {
+        report.getCell(row, 9).value = {
           formula: `IF(OR(B${row}="",C${row}=""),"",MAX(0,(MOD(C${row}-B${row},1)-D${row})*24-${thresholdHours}))`,
           result: Math.max(0, workedHours - thresholdHours),
         };
         report.getCell(row, 7).value = entry.projectName || '';
       } else if (entry?.status === 2) {
-        report.getCell(row, 6).value = text(request, 'Day off', 'Ledig');
+        report.getCell(row, 6).value = entry.compTimeMinutes
+          ? text(request, 'Comp time', 'Komptid')
+          : text(request, 'Day off', 'Ledig');
       }
+      if (entry?.compTimeMinutes) report.getCell(row, 8).value = entry.compTimeMinutes / 60;
 
-      for (let column = 1; column <= 7; column++) {
+      for (let column = 1; column <= 8; column++) {
         report.getCell(row, column).border = {
           bottom: { style: 'thin', color: { argb: 'FFD9DAD3' } },
         };
@@ -142,6 +151,8 @@ export class ExcelExportService {
         'Intjänad komptid',
       );
       report.getCell(totalsRow + 1, 5).value = overtimeOrCompTimeHours(request);
+      report.getCell(totalsRow + 2, 4).value = text(request, 'Comp time used', 'Uttagen komptid');
+      report.getCell(totalsRow + 2, 5).value = compTimeUsedHours(request);
     } else {
       report.getCell(totalsRow, 4).value = text(
         request,
@@ -149,33 +160,35 @@ export class ExcelExportService {
         'Totalt ordinarie timmar',
       );
       report.getCell(totalsRow, 5).value = {
-        formula: `SUM(E${firstDayRow}:E${lastDayRow})-SUM(H${firstDayRow}:H${lastDayRow})`,
+        formula: `SUM(E${firstDayRow}:E${lastDayRow})-SUM(I${firstDayRow}:I${lastDayRow})`,
         result: request.summary.regularHours,
       };
       report.getCell(totalsRow + 1, 4).value = text(request, 'Total overtime', 'Total övertid');
       report.getCell(totalsRow + 1, 5).value = {
-        formula: `SUM(H${firstDayRow}:H${lastDayRow})`,
+        formula: `SUM(I${firstDayRow}:I${lastDayRow})`,
         result: request.summary.overtimeHours,
       };
     }
 
     if (hasOb(request)) {
-      report.getCell(totalsRow + 2, 4).value = text(request, 'Total OB hours', 'Totala OB-timmar');
-      report.getCell(totalsRow + 2, 5).value = request.summary.obHours;
+      const obRow = totalsRow + (usesMonthlyHourlyPayBasis(request) ? 3 : 2);
+      report.getCell(obRow, 4).value = text(request, 'Total OB hours', 'Totala OB-timmar');
+      report.getCell(obRow, 5).value = request.summary.obHours;
     }
-    for (let row = totalsRow; row <= totalsRow + 2; row++) {
+    for (let row = totalsRow; row <= totalsRow + 3; row++) {
       report.getCell(row, 4).font = { bold: true };
       report.getCell(row, 5).font = { bold: true };
     }
 
-    for (let row = firstDayRow; row <= totalsRow + 2; row++) {
+    for (let row = firstDayRow; row <= totalsRow + 3; row++) {
       report.getCell(row, 5).numFmt = '0.00';
       report.getCell(row, 8).numFmt = '0.00';
+      report.getCell(row, 9).numFmt = '0.00';
     }
-    [8, 12, 12, 25, 18, 14, 24].forEach((width, index) => {
+    [8, 12, 12, 25, 18, 14, 24, 16].forEach((width, index) => {
       report.getColumn(index + 1).width = width;
     });
-    report.getColumn(8).hidden = true;
+    report.getColumn(9).hidden = true;
 
     this.addBalanceSheet(workbook, request, report.name, totalsRow);
     return workbook;
@@ -198,43 +211,67 @@ export class ExcelExportService {
     balance.mergeCells('A1:B1');
     balance.getCell('A2').value = text(request, 'Month', 'Månad');
     balance.getCell('B2').value = monthTitle(request);
-    balance.getCell('A4').value = usesMonthlyHourlyPayBasis(request)
+    const monthly = usesMonthlyHourlyPayBasis(request);
+    balance.getCell('A4').value = monthly
       ? text(request, 'Paid hours', 'Betalda timmar')
       : text(request, 'Regular hours', 'Ordinarie timmar');
     balance.getCell('B4').value = {
       formula: `${sheetReference}!E${totalsRow}`,
       result: paidOrdinaryHours(request),
     };
-    balance.getCell('A5').value = usesMonthlyHourlyPayBasis(request)
-      ? text(request, 'Comp time earned', 'Intjänad komptid')
-      : text(request, 'Overtime', 'Övertid');
-    balance.getCell('B5').value = {
-      formula: `${sheetReference}!E${totalsRow + 1}`,
-      result: overtimeOrCompTimeHours(request),
-    };
-    balance.getCell('A6').value = text(request, 'Worked hours', 'Arbetade timmar');
-    balance.getCell('B6').value = { formula: 'B4+B5', result: request.summary.workedHours };
-    if (hasOb(request)) {
-      balance.getCell('A7').value = text(request, 'OB hours', 'OB-timmar');
-      balance.getCell('B7').value = request.summary.obHours;
+    let row = 5;
+    let workedRow: number;
+    if (monthly) {
+      workedRow = row;
+      balance.getCell(row, 1).value = text(request, 'Worked hours', 'Arbetade timmar');
+      balance.getCell(row++, 2).value = request.summary.workedHours;
+      balance.getCell(row, 1).value = text(request, 'Comp time earned', 'Intjänad komptid');
+      balance.getCell(row++, 2).value = {
+        formula: `${sheetReference}!E${totalsRow + 1}`,
+        result: overtimeOrCompTimeHours(request),
+      };
+      balance.getCell(row, 1).value = text(request, 'Comp time used', 'Uttagen komptid');
+      balance.getCell(row++, 2).value = {
+        formula: `${sheetReference}!E${totalsRow + 2}`,
+        result: compTimeUsedHours(request),
+      };
+    } else {
+      balance.getCell(row, 1).value = text(request, 'Overtime', 'Övertid');
+      balance.getCell(row++, 2).value = {
+        formula: `${sheetReference}!E${totalsRow + 1}`,
+        result: overtimeOrCompTimeHours(request),
+      };
+      workedRow = row;
+      balance.getCell(row, 1).value = text(request, 'Worked hours', 'Arbetade timmar');
+      balance.getCell(row++, 2).value = {
+        formula: 'B4+B5',
+        result: request.summary.workedHours,
+      };
     }
-    balance.getCell('A8').value = text(request, 'Expected hours', 'Förväntade timmar');
-    balance.getCell('B8').value = request.summary.expectedHours;
-    balance.getCell('A9').value = text(request, 'Monthly time balance', 'Månadens tidsbalans');
-    balance.getCell('B9').value = {
-      formula: request.overtimeMode === 0 ? 'B6-B8' : 'B4-B8',
+    if (hasOb(request)) {
+      balance.getCell(row, 1).value = text(request, 'OB hours', 'OB-timmar');
+      balance.getCell(row++, 2).value = request.summary.obHours;
+    }
+    const expectedRow = row;
+    balance.getCell(row, 1).value = text(request, 'Expected hours', 'Förväntade timmar');
+    balance.getCell(row++, 2).value = request.summary.expectedHours;
+    const differenceRow = row;
+    balance.getCell(row, 1).value = text(request, 'Monthly time balance', 'Månadens tidsbalans');
+    balance.getCell(row++, 2).value = {
+      formula: `B${request.overtimeMode === 0 ? workedRow : 4}-B${expectedRow}`,
       result: request.summary.monthlyDifferenceMinutes / 60,
     };
-    balance.getCell('A10').value = text(request, 'Opening time balance', 'Ingående tidsbalans');
-    balance.getCell('B10').value = request.summary.openingBalanceMinutes / 60;
-    balance.getCell('A11').value = text(request, 'Closing time balance', 'Utgående tidsbalans');
-    balance.getCell('B11').value = {
-      formula: 'B9+B10',
+    const openingRow = row;
+    balance.getCell(row, 1).value = text(request, 'Opening time balance', 'Ingående tidsbalans');
+    balance.getCell(row++, 2).value = request.summary.openingBalanceMinutes / 60;
+    balance.getCell(row, 1).value = text(request, 'Closing time balance', 'Utgående tidsbalans');
+    balance.getCell(row, 2).value = {
+      formula: `B${differenceRow}+B${openingRow}`,
       result: request.summary.closingBalanceMinutes / 60,
     };
-    for (let row = 4; row <= 11; row++) {
-      balance.getCell(row, 1).font = { bold: true };
-      balance.getCell(row, 2).numFmt = '0.00';
+    for (let formatRow = 4; formatRow <= row; formatRow++) {
+      balance.getCell(formatRow, 1).font = { bold: true };
+      balance.getCell(formatRow, 2).numFmt = '0.00';
     }
     balance.getColumn(1).width = 34;
     balance.getColumn(2).width = 18;
@@ -260,6 +297,18 @@ export function validateReportRequest(request: ReportExportRequest): void {
       if (!Number.isInteger(entry.lunchMinutes) || entry.lunchMinutes < 0) {
         throw new Error(`The lunch duration for ${entry.date} is invalid.`);
       }
+    }
+    if (!Number.isInteger(entry.compTimeMinutes) || entry.compTimeMinutes < 0) {
+      throw new Error(`The comp time used for ${entry.date} is invalid.`);
+    }
+    const scheduled =
+      request.scheduledMinutesByDate?.[entry.date] ?? thresholdMinutes(request, entry);
+    const available = Math.max(
+      0,
+      scheduled - Math.min(entry.status === 1 ? workedMinutes(entry) : 0, scheduled),
+    );
+    if (entry.compTimeMinutes > available) {
+      throw new Error(`The comp time used for ${entry.date} exceeds the available hours.`);
     }
   }
 }
@@ -289,8 +338,13 @@ export function paidOrdinaryHours(request: ReportExportRequest): number {
 
 export function overtimeOrCompTimeHours(request: ReportExportRequest): number {
   return usesMonthlyHourlyPayBasis(request)
-    ? Math.max(0, request.summary.workedHours - paidOrdinaryHours(request))
+    ? (request.summary.compTimeEarnedHours ??
+        Math.max(0, request.summary.workedHours - paidOrdinaryHours(request)))
     : request.summary.overtimeHours;
+}
+
+export function compTimeUsedHours(request: ReportExportRequest): number {
+  return usesMonthlyHourlyPayBasis(request) ? (request.summary.compTimeUsedHours ?? 0) : 0;
 }
 
 export function hasOb(request: ReportExportRequest): boolean {

@@ -24,7 +24,9 @@ export interface CalendarDayCell {
   endTime?: string | null;
   workedHours: number;
   overtimeHours: number;
+  compTimeHours: number;
   projectName: string | null;
+  dayOffReason: string | null;
   notes: string | null;
 }
 
@@ -82,7 +84,9 @@ export class CalendarViewComponent {
         endTime: null,
         workedHours: 0,
         overtimeHours: 0,
+        compTimeHours: 0,
         projectName: null,
+        dayOffReason: null,
         notes: null,
       });
     }
@@ -103,7 +107,9 @@ export class CalendarViewComponent {
       let end: string | null = null;
       let worked = 0;
       let ot = 0;
+      let comp = 0;
       let project: string | null = null;
+      let dayOffReason: string | null = null;
       let notes: string | null = null;
 
       if (entry) {
@@ -111,7 +117,10 @@ export class CalendarViewComponent {
         start = entry.startTime;
         end = entry.endTime;
         project = entry.projectName;
+        dayOffReason =
+          entry.dayOffReason || (entry.status === WorkEntryStatus.Off ? entry.notes : null);
         notes = entry.notes;
+        comp = (entry.compTimeMinutes || 0) / 60;
         if (status === WorkEntryStatus.Worked && entry.startTime && entry.endTime) {
           const split = MonthlyCalculations.splitOvertime(entry, expected, overtime, this.holidays);
           worked = MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes) / 60;
@@ -138,7 +147,9 @@ export class CalendarViewComponent {
         endTime: end,
         workedHours: worked,
         overtimeHours: ot,
+        compTimeHours: comp,
         projectName: project,
+        dayOffReason,
         notes,
       });
     }
@@ -163,7 +174,9 @@ export class CalendarViewComponent {
         endTime: null,
         workedHours: 0,
         overtimeHours: 0,
+        compTimeHours: 0,
         projectName: null,
+        dayOffReason: null,
         notes: null,
       });
     }
@@ -180,8 +193,15 @@ export class CalendarViewComponent {
     if (cell.holidayName)
       return `${dateStr}, ${this.localization.t('Holiday')} ${cell.holidayName}`;
     if (cell.status === WorkEntryStatus.Worked)
-      return `${dateStr}, ${this.localization.t('Worked')} ${cell.workedHours.toFixed(1)} h`;
-    if (cell.status === WorkEntryStatus.Off) return `${dateStr}, ${this.localization.t('Day Off')}`;
+      return `${dateStr}, ${this.localization.t('Worked')} ${cell.workedHours.toFixed(1)} h${
+        cell.compTimeHours > 0
+          ? `, ${this.localization.t('Comp time')} ${cell.compTimeHours} h`
+          : ''
+      }`;
+    if (cell.status === WorkEntryStatus.Off)
+      return cell.compTimeHours > 0
+        ? `${dateStr}, ${this.localization.t('Comp time')} ${cell.compTimeHours} h`
+        : `${dateStr}, ${this.localization.t('Day Off')}`;
     if (cell.isMissing) return `${dateStr}, ${this.localization.t('Unlogged')}`;
     return dateStr;
   }

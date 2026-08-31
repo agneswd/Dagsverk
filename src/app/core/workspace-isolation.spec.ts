@@ -42,8 +42,10 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
       endTime: '16:30',
       lunchMinutes: 30,
       projectName: 'Acme-Core',
+      dayOffReason: null,
       notes: 'Full-time work',
-      scheduledMinutesOverride: null
+      scheduledMinutesOverride: null,
+      compTimeMinutes: 0,
     };
 
     const entry2: WorkEntry = {
@@ -54,8 +56,10 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
       endTime: '20:00',
       lunchMinutes: 0,
       projectName: 'Consulting-Proj',
+      dayOffReason: null,
       notes: 'Evening gig',
-      scheduledMinutesOverride: null
+      scheduledMinutesOverride: null,
+      compTimeMinutes: 0,
     };
 
     await bridge.saveWorkEntry(entry1, ws1.id);

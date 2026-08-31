@@ -123,8 +123,10 @@ export class DatabaseService {
           EndTime TEXT,
           LunchMinutes INTEGER NOT NULL DEFAULT 0,
           ProjectName TEXT,
+          DayOffReason TEXT,
           Notes TEXT,
           ScheduledMinutesOverride INTEGER,
+          CompTimeMinutes INTEGER NOT NULL DEFAULT 0 CHECK (CompTimeMinutes >= 0),
           CreatedAt TEXT NOT NULL,
           UpdatedAt TEXT NOT NULL,
           PRIMARY KEY (WorkspaceId, Date),
@@ -271,8 +273,10 @@ export class DatabaseService {
           EndTime TEXT,
           LunchMinutes INTEGER NOT NULL DEFAULT 0,
           ProjectName TEXT,
+          DayOffReason TEXT,
           Notes TEXT,
           ScheduledMinutesOverride INTEGER,
+          CompTimeMinutes INTEGER NOT NULL DEFAULT 0 CHECK (CompTimeMinutes >= 0),
           CreatedAt TEXT NOT NULL,
           UpdatedAt TEXT NOT NULL,
           PRIMARY KEY (WorkspaceId, Date),
@@ -456,6 +460,14 @@ export class DatabaseService {
       this.db.exec(
         'ALTER TABLE WorkspaceSettings ADD COLUMN OvertimeObCombination INTEGER NOT NULL DEFAULT 0',
       );
+    }
+
+    const entryColumns = this.db.pragma('table_info(WorkEntries)') as Array<{ name: string }>;
+    if (!entryColumns.some((column) => column.name === 'CompTimeMinutes')) {
+      this.db.exec('ALTER TABLE WorkEntries ADD COLUMN CompTimeMinutes INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!entryColumns.some((column) => column.name === 'DayOffReason')) {
+      this.db.exec('ALTER TABLE WorkEntries ADD COLUMN DayOffReason TEXT');
     }
   }
 
@@ -739,8 +751,10 @@ export class DatabaseService {
       endTime: r.EndTime,
       lunchMinutes: r.LunchMinutes,
       projectName: r.ProjectName,
+      dayOffReason: r.DayOffReason || null,
       notes: r.Notes,
       scheduledMinutesOverride: r.ScheduledMinutesOverride,
+      compTimeMinutes: r.CompTimeMinutes || 0,
       createdAt: r.CreatedAt,
       updatedAt: r.UpdatedAt,
     }));
@@ -748,21 +762,27 @@ export class DatabaseService {
 
   public saveWorkEntry(entry: any, workspaceId: string = 'ws-default'): void {
     const now = new Date().toISOString();
+    const compTimeMinutes = entry.compTimeMinutes ?? 0;
+    if (!Number.isInteger(compTimeMinutes) || compTimeMinutes < 0) {
+      throw new Error('Comp time used must be a non-negative whole number of minutes.');
+    }
     this.db
       .prepare(
         `
       INSERT INTO WorkEntries (
         WorkspaceId, Date, Status, StartTime, EndTime, LunchMinutes, ProjectName,
-        Notes, ScheduledMinutesOverride, CreatedAt, UpdatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        DayOffReason, Notes, ScheduledMinutesOverride, CompTimeMinutes, CreatedAt, UpdatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(WorkspaceId, Date) DO UPDATE SET
         Status = excluded.Status,
         StartTime = excluded.StartTime,
         EndTime = excluded.EndTime,
         LunchMinutes = excluded.LunchMinutes,
         ProjectName = excluded.ProjectName,
+        DayOffReason = excluded.DayOffReason,
         Notes = excluded.Notes,
         ScheduledMinutesOverride = excluded.ScheduledMinutesOverride,
+        CompTimeMinutes = excluded.CompTimeMinutes,
         UpdatedAt = excluded.UpdatedAt
     `,
       )
@@ -774,8 +794,10 @@ export class DatabaseService {
         entry.endTime,
         entry.lunchMinutes || 0,
         entry.projectName,
+        entry.dayOffReason ?? null,
         entry.notes,
         entry.scheduledMinutesOverride,
+        compTimeMinutes,
         entry.createdAt || now,
         entry.updatedAt || now,
       );
@@ -904,8 +926,10 @@ export class DatabaseService {
         endTime: row.EndTime,
         lunchMinutes: row.LunchMinutes,
         projectName: row.ProjectName,
+        dayOffReason: row.DayOffReason || null,
         notes: row.Notes,
         scheduledMinutesOverride: row.ScheduledMinutesOverride,
+        compTimeMinutes: row.CompTimeMinutes || 0,
       });
       months.set(key, item);
     }
@@ -1095,8 +1119,10 @@ export class DatabaseService {
               endTime: time(entry.EndTime),
               lunchMinutes: entry.LunchMinutes,
               projectName: entry.ProjectName,
+              dayOffReason: null,
               notes: entry.Notes,
               scheduledMinutesOverride: entry.ScheduledMinutesOverride,
+              compTimeMinutes: 0,
               createdAt: entry.CreatedAt,
               updatedAt: entry.UpdatedAt,
             },
@@ -1201,6 +1227,8 @@ export class DatabaseService {
       try {
         fs.copyFileSync(candidatePath, this.dbPath);
         this.db = this.openDatabase();
+        this.ensureWorkspaceIdentitySchema();
+        this.ensurePayrollParitySchema();
         this.validateDatabase(this.dbPath);
       } catch (error) {
         this.removeDatabaseSidecars();
@@ -1208,6 +1236,8 @@ export class DatabaseService {
           fs.copyFileSync(safetyBackupPath, this.dbPath);
         }
         this.db = this.openDatabase();
+        this.ensureWorkspaceIdentitySchema();
+        this.ensurePayrollParitySchema();
         throw error;
       }
     } finally {
