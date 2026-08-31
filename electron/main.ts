@@ -9,11 +9,18 @@ import { OdsExportService } from './ods-export.service';
 VelopackApp.build().run();
 app.setName('Dagsverk');
 
+// Velopack state lives in a shared user directory; a second instance would
+// race the updater and corrupt downloaded packages.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+}
+
 let mainWindow: BrowserWindow | null = null;
 let dbService: DatabaseService | null = null;
 let updateState: Record<string, unknown> = { status: 'idle' };
 let updateManager: UpdateManager | null = null;
 let pendingUpdate: UpdateInfo | null = null;
+let updateCheckInFlight: Promise<void> | null = null;
 
 function log(message: string, error?: unknown): void {
   try {
@@ -52,6 +59,8 @@ function sendUpdateState(state: Record<string, unknown>): void {
   mainWindow?.webContents.send('update:state', updateState);
 }
 
+// Runs at most one update check at a time; later callers wait for the
+// in-flight check instead of racing it on the shared package directory.
 async function checkForUpdates(manual: boolean): Promise<void> {
   if (!app.isPackaged) {
     sendUpdateState({
@@ -60,7 +69,17 @@ async function checkForUpdates(manual: boolean): Promise<void> {
     });
     return;
   }
+  if (updateCheckInFlight) {
+    await updateCheckInFlight;
+    return;
+  }
+  updateCheckInFlight = performUpdateCheck(manual).finally(() => {
+    updateCheckInFlight = null;
+  });
+  await updateCheckInFlight;
+}
 
+async function performUpdateCheck(manual: boolean): Promise<void> {
   try {
     updateManager ??= new UpdateManager(new GithubSource('https://github.com/agneswd/Dagsverk'));
     sendUpdateState({ status: 'checking', message: undefined, progress: undefined });
@@ -239,6 +258,12 @@ function registerIpcHandlers() {
     mainWindow?.webContents.setZoomFactor(Math.min(1.5, Math.max(0.8, factor)));
   });
 }
+
+app.on('second-instance', () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+});
 
 app.whenReady().then(() => {
   registerIpcHandlers();
