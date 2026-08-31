@@ -341,6 +341,7 @@ export class MonthlyCalculations {
     holidays: SwedishHolidayService,
   ): number {
     if (entry.status === WorkEntryStatus.Incomplete) return 0;
+    if (entry.status === WorkEntryStatus.Worked && (!entry.startTime || !entry.endTime)) return 0;
     const scheduled = this.scheduledMinutesForEntry(entry, expectedHours, holidays);
     const worked =
       entry.status === WorkEntryStatus.Worked && entry.startTime && entry.endTime

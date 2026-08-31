@@ -113,6 +113,13 @@ describe('MonthlyCalculations & Engine', () => {
         holidays,
       ),
     ).toBe(0);
+    expect(
+      MonthlyCalculations.availableCompTimeMinutes(
+        { ...partialDay, endTime: null },
+        standardSchedule,
+        holidays,
+      ),
+    ).toBe(0);
   });
 
   it('does not pay stored comp time beyond the scheduled availability', () => {
