@@ -115,6 +115,31 @@ describe('MonthlyCalculations & Engine', () => {
     ).toBe(0);
   });
 
+  it('does not pay stored comp time beyond the scheduled availability', () => {
+    const weekday = {
+      ...workedEntry('2026-08-03', 0),
+      status: WorkEntryStatus.Off,
+      startTime: null,
+      endTime: null,
+      dayOffReason: 'Comp time',
+      compTimeMinutes: 600,
+    };
+    const weekend = { ...weekday, date: '2026-08-08', compTimeMinutes: 480 };
+
+    const summary = MonthlyCalculations.calculateMonthlySummary(
+      month(2026, 8, 168 * 60),
+      [weekday, weekend],
+      standardSchedule,
+      { ...hourlySalary, hourlyPayBasis: HourlyPayBasis.MonthlyExpectedHours },
+      compTimeOvertime,
+      holidays,
+      '2026-08-31',
+    );
+
+    expect(summary.compTimeUsedMinutes).toBe(480);
+    expect(summary.ordinaryPaidMinutes).toBe(480);
+  });
+
   it('should compute monthly summary with time balance roll-forward', () => {
     const monthRecord: MonthRecord = {
       year: 2026,

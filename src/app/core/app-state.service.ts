@@ -439,7 +439,15 @@ export class AppStateService {
         this.currentMonth(),
       );
       if (!date || existing.has(date)) continue;
-      result.push({ ...source, workspaceId: this.activeWorkspaceId(), date });
+      const usesCompTime = source.compTimeMinutes > 0 || source.dayOffReason === 'Comp time';
+      if (usesCompTime && source.status === WorkEntryStatus.Off) continue;
+      result.push({
+        ...source,
+        workspaceId: this.activeWorkspaceId(),
+        date,
+        dayOffReason: usesCompTime ? null : source.dayOffReason,
+        compTimeMinutes: 0,
+      });
     }
     return result;
   }

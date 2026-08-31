@@ -288,10 +288,12 @@ export class DayEditorComponent {
       return;
     }
     const compTimeHours = this.compTimeHours();
+    const compTimeMinutes = Math.round(compTimeHours * 60);
+    const availableCompTimeMinutes = Math.round(this.availableCompTimeHours() * 60);
     if (
       !Number.isFinite(compTimeHours) ||
-      compTimeHours < 0 ||
-      compTimeHours > this.availableCompTimeHours()
+      compTimeMinutes < 0 ||
+      compTimeMinutes > availableCompTimeMinutes
     ) {
       this.errorText.set(
         `Comp time used must be between 0 and ${this.availableCompTimeHours()} hours.`,
@@ -300,8 +302,8 @@ export class DayEditorComponent {
     }
     if (
       this.status() === WorkEntryStatus.Off &&
-      ((this.dayOffReason() === 'Comp time' && compTimeHours === 0) ||
-        (this.dayOffReason() !== 'Comp time' && compTimeHours > 0))
+      ((this.dayOffReason() === 'Comp time' && compTimeMinutes === 0) ||
+        (this.dayOffReason() !== 'Comp time' && compTimeMinutes > 0))
     ) {
       this.errorText.set('Select Comp time as the day off type before using comp hours.');
       return;
@@ -318,7 +320,7 @@ export class DayEditorComponent {
       scheduledMinutesOverride: this.useScheduledHoursOverride()
         ? Math.round(this.scheduledHours() * 60)
         : null,
-      compTimeMinutes: Math.round(compTimeHours * 60),
+      compTimeMinutes,
     };
     await this.state.saveEntry(updated);
     if (saveAndNext && this.state.isCatchUpOpen()) this.state.moveCatchUp(1);

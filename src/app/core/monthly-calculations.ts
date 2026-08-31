@@ -514,7 +514,13 @@ export class MonthlyCalculations {
     let completedDayCount = 0;
 
     for (const entry of entriesByDate.values()) {
-      totalCompTimeUsedMinutes += entry.compTimeMinutes || 0;
+      const requestedCompTime = Number.isInteger(entry.compTimeMinutes)
+        ? Math.max(0, entry.compTimeMinutes)
+        : 0;
+      totalCompTimeUsedMinutes += Math.min(
+        requestedCompTime,
+        this.availableCompTimeMinutes(entry, expectedHours, holidays),
+      );
       if (entry.status === WorkEntryStatus.Worked && entry.startTime && entry.endTime) {
         completedDayCount++;
         const worked = MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes);
