@@ -26,7 +26,9 @@ export interface LedgerRow {
   lunchMinutes: number;
   workedHours: number;
   overtimeHours: number;
+  compTimeHours: number;
   projectName: string | null;
+  dayOffReason: string | null;
   notes: string | null;
 }
 
@@ -87,7 +89,9 @@ export class LedgerViewComponent {
       let lunch = 0;
       let worked = 0;
       let ot = 0;
+      let comp = 0;
       let project: string | null = null;
+      let dayOffReason: string | null = null;
       let notes: string | null = null;
 
       if (entry) {
@@ -96,7 +100,10 @@ export class LedgerViewComponent {
         end = entry.endTime;
         lunch = entry.lunchMinutes;
         project = entry.projectName;
+        dayOffReason =
+          entry.dayOffReason || (entry.status === WorkEntryStatus.Off ? entry.notes : null);
         notes = entry.notes;
+        comp = (entry.compTimeMinutes || 0) / 60;
 
         if (status === WorkEntryStatus.Worked && start && end) {
           const split = MonthlyCalculations.splitOvertime(entry, expected, overtime, this.holidays);
@@ -125,7 +132,9 @@ export class LedgerViewComponent {
         lunchMinutes: lunch,
         workedHours: worked,
         overtimeHours: ot,
+        compTimeHours: comp,
         projectName: project,
+        dayOffReason,
         notes,
       });
     }

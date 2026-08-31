@@ -113,6 +113,11 @@ export class LocalizationService {
       [/^Active projects \((\d+)\)$/, (match) => `Aktiva projekt (${match[1]})`],
       [/^Catch up - (\d+) of (\d+)$/, (match) => `Kom ikapp - ${match[1]} av ${match[2]}`],
       [/^Gross: (.+)$/, (match) => `Brutto: ${match[1]}`],
+      [/^Available for this day: (.+)h$/, (match) => `Tillgängligt för dagen: ${match[1]} h`],
+      [
+        /^Comp time used must be between 0 and (.+) hours\.$/,
+        (match) => `Uttagen komptid måste vara mellan 0 och ${match[1]} timmar.`,
+      ],
       [/^Add entry for (.+)$/, (match) => `Lägg till post för ${match[1]}`],
       [/^Archive (.+)$/, (match) => `Arkivera ${match[1]}`],
       [/^(.+) project color$/, (match) => `${this.t(match[1])} som projektfärg`],

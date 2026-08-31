@@ -44,11 +44,15 @@ async function runTests() {
     projectName: 'General',
     notes: 'Unit test work',
     scheduledMinutesOverride: null,
+    compTimeMinutes: 90,
   });
 
   const entries = db.getWorkEntries(2026, 8);
   if (entries.length !== 1 || entries[0].startTime !== '08:00') {
     throw new Error('WorkEntry save/get failed');
+  }
+  if (entries[0].compTimeMinutes !== 90) {
+    throw new Error('WorkEntry comp-time save/get failed');
   }
   console.log('✔ WorkEntry CRUD verified');
   const history = db.getBalanceHistory(2026, 9);
@@ -148,6 +152,11 @@ async function runTests() {
   }
   console.log('✔ SQLite Backup creation verified:', backupFile);
 
+  const oldBackup = new Database(backupFile);
+  oldBackup.exec('ALTER TABLE WorkEntries DROP COLUMN CompTimeMinutes');
+  oldBackup.exec('ALTER TABLE WorkEntries DROP COLUMN DayOffReason');
+  oldBackup.close();
+
   db.saveWorkEntry({
     date: '2026-08-18',
     status: 1,
@@ -157,10 +166,22 @@ async function runTests() {
     projectName: 'General',
     notes: 'Created after backup',
     scheduledMinutesOverride: null,
+    compTimeMinutes: 0,
   });
   await db.restoreBackup(backupFile);
   if (db.getWorkEntries(2026, 8).some((entry) => entry.date === '2026-08-18')) {
     throw new Error('Valid backup did not replace the current database');
+  }
+  db.saveWorkEntry({
+    ...db.getWorkEntries(2026, 8)[0],
+    dayOffReason: 'Comp time',
+    compTimeMinutes: 60,
+  });
+  if (
+    db.getWorkEntries(2026, 8)[0].compTimeMinutes !== 60 ||
+    db.getWorkEntries(2026, 8)[0].dayOffReason !== 'Comp time'
+  ) {
+    throw new Error('Restored pre-comp-time backup did not migrate');
   }
   console.log('✔ Valid backup restore verified');
 
@@ -213,6 +234,7 @@ async function runTests() {
         projectName: 'Design Sprint',
         notes: 'Testing excel export',
         scheduledMinutesOverride: null,
+        compTimeMinutes: 0,
       },
     ],
     summary: {
@@ -220,6 +242,8 @@ async function runTests() {
       regularHours: 8,
       overtimeHours: 0.5,
       ordinaryPaidHours: 8,
+      compTimeEarnedHours: 0.5,
+      compTimeUsedHours: 0,
       obHours: 0,
       expectedHours: 168,
       monthlyDifferenceMinutes: -9570,
@@ -231,6 +255,7 @@ async function runTests() {
     dailyOvertimeThresholdHours: 8,
     hourlyPayBasis: 0,
     thresholdMinutesByDate: { '2026-08-17': 480 },
+    scheduledMinutesByDate: { '2026-08-17': 480 },
   };
 
   await ExcelExportService.exportToFile(req, testExcelPath);
@@ -252,7 +277,13 @@ async function runTests() {
   if ((sheet1.views[0] as { ySplit?: number } | undefined)?.ySplit !== 4) {
     throw new Error('Excel header rows are not frozen');
   }
-  if (sheet1.getCell('D39').value !== null || sheet2.getCell('A7').value !== null) {
+  if (
+    !String((sheet1.getCell('E37').value as ExcelJS.CellFormulaValue).formula).includes('SUM(I') ||
+    !String((sheet1.getCell('E38').value as ExcelJS.CellFormulaValue).formula).includes('SUM(I')
+  ) {
+    throw new Error('Daily-basis Excel totals did not use the hidden overtime column');
+  }
+  if (sheet1.getCell('D39').value !== null || sheet2.getColumn(1).values.includes('OB hours')) {
     throw new Error('Excel included empty OB rows');
   }
   console.log(`✔ Excel Export verified: Sheet 1 "${sheet1.name}", Sheet 2 "${sheet2.name}"`);
@@ -278,6 +309,8 @@ async function runTests() {
       regularHours: 133.5,
       overtimeHours: 7.5,
       ordinaryPaidHours: 136,
+      compTimeEarnedHours: 5,
+      compTimeUsedHours: 0,
       expectedHours: 136,
       monthlyDifferenceMinutes: 300,
       closingBalanceMinutes: 360,
@@ -288,11 +321,59 @@ async function runTests() {
   if (
     monthlyReport.getCell('D36').value !== 'Totalt betalda timmar' ||
     monthlyReport.getCell('E36').value !== 136 ||
-    monthlyBalance?.getCell('A5').value !== 'Intjänad komptid'
+    monthlyBalance?.getCell('A6').value !== 'Intjänad komptid'
   ) {
     throw new Error('Monthly hourly export did not match Tidverk');
   }
   console.log('✔ Monthly hourly export parity verified');
+
+  const augustWorkbook = ExcelExportService.createWorkbook({
+    ...req,
+    entries: [14, 21, 24, 31].map((day) => ({
+      date: `2026-08-${day}`,
+      status: 2,
+      startTime: null,
+      endTime: null,
+      lunchMinutes: 0,
+      projectName: null,
+      notes: 'Comp time',
+      scheduledMinutesOverride: null,
+      compTimeMinutes: 480,
+    })),
+    language: 0,
+    hourlyPayBasis: 1,
+    thresholdMinutesByDate: Object.fromEntries(
+      [14, 21, 24, 31].map((day) => [`2026-08-${day}`, 480]),
+    ),
+    scheduledMinutesByDate: Object.fromEntries(
+      [14, 21, 24, 31].map((day) => [`2026-08-${day}`, 480]),
+    ),
+    summary: {
+      ...req.summary,
+      workedHours: 154,
+      regularHours: 136,
+      overtimeHours: 18,
+      ordinaryPaidHours: 168,
+      compTimeEarnedHours: 18,
+      compTimeUsedHours: 32,
+      expectedHours: 168,
+      monthlyDifferenceMinutes: -840,
+      openingBalanceMinutes: 840,
+      closingBalanceMinutes: 0,
+    },
+  });
+  const augustReport = augustWorkbook.worksheets[0];
+  const augustBalance = augustWorkbook.getWorksheet('Tidsbalans');
+  if (
+    augustReport.getCell('E37').value !== 168 ||
+    augustReport.getCell('E38').value !== 18 ||
+    augustReport.getCell('E39').value !== 32 ||
+    augustBalance?.getCell('B5').value !== 154 ||
+    augustBalance?.getCell('A7').value !== 'Uttagen komptid'
+  ) {
+    throw new Error('Comp-time payroll export did not preserve every payroll value');
+  }
+  console.log('✔ Comp-time payroll export verified');
 
   let invalidExportRejected = false;
   try {
@@ -308,6 +389,18 @@ async function runTests() {
   }
   if (!invalidExportRejected) {
     throw new Error('Out-of-month report entry was not rejected');
+  }
+  let excessiveCompRejected = false;
+  try {
+    ExcelExportService.createWorkbook({
+      ...req,
+      entries: [{ ...req.entries[0], compTimeMinutes: 60 }],
+    });
+  } catch {
+    excessiveCompRejected = true;
+  }
+  if (!excessiveCompRejected) {
+    throw new Error('Export accepted comp time beyond the unworked scheduled time');
   }
   console.log('✔ Excel export validation verified');
 

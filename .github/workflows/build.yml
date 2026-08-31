@@ -19,13 +19,39 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+        with:
+          fetch-depth: 0
+      - id: changes
+        name: Check for build changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          run=false
+          if [[ "$EVENT_NAME" == "workflow_dispatch" || -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            run=true
+          else
+            while IFS= read -r file; do
+              case "$file" in
+                docs/*|*.md) ;;
+                *) run=true; break ;;
+              esac
+            done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+      - if: steps.changes.outputs.run == 'true'
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
-      - run: npm install --global npm@12.0.2
-      - run: npm ci
-      - run: npm run verify
+      - if: steps.changes.outputs.run == 'true'
+        run: npm install --global npm@12.0.2
+      - if: steps.changes.outputs.run == 'true'
+        run: npm ci
+      - if: steps.changes.outputs.run == 'true'
+        run: npm run verify
 
   package:
     name: Package ${{ matrix.rid }}
@@ -42,20 +68,46 @@ jobs:
             rid: win-x64
             channel: win
     env:
-      DAGSVERK_SKIP_RELEASE_DOWNLOAD: "1"
+      DAGSVERK_SKIP_RELEASE_DOWNLOAD: '1'
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+        with:
+          fetch-depth: 0
+      - id: changes
+        name: Check for build changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          run=false
+          if [[ "$EVENT_NAME" == "workflow_dispatch" || -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            run=true
+          else
+            while IFS= read -r file; do
+              case "$file" in
+                docs/*|*.md) ;;
+                *) run=true; break ;;
+              esac
+            done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+      - if: steps.changes.outputs.run == 'true'
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
-      - uses: actions/setup-dotnet@v6
+      - if: steps.changes.outputs.run == 'true'
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
-      - run: npm install --global npm@12.0.2
-      - shell: bash
+      - if: steps.changes.outputs.run == 'true'
+        run: npm install --global npm@12.0.2
+      - if: steps.changes.outputs.run == 'true'
+        shell: bash
         run: scripts/package-${{ matrix.rid }}.sh
-      - if: runner.os == 'Linux'
+      - if: steps.changes.outputs.run == 'true' && runner.os == 'Linux'
         shell: bash
         run: |
           test -f artifacts/releases/linux/releases.linux.json
@@ -64,7 +116,7 @@ jobs:
           test -f artifacts/extras/linux/Dagsverk-*-linux-x64.tar.gz
           chmod +x "$appimage"
           "$appimage" --appimage-extract >/dev/null
-      - if: runner.os == 'Windows'
+      - if: steps.changes.outputs.run == 'true' && runner.os == 'Windows'
         shell: pwsh
         run: |
           $setup = Get-ChildItem artifacts/releases/win -Filter "*Setup.exe" | Select-Object -First 1
@@ -77,12 +129,13 @@ jobs:
           if (-not (Test-Path (Join-Path $installDirectory "Update.exe"))) { throw "Velopack updater was not installed" }
           $uninstall = Start-Process -FilePath (Join-Path $installDirectory "Update.exe") -ArgumentList "--silent", "uninstall" -Wait -PassThru
           if ($uninstall.ExitCode -ne 0) { throw "Velopack uninstall failed with exit code $($uninstall.ExitCode)" }
-      - uses: actions/upload-artifact@v7
+      - if: steps.changes.outputs.run == 'true'
+        uses: actions/upload-artifact@v7
         with:
           name: velopack-${{ matrix.channel }}
           path: artifacts/releases/${{ matrix.channel }}/*
           if-no-files-found: error
-      - if: runner.os == 'Linux'
+      - if: steps.changes.outputs.run == 'true' && runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
           name: linux-installer-bundle

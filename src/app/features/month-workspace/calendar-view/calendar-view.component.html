@@ -75,9 +75,19 @@
           }
 
           @if (cell.status === WorkEntryStatus.Off) {
-            <div class="calendar-chip off-chip" matTooltip="{{ cell.notes || 'Day Off' }}">
+            <div
+              class="calendar-chip off-chip"
+              matTooltip="{{
+                cell.notes || cell.dayOffReason || (cell.compTimeHours > 0 ? 'Comp time' : 'Day Off')
+              }}"
+            >
               <mat-icon class="chip-icon">beach_access</mat-icon>
-              <span class="chip-text label-small">{{ cell.notes || 'Day Off' }}</span>
+              <span class="chip-text label-small">{{
+                cell.dayOffReason || (cell.compTimeHours > 0 ? 'Comp time' : 'Day Off')
+              }}</span>
+              @if (cell.compTimeHours > 0) {
+                <span class="chip-hours numeric">{{ cell.compTimeHours | number: '1.0-2' }}h</span>
+              }
             </div>
           }
         </div>

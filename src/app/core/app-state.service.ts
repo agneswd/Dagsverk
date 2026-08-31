@@ -139,8 +139,10 @@ export class AppStateService {
       endTime: this.settings().defaultEndTime || '16:30',
       lunchMinutes: this.settings().defaultLunchMinutes ?? 30,
       projectName: this.settings().defaultProject || 'General',
+      dayOffReason: null,
       notes: null,
       scheduledMinutesOverride: null,
+      compTimeMinutes: 0,
     };
   });
 
@@ -362,8 +364,10 @@ export class AppStateService {
         endTime: this.settings().defaultEndTime,
         lunchMinutes: this.settings().defaultLunchMinutes,
         projectName: this.settings().defaultProject,
+        dayOffReason: null,
         notes: null,
         scheduledMinutesOverride: null,
+        compTimeMinutes: 0,
       }));
     if (!entries.length) return 0;
     await this.bridge.saveWorkEntries(entries, this.activeWorkspaceId());
@@ -435,7 +439,15 @@ export class AppStateService {
         this.currentMonth(),
       );
       if (!date || existing.has(date)) continue;
-      result.push({ ...source, workspaceId: this.activeWorkspaceId(), date });
+      const usesCompTime = source.compTimeMinutes > 0 || source.dayOffReason === 'Comp time';
+      if (usesCompTime && source.status === WorkEntryStatus.Off) continue;
+      result.push({
+        ...source,
+        workspaceId: this.activeWorkspaceId(),
+        date,
+        dayOffReason: usesCompTime ? null : source.dayOffReason,
+        compTimeMinutes: 0,
+      });
     }
     return result;
   }
@@ -607,6 +619,16 @@ export class AppStateService {
         ),
       ]),
     );
+    const scheduledMinutesByDate = Object.fromEntries(
+      this.entries().map((entry) => [
+        entry.date,
+        MonthlyCalculations.scheduledMinutesForEntry(
+          entry,
+          this.settings().expectedHours,
+          this.holidays,
+        ),
+      ]),
+    );
     const req: ReportExportRequest = {
       year: this.currentYear(),
       month: this.currentMonth(),
@@ -626,6 +648,7 @@ export class AppStateService {
       overtimeSettings: this.settings().overtimeCompensation,
       hourlyPayBasis: this.settings().salary.hourlyPayBasis,
       thresholdMinutesByDate,
+      scheduledMinutesByDate,
     };
 
     const monthStr = String(this.currentMonth()).padStart(2, '0');
