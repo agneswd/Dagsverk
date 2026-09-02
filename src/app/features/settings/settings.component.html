@@ -34,7 +34,11 @@
             <div class="form-grid-2">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Default Project</mat-label>
-                <input matInput [(ngModel)]="model.defaultProject" placeholder="e.g. General" />
+                <mat-select [(ngModel)]="model.defaultProject">
+                  @for (p of state.projects(); track p.id) {
+                    <mat-option [value]="p.name">{{ p.name }}</mat-option>
+                  }
+                </mat-select>
                 <mat-icon matPrefix class="field-icon">folder</mat-icon>
               </mat-form-field>
 

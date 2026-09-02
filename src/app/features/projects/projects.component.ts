@@ -46,24 +46,35 @@ export class ProjectsComponent {
     const name = this.newProjectName().trim();
     if (!name) return;
 
+    const isFirst = this.state.projects().length === 0;
     const newProj: Project = {
       workspaceId: this.state.activeWorkspaceId(),
       id: `proj-${Date.now()}`,
       name,
       color: this.newProjectColor(),
       isActive: true,
-      isDefault: this.state.projects().length === 0,
+      isDefault: isFirst,
     };
 
     await this.state.saveProject(newProj);
+    if (isFirst) {
+      await this.syncDefaultProject(name);
+    }
     this.newProjectName.set('');
   }
 
+  // The runtime default (new entries, fill days) reads settings.defaultProject,
+  // so the isDefault flag alone has no effect outside this tab.
   public async onSetDefault(project: Project): Promise<void> {
     for (const p of this.state.projects()) {
       const updated = { ...p, isDefault: p.id === project.id };
       await this.state.saveProject(updated);
     }
+    await this.syncDefaultProject(project.name);
+  }
+
+  private async syncDefaultProject(name: string): Promise<void> {
+    await this.state.updateSettings({ ...this.state.settings(), defaultProject: name });
   }
 
   public onProjectColorChange(project: Project, color: string): void {
@@ -81,6 +92,9 @@ export class ProjectsComponent {
     );
     if (name === undefined || name === project.name) return;
     await this.state.saveProject({ ...project, name });
+    if (this.state.settings().defaultProject === project.name) {
+      await this.syncDefaultProject(name);
+    }
   }
 
   public async onToggleActive(project: Project): Promise<void> {
