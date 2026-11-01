@@ -64,12 +64,6 @@ export class DayEditorComponent {
   public compTimeHours = signal<number>(0);
   public errorText = signal<string>('');
 
-  public timePresets = [
-    { label: '08:00-16:30', start: '08:00', end: '16:30', lunch: 30 },
-    { label: '08:30-17:00', start: '08:30', end: '17:00', lunch: 30 },
-    { label: '09:00-17:30', start: '09:00', end: '17:30', lunch: 30 },
-  ];
-
   public lunchOptions = [0, 30, 45, 60];
 
   public dayOffReasons = [
@@ -150,22 +144,6 @@ export class DayEditorComponent {
       this.state.settings().overtimeCompensation,
       this.holidays,
     );
-  }
-
-  public isPresetSelected(preset: { start: string; end: string; lunch: number }): boolean {
-    const periods = this.periods();
-    return (
-      periods.length === 1 &&
-      periods[0].start === preset.start &&
-      periods[0].end === preset.end &&
-      this.lunchMinutes() === preset.lunch
-    );
-  }
-
-  public applyPreset(preset: { start: string; end: string; lunch: number }): void {
-    this.status.set(WorkEntryStatus.Worked);
-    this.periods.set([{ start: preset.start, end: preset.end }]);
-    this.lunchMinutes.set(preset.lunch);
   }
 
   // Adds a period that starts one hour after the last one ends.

@@ -54,6 +54,11 @@ export class AppStateService {
 
   // Scoped State Signals
   public settings = signal<AppSettings>(DEFAULT_SETTINGS);
+  // False for profiles with shifts that change from week to week. Then no hours are expected.
+  public hasFixedSchedule = computed(() => {
+    const expected = this.settings().expectedHours;
+    return expected.workingWeekdays.length > 0 && expected.hoursPerWorkday > 0;
+  });
   public projects = signal<Project[]>([]);
   public currentYear = signal<number>(new Date().getFullYear());
   public currentMonth = signal<number>(new Date().getMonth() + 1); // 1-12

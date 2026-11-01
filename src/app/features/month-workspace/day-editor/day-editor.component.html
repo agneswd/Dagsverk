@@ -46,54 +46,6 @@
 
     <!-- WORKED STATUS FORM -->
     @if (status() === WorkEntryStatus.Worked) {
-      <div class="form-section">
-        <label class="section-label label-small">Reuse a day</label>
-        <div class="quick-action-row">
-          <button mat-button type="button" (click)="applyNormalDay()">Normal day</button>
-          <button mat-button type="button" (click)="copyPrevious()">Copy previous</button>
-          <button mat-button type="button" (click)="copyLastWeek()">Copy last week</button>
-        </div>
-      </div>
-      <!-- Presets Chips -->
-      <div class="form-section">
-        <label class="section-label label-small">Quick Presets</label>
-        <mat-chip-listbox aria-label="Quick time presets" class="presets-chips">
-          @for (preset of timePresets; track preset.label) {
-            <mat-chip-option
-              [selected]="isPresetSelected(preset)"
-              (click)="applyPreset(preset)"
-              class="preset-chip"
-            >
-              {{ preset.label }}
-            </mat-chip-option>
-          }
-        </mat-chip-listbox>
-      </div>
-
-      <div class="form-section">
-        <mat-slide-toggle
-          [ngModel]="useScheduledHoursOverride()"
-          (ngModelChange)="useScheduledHoursOverride.set($event)"
-        >
-          Override scheduled hours
-        </mat-slide-toggle>
-        @if (useScheduledHoursOverride()) {
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
-            <mat-label>Scheduled hours</mat-label>
-            <input
-              matInput
-              type="number"
-              min="0"
-              step="0.25"
-              [ngModel]="scheduledHours()"
-              (ngModelChange)="scheduledHours.set($event)"
-              class="numeric"
-            />
-            <span matTextSuffix>hours</span>
-          </mat-form-field>
-        }
-      </div>
-
       <!-- Work periods: more than one makes a split shift -->
       <div class="form-section">
         <label class="section-label label-small">Work periods</label>
@@ -186,6 +138,40 @@
         </mat-select>
         <mat-icon matPrefix class="field-icon">folder</mat-icon>
       </mat-form-field>
+
+      <div class="form-section">
+        <label class="section-label label-small">Fill from</label>
+        <div class="quick-action-row">
+          <button mat-button type="button" (click)="applyNormalDay()">Normal day</button>
+          <button mat-button type="button" (click)="copyPrevious()">Copy previous</button>
+          <button mat-button type="button" (click)="copyLastWeek()">Copy last week</button>
+        </div>
+      </div>
+      @if (state.hasFixedSchedule()) {
+        <div class="form-section">
+          <mat-slide-toggle
+            [ngModel]="useScheduledHoursOverride()"
+            (ngModelChange)="useScheduledHoursOverride.set($event)"
+          >
+            Different scheduled hours this day
+          </mat-slide-toggle>
+          @if (useScheduledHoursOverride()) {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+              <mat-label>Scheduled hours</mat-label>
+              <input
+                matInput
+                type="number"
+                min="0"
+                step="0.25"
+                [ngModel]="scheduledHours()"
+                (ngModelChange)="scheduledHours.set($event)"
+                class="numeric"
+              />
+              <span matTextSuffix>hours</span>
+            </mat-form-field>
+          }
+        </div>
+      }
 
       <!-- Pay Breakdown Card -->
       <div class="pay-summary-card">
