@@ -619,7 +619,7 @@ export class DatabaseService {
       },
       expectedHours: {
         hoursPerWorkday: Number(row.ExpectedHoursPerWorkday),
-        workingWeekdays: row.ExpectedWorkingWeekdays.split(',').map(Number),
+        workingWeekdays: parseWeekdays(row.ExpectedWorkingWeekdays),
         excludePublicHolidays: Boolean(row.ExcludePublicHolidays),
       },
       defaultStartTime: row.DefaultStartTime,
@@ -1065,9 +1065,7 @@ export class DatabaseService {
             },
             expectedHours: {
               hoursPerWorkday: number(settings.ExpectedHoursPerWorkday, 8),
-              workingWeekdays: String(settings.ExpectedWorkingWeekdays || '1,2,3,4,5')
-                .split(',')
-                .map(Number),
+              workingWeekdays: parseWeekdays(settings.ExpectedWorkingWeekdays ?? '1,2,3,4,5'),
               excludePublicHolidays: Boolean(settings.ExcludePublicHolidays),
             },
             defaultStartTime: time(settings.DefaultStartTime) || '08:00',
@@ -1337,4 +1335,12 @@ function isTimeRangeList(value: unknown): value is Array<{ start: string; end: s
         time.test(range.end),
     )
   );
+}
+
+// '1,2,5' -> [1, 2, 5]. An empty list means the profile has no fixed schedule.
+function parseWeekdays(value: unknown): number[] {
+  return String(value ?? '')
+    .split(',')
+    .filter((day) => day.trim() !== '')
+    .map(Number);
 }
