@@ -36,6 +36,7 @@ import {
 import { ConfirmDialogComponent } from '../../core/confirm-dialog.component';
 import { ColorPickerComponent } from '../../shared/color-picker/color-picker.component';
 import { WEEKDAY_OPTIONS } from './weekdays';
+import { HolidayPayFieldComponent } from './holiday-pay-field.component';
 
 // Editable identity of the active profile. Saved with the settings.
 interface ProfileIdentity {
@@ -70,6 +71,7 @@ interface ProfileIdentity {
     MatExpansionModule,
     MatDialogModule,
     ColorPickerComponent,
+    HolidayPayFieldComponent,
   ],
   templateUrl: './profile-settings.component.html',
   styleUrls: ['./profile-settings.component.scss'],

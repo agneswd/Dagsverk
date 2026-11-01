@@ -92,6 +92,7 @@ export class DatabaseService {
           SalaryType INTEGER NOT NULL DEFAULT 0,
           MonthlySalary DECIMAL NOT NULL DEFAULT 40000,
           EmploymentPercent DECIMAL NOT NULL DEFAULT 100,
+          HolidayPayPercent DECIMAL NOT NULL DEFAULT 0,
           ExpectedHoursPerWorkday DECIMAL NOT NULL DEFAULT 8,
           ExpectedWorkingWeekdays TEXT NOT NULL DEFAULT '1,2,3,4,5',
           ExcludePublicHolidays INTEGER NOT NULL DEFAULT 1,
@@ -243,6 +244,7 @@ export class DatabaseService {
           SalaryType INTEGER NOT NULL DEFAULT 0,
           MonthlySalary DECIMAL NOT NULL DEFAULT 40000,
           EmploymentPercent DECIMAL NOT NULL DEFAULT 100,
+          HolidayPayPercent DECIMAL NOT NULL DEFAULT 0,
           ExpectedHoursPerWorkday DECIMAL NOT NULL DEFAULT 8,
           ExpectedWorkingWeekdays TEXT NOT NULL DEFAULT '1,2,3,4,5',
           ExcludePublicHolidays INTEGER NOT NULL DEFAULT 1,
@@ -458,6 +460,11 @@ export class DatabaseService {
         'ALTER TABLE WorkspaceSettings ADD COLUMN HourlyPayBasis INTEGER NOT NULL DEFAULT 0',
       );
     }
+    if (!names.has('HolidayPayPercent')) {
+      this.db.exec(
+        'ALTER TABLE WorkspaceSettings ADD COLUMN HolidayPayPercent DECIMAL NOT NULL DEFAULT 0',
+      );
+    }
     if (!names.has('OvertimeObCombination')) {
       this.db.exec(
         'ALTER TABLE WorkspaceSettings ADD COLUMN OvertimeObCombination INTEGER NOT NULL DEFAULT 0',
@@ -616,6 +623,7 @@ export class DatabaseService {
         monthlySalary: Number(row.MonthlySalary),
         employmentPercent: Number(row.EmploymentPercent),
         hourlyPayBasis: row.HourlyPayBasis ?? 0,
+        holidayPayPercent: Number(row.HolidayPayPercent ?? 0),
       },
       expectedHours: {
         hoursPerWorkday: Number(row.ExpectedHoursPerWorkday),
@@ -659,7 +667,7 @@ export class DatabaseService {
         `
       INSERT INTO WorkspaceSettings (
         WorkspaceId, EmployeeName, EmployerName, DefaultProject, HourlyRate, SalaryType,
-        MonthlySalary, EmploymentPercent, HourlyPayBasis, ExpectedHoursPerWorkday, ExpectedWorkingWeekdays,
+        MonthlySalary, EmploymentPercent, HourlyPayBasis, HolidayPayPercent, ExpectedHoursPerWorkday, ExpectedWorkingWeekdays,
         ExcludePublicHolidays, DefaultStartTime, DefaultEndTime, DefaultLunchMinutes,
         TaxMode, TaxYear, TaxTableNumber, TaxColumn, ManualTaxValue,
         OpeningBalanceMinutes, CurrencyPreference, ExportLanguagePreference,
@@ -668,7 +676,7 @@ export class DatabaseService {
         OvertimeObCombination
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?,
@@ -684,6 +692,7 @@ export class DatabaseService {
         MonthlySalary = excluded.MonthlySalary,
         EmploymentPercent = excluded.EmploymentPercent,
         HourlyPayBasis = excluded.HourlyPayBasis,
+        HolidayPayPercent = excluded.HolidayPayPercent,
         ExpectedHoursPerWorkday = excluded.ExpectedHoursPerWorkday,
         ExpectedWorkingWeekdays = excluded.ExpectedWorkingWeekdays,
         ExcludePublicHolidays = excluded.ExcludePublicHolidays,
@@ -717,6 +726,7 @@ export class DatabaseService {
         settings.salary?.monthlySalary || 0,
         settings.salary?.employmentPercent || 100,
         settings.salary?.hourlyPayBasis ?? 0,
+        settings.salary?.holidayPayPercent ?? 0,
         settings.expectedHours?.hoursPerWorkday ?? 8,
         (settings.expectedHours?.workingWeekdays || [1, 2, 3, 4, 5]).join(','),
         settings.expectedHours?.excludePublicHolidays ? 1 : 0,
@@ -1062,6 +1072,7 @@ export class DatabaseService {
               monthlySalary: number(settings.MonthlySalary, 0),
               employmentPercent: number(settings.EmploymentPercent, 100),
               hourlyPayBasis: number(settings.HourlyPayBasis, 0),
+              holidayPayPercent: number(settings.HolidayPayPercent, 0),
             },
             expectedHours: {
               hoursPerWorkday: number(settings.ExpectedHoursPerWorkday, 8),

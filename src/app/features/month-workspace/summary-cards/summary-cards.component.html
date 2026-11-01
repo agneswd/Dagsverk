@@ -94,7 +94,10 @@
             >{{ state.taxEstimate().estimatedNetPay | number: '1.0-0' }}
             {{ state.settings().currencyPreference }}</span
           >
-          <span class="metric-qualifier body-small numeric"
+          <span
+            class="metric-qualifier body-small numeric"
+            [matTooltip]="holidayPayTooltip()"
+            [matTooltipDisabled]="!state.summary().holidayPay"
             >Gross: {{ state.taxEstimate().grossPay | number: '1.0-0' }}</span
           >
         } @else {
@@ -102,7 +105,12 @@
             >{{ state.summary().grossSalary | number: '1.0-0' }}
             {{ state.settings().currencyPreference }}</span
           >
-          <span class="metric-qualifier body-small">Gross</span>
+          <span
+            class="metric-qualifier body-small"
+            [matTooltip]="holidayPayTooltip()"
+            [matTooltipDisabled]="!state.summary().holidayPay"
+            >Gross</span
+          >
         }
       </div>
     </div>

@@ -662,6 +662,13 @@ export class MonthlyCalculations {
         .plus(totalObPay);
     }
 
+    // Holiday pay is a percent of everything earned, including overtime and OB.
+    const holidayPay =
+      salary.type === SalaryType.Hourly
+        ? roundMoney(totalGrossSalary.times(salary.holidayPayPercent ?? 0).dividedBy(100))
+        : 0;
+    totalGrossSalary = totalGrossSalary.plus(holidayPay);
+
     const monthlyDifferenceMinutes = balanceEligibleMinutes - expectedMinutes;
     const closingBalanceMinutes = monthRecord.openingBalanceMinutes + monthlyDifferenceMinutes;
 
@@ -697,6 +704,7 @@ export class MonthlyCalculations {
       baseSalary: salary.type === SalaryType.Monthly ? salary.monthlySalary : 0,
       overtimeCompensation: Math.round(totalOvertimePay * 100) / 100,
       obCompensation: Math.round(totalObPay * 100) / 100,
+      holidayPay,
       obMinutes: totalObMinutes,
       completedDayCount,
       missingPastDays,

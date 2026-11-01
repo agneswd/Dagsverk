@@ -21,7 +21,10 @@ async function main(): Promise<void> {
     await page.goto(baseUrl);
     await page.evaluate(() => {
       localStorage.clear();
-      localStorage.setItem('dagsverk_preferences', JSON.stringify({ languagePreference: 1 }));
+      localStorage.setItem(
+        'dagsverk_preferences',
+        JSON.stringify({ languagePreference: 1, monthViewPreference: 1 }),
+      );
     });
     await page.goto(baseUrl, { waitUntil: 'networkidle0' });
 
@@ -50,7 +53,11 @@ async function main(): Promise<void> {
     await page.waitForSelector('app-profile-form-dialog');
     await settle();
     await typeInto(await field(page, 'Profile name'), 'Hamnkafe');
-    await typeInto(await field(page, 'Hourly rate'), '134.5');
+    await typeInto(await field(page, 'Hourly rate'), '120');
+    expect(
+      (await text(page, 'app-holiday-pay-field mat-select')) === '12 % - legal minimum',
+      'hourly profile defaults to 12 % holiday pay',
+    );
     await clickButton(page, 'No fixed schedule');
     await page.screenshot({ path: path.join(outDir, '02-new-profile.png') });
     await clickButton(page, 'Create profile');
@@ -63,6 +70,13 @@ async function main(): Promise<void> {
       `no-schedule profile hides expected time and balance, got "${summary}"`,
     );
     await page.screenshot({ path: path.join(outDir, '03-timesheet-no-schedule.png') });
+
+    // 3 hours at 120 kr plus 12 % holiday pay is 403.20 kr gross.
+    await logShift(page, '12:00', '15:00');
+    expect(
+      (await text(page, 'app-summary-cards'))?.includes('Gross: 403') ?? false,
+      `gross pay includes 12 % holiday pay, got "${await text(page, 'app-summary-cards')}"`,
+    );
 
     // The Profile page holds this profile's settings, including the details set above.
     await clickNav(page, 'Profile');
@@ -92,8 +106,20 @@ async function main(): Promise<void> {
     await page.screenshot({ path: path.join(outDir, '05-profile-schedule.png') });
     await clickTab(page, 'Pay and tax');
     expect(
-      (await inputValue(await field(page, 'Hourly rate'))) === '134.5',
+      (await inputValue(await field(page, 'Hourly rate'))) === '120',
       'pay tab shows the hourly rate from the form',
+    );
+    // A rate that already includes holiday pay: pick None, and the gross drops to 360 kr.
+    await page.click('app-holiday-pay-field mat-select');
+    await clickOption(page, 'None (included in the hourly rate)');
+    await page.screenshot({ path: path.join(outDir, '06-profile-pay.png') });
+    await clickButton(page, 'Save changes');
+    await clickNav(page, 'Timesheet');
+    await page.waitForSelector('app-summary-cards');
+    await settle();
+    expect(
+      (await text(page, 'app-summary-cards'))?.includes('Gross: 360') ?? false,
+      `no holiday pay after choosing None, got "${await text(page, 'app-summary-cards')}"`,
     );
 
     // Settings only holds app-wide items.
@@ -108,7 +134,7 @@ async function main(): Promise<void> {
         !settings.includes('Workdays'),
       'settings page has app-wide items only',
     );
-    await page.screenshot({ path: path.join(outDir, '06-settings.png'), fullPage: true });
+    await page.screenshot({ path: path.join(outDir, '07-settings.png'), fullPage: true });
 
     console.log(`PASS profiles. Screenshots: ${outDir}`);
   } finally {
@@ -171,6 +197,31 @@ async function clickNav(page: Page, label: string): Promise<void> {
   await page.evaluate((wanted) => {
     [...document.querySelectorAll<HTMLElement>('app-sidebar a')]
       .find((el) => el.textContent?.trim().endsWith(wanted))
+      ?.click();
+  }, label);
+  await settle();
+}
+
+// Logs a shift with no lunch on the first day of the month in the calendar view.
+async function logShift(page: Page, start: string, end: string): Promise<void> {
+  await page.click('.calendar-day-cell:not(.other-month)');
+  await page.waitForSelector('.m3-day-editor');
+  await settle();
+  await clickButton(page, 'Worked');
+  const times = await page.$$('.time-range-grid input');
+  await typeInto(times[0], start);
+  await typeInto(times[1], end);
+  await typeInto((await page.$('.lunch-input input')) as ElementHandle<HTMLInputElement>, '0');
+  await clickButton(page, 'Save entry');
+  await page.waitForSelector('.m3-day-editor', { hidden: true });
+  await settle();
+}
+
+async function clickOption(page: Page, label: string): Promise<void> {
+  await page.waitForSelector('mat-option');
+  await page.evaluate((wanted) => {
+    [...document.querySelectorAll<HTMLElement>('mat-option')]
+      .find((el) => el.textContent?.trim() === wanted)
       ?.click();
   }, label);
   await settle();
