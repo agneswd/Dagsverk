@@ -58,10 +58,16 @@
 
           @if (cell.status === WorkEntryStatus.Worked) {
             <div class="calendar-chip worked-chip">
-              <div class="chip-main-row">
-                <span class="chip-time numeric">{{ cell.startTime }}-{{ cell.endTime }}</span>
-                <span class="chip-hours numeric">{{ cell.workedHours | number: '1.2-2' }}h</span>
-              </div>
+              @for (period of cell.periods; track $index) {
+                <div class="chip-main-row">
+                  <span class="chip-time numeric">{{ period.start }}-{{ period.end }}</span>
+                  @if ($first) {
+                    <span class="chip-hours numeric"
+                      >{{ cell.workedHours | number: '1.2-2' }}h</span
+                    >
+                  }
+                </div>
+              }
               @if (cell.projectName) {
                 <div class="chip-sub-row">
                   <span
@@ -78,7 +84,9 @@
             <div
               class="calendar-chip off-chip"
               matTooltip="{{
-                cell.notes || cell.dayOffReason || (cell.compTimeHours > 0 ? 'Comp time' : 'Day Off')
+                cell.notes ||
+                  cell.dayOffReason ||
+                  (cell.compTimeHours > 0 ? 'Comp time' : 'Day Off')
               }}"
             >
               <mat-icon class="chip-icon">beach_access</mat-icon>

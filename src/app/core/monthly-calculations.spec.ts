@@ -66,6 +66,7 @@ describe('MonthlyCalculations & Engine', () => {
       startTime: '08:00',
       endTime: '18:30',
       lunchMinutes: 30, // Worked = 10h (600m)
+      breaks: [],
       projectName: 'General',
       dayOffReason: null,
       notes: null,
@@ -93,19 +94,11 @@ describe('MonthlyCalculations & Engine', () => {
     };
 
     expect(
-      MonthlyCalculations.availableCompTimeMinutes(
-        partialDay,
-        standardSchedule,
-        holidays,
-      ),
+      MonthlyCalculations.availableCompTimeMinutes(partialDay, standardSchedule, holidays),
     ).toBe(150);
-    expect(
-      MonthlyCalculations.availableCompTimeMinutes(
-        dayOff,
-        standardSchedule,
-        holidays,
-      ),
-    ).toBe(480);
+    expect(MonthlyCalculations.availableCompTimeMinutes(dayOff, standardSchedule, holidays)).toBe(
+      480,
+    );
     expect(
       MonthlyCalculations.availableCompTimeMinutes(
         { ...dayOff, date: '2026-08-29' },
@@ -163,6 +156,7 @@ describe('MonthlyCalculations & Engine', () => {
         startTime: '08:00',
         endTime: '17:00',
         lunchMinutes: 30, // 8.5h worked (+30m delta)
+        breaks: [],
         projectName: 'General',
         dayOffReason: null,
         notes: null,
@@ -299,6 +293,7 @@ describe('MonthlyCalculations & Engine', () => {
       startTime: null,
       endTime: null,
       lunchMinutes: 0,
+      breaks: [],
       projectName: null,
       dayOffReason: 'Comp time',
       notes: null,
@@ -473,6 +468,7 @@ function workedEntry(
     startTime,
     endTime,
     lunchMinutes,
+    breaks: [],
     projectName: null,
     dayOffReason: null,
     notes: null,

@@ -122,6 +122,7 @@ export class DatabaseService {
           StartTime TEXT,
           EndTime TEXT,
           LunchMinutes INTEGER NOT NULL DEFAULT 0,
+          BreaksJson TEXT NOT NULL DEFAULT '[]',
           ProjectName TEXT,
           DayOffReason TEXT,
           Notes TEXT,
@@ -272,6 +273,7 @@ export class DatabaseService {
           StartTime TEXT,
           EndTime TEXT,
           LunchMinutes INTEGER NOT NULL DEFAULT 0,
+          BreaksJson TEXT NOT NULL DEFAULT '[]',
           ProjectName TEXT,
           DayOffReason TEXT,
           Notes TEXT,
@@ -465,6 +467,9 @@ export class DatabaseService {
     const entryColumns = this.db.pragma('table_info(WorkEntries)') as Array<{ name: string }>;
     if (!entryColumns.some((column) => column.name === 'CompTimeMinutes')) {
       this.db.exec('ALTER TABLE WorkEntries ADD COLUMN CompTimeMinutes INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!entryColumns.some((column) => column.name === 'BreaksJson')) {
+      this.db.exec("ALTER TABLE WorkEntries ADD COLUMN BreaksJson TEXT NOT NULL DEFAULT '[]'");
     }
     if (!entryColumns.some((column) => column.name === 'DayOffReason')) {
       this.db.exec('ALTER TABLE WorkEntries ADD COLUMN DayOffReason TEXT');
@@ -744,17 +749,8 @@ export class DatabaseService {
       .all(workspaceId, monthPrefix) as any[];
 
     return rows.map((r) => ({
+      ...toWorkEntry(r),
       workspaceId: r.WorkspaceId,
-      date: r.Date,
-      status: r.Status,
-      startTime: r.StartTime,
-      endTime: r.EndTime,
-      lunchMinutes: r.LunchMinutes,
-      projectName: r.ProjectName,
-      dayOffReason: r.DayOffReason || null,
-      notes: r.Notes,
-      scheduledMinutesOverride: r.ScheduledMinutesOverride,
-      compTimeMinutes: r.CompTimeMinutes || 0,
       createdAt: r.CreatedAt,
       updatedAt: r.UpdatedAt,
     }));
@@ -766,18 +762,23 @@ export class DatabaseService {
     if (!Number.isInteger(compTimeMinutes) || compTimeMinutes < 0) {
       throw new Error('Comp time used must be a non-negative whole number of minutes.');
     }
+    const breaks = entry.breaks ?? [];
+    if (!isTimeRangeList(breaks)) {
+      throw new Error(`The split-shift breaks for ${entry.date} are invalid.`);
+    }
     this.db
       .prepare(
         `
       INSERT INTO WorkEntries (
-        WorkspaceId, Date, Status, StartTime, EndTime, LunchMinutes, ProjectName,
+        WorkspaceId, Date, Status, StartTime, EndTime, LunchMinutes, BreaksJson, ProjectName,
         DayOffReason, Notes, ScheduledMinutesOverride, CompTimeMinutes, CreatedAt, UpdatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(WorkspaceId, Date) DO UPDATE SET
         Status = excluded.Status,
         StartTime = excluded.StartTime,
         EndTime = excluded.EndTime,
         LunchMinutes = excluded.LunchMinutes,
+        BreaksJson = excluded.BreaksJson,
         ProjectName = excluded.ProjectName,
         DayOffReason = excluded.DayOffReason,
         Notes = excluded.Notes,
@@ -793,6 +794,7 @@ export class DatabaseService {
         entry.startTime,
         entry.endTime,
         entry.lunchMinutes || 0,
+        JSON.stringify(entry.status === 1 ? breaks : []),
         entry.projectName,
         entry.dayOffReason ?? null,
         entry.notes,
@@ -918,19 +920,7 @@ export class DatabaseService {
       const key = row.Date.slice(0, 7);
       const [year, month] = key.split('-').map(Number);
       const item = months.get(key) || { year, month, record: null, entries: [] };
-      item.entries.push({
-        workspaceId: row.WorkspaceId,
-        date: row.Date,
-        status: row.Status,
-        startTime: row.StartTime,
-        endTime: row.EndTime,
-        lunchMinutes: row.LunchMinutes,
-        projectName: row.ProjectName,
-        dayOffReason: row.DayOffReason || null,
-        notes: row.Notes,
-        scheduledMinutesOverride: row.ScheduledMinutesOverride,
-        compTimeMinutes: row.CompTimeMinutes || 0,
-      });
+      item.entries.push({ ...toWorkEntry(row), workspaceId: row.WorkspaceId });
       months.set(key, item);
     }
     return [...months.entries()]
@@ -1093,9 +1083,8 @@ export class DatabaseService {
             },
             openingBalanceMinutes: number(settings.OpeningBalanceMinutes, 0),
             currencyPreference:
-              ['SEK', 'EUR', 'USD', 'GBP', 'NOK', 'DKK'][
-                number(settings.CurrencyPreference, 0)
-              ] || 'SEK',
+              ['SEK', 'EUR', 'USD', 'GBP', 'NOK', 'DKK'][number(settings.CurrencyPreference, 0)] ||
+              'SEK',
             exportLanguagePreference: number(settings.ExportLanguagePreference, 2),
             overtimeCompensation: {
               mode: number(settings.OvertimeCompensationMode, 0),
@@ -1307,4 +1296,45 @@ export class DatabaseService {
     );
     this.pruneBackups(folder);
   }
+}
+
+// Maps a WorkEntries row to the entry shape that the renderer uses.
+function toWorkEntry(row: any) {
+  const breaks = parseBreaks(row.BreaksJson);
+  return {
+    date: row.Date,
+    status: row.Status,
+    startTime: row.StartTime,
+    endTime: row.EndTime,
+    lunchMinutes: row.LunchMinutes,
+    breaks,
+    projectName: row.ProjectName,
+    dayOffReason: row.DayOffReason || null,
+    notes: row.Notes,
+    scheduledMinutesOverride: row.ScheduledMinutesOverride,
+    compTimeMinutes: row.CompTimeMinutes || 0,
+  };
+}
+
+function parseBreaks(json: unknown): Array<{ start: string; end: string }> {
+  try {
+    const value = JSON.parse(String(json ?? '[]'));
+    return isTimeRangeList(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+function isTimeRangeList(value: unknown): value is Array<{ start: string; end: string }> {
+  const time = /^([01]\d|2[0-3]):[0-5]\d$/;
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (range) =>
+        typeof range?.start === 'string' &&
+        typeof range?.end === 'string' &&
+        time.test(range.start) &&
+        time.test(range.end),
+    )
+  );
 }

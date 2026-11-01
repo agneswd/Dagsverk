@@ -96,8 +96,8 @@ export class AppStateService {
     const copied = this.copiedMonth();
     return Boolean(
       copied &&
-        copied.workspaceId === this.activeWorkspaceId() &&
-        (copied.year !== this.currentYear() || copied.month !== this.currentMonth()),
+      copied.workspaceId === this.activeWorkspaceId() &&
+      (copied.year !== this.currentYear() || copied.month !== this.currentMonth()),
     );
   });
   public canResetMonth = computed(
@@ -138,6 +138,7 @@ export class AppStateService {
       startTime: this.settings().defaultStartTime || '08:00',
       endTime: this.settings().defaultEndTime || '16:30',
       lunchMinutes: this.settings().defaultLunchMinutes ?? 30,
+      breaks: [],
       projectName: this.settings().defaultProject || 'General',
       dayOffReason: null,
       notes: null,
@@ -358,17 +359,18 @@ export class AppStateService {
 
   public async fillNormalWorkdays(): Promise<number> {
     const entries = this.fillableDates().map<WorkEntry>((date) => ({
-        date,
-        status: WorkEntryStatus.Worked,
-        startTime: this.settings().defaultStartTime,
-        endTime: this.settings().defaultEndTime,
-        lunchMinutes: this.settings().defaultLunchMinutes,
-        projectName: this.settings().defaultProject,
-        dayOffReason: null,
-        notes: null,
-        scheduledMinutesOverride: null,
-        compTimeMinutes: 0,
-      }));
+      date,
+      status: WorkEntryStatus.Worked,
+      startTime: this.settings().defaultStartTime,
+      endTime: this.settings().defaultEndTime,
+      lunchMinutes: this.settings().defaultLunchMinutes,
+      breaks: [],
+      projectName: this.settings().defaultProject,
+      dayOffReason: null,
+      notes: null,
+      scheduledMinutesOverride: null,
+      compTimeMinutes: 0,
+    }));
     if (!entries.length) return 0;
     await this.bridge.saveWorkEntries(entries, this.activeWorkspaceId());
     await this.loadCurrentMonth();
@@ -433,11 +435,7 @@ export class AppStateService {
     );
     const result: WorkEntry[] = [];
     for (const source of copied.entries) {
-      const date = matchingWeekdayOccurrence(
-        source.date,
-        this.currentYear(),
-        this.currentMonth(),
-      );
+      const date = matchingWeekdayOccurrence(source.date, this.currentYear(), this.currentMonth());
       if (!date || existing.has(date)) continue;
       const usesCompTime = source.compTimeMinutes > 0 || source.dayOffReason === 'Comp time';
       if (usesCompTime && source.status === WorkEntryStatus.Off) continue;
@@ -453,11 +451,7 @@ export class AppStateService {
   }
 
   public async resetMonth(): Promise<void> {
-    await this.bridge.resetMonth(
-      this.currentYear(),
-      this.currentMonth(),
-      this.activeWorkspaceId(),
-    );
+    await this.bridge.resetMonth(this.currentYear(), this.currentMonth(), this.activeWorkspaceId());
     this.closeCatchUp();
     await this.loadCurrentMonth();
   }

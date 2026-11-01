@@ -6,7 +6,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { AppStateService } from '../../../core/app-state.service';
 import { SwedishHolidayService } from '../../../core/swedish-holiday.service';
 import { MinuteMath, MonthlyCalculations } from '../../../core/monthly-calculations';
-import { WorkEntry, WorkEntryStatus } from '../../../core/models';
+import { TimeRange, WorkEntry, WorkEntryStatus } from '../../../core/models';
 import { LocalizationService } from '../../../core/localization.service';
 
 export interface CalendarDayCell {
@@ -20,8 +20,7 @@ export interface CalendarDayCell {
   isMissing: boolean;
   entry?: WorkEntry;
   status: WorkEntryStatus;
-  startTime?: string | null;
-  endTime?: string | null;
+  periods: TimeRange[];
   workedHours: number;
   overtimeHours: number;
   compTimeHours: number;
@@ -80,8 +79,7 @@ export class CalendarViewComponent {
         isScheduledWorkday: false,
         isMissing: false,
         status: WorkEntryStatus.Incomplete,
-        startTime: null,
-        endTime: null,
+        periods: [],
         workedHours: 0,
         overtimeHours: 0,
         compTimeHours: 0,
@@ -103,8 +101,7 @@ export class CalendarViewComponent {
       const entry = entriesMap.get(date);
 
       let status = WorkEntryStatus.Incomplete;
-      let start: string | null = null;
-      let end: string | null = null;
+      let periods: TimeRange[] = [];
       let worked = 0;
       let ot = 0;
       let comp = 0;
@@ -114,8 +111,7 @@ export class CalendarViewComponent {
 
       if (entry) {
         status = entry.status;
-        start = entry.startTime;
-        end = entry.endTime;
+        periods = MinuteMath.periods(entry);
         project = entry.projectName;
         dayOffReason =
           entry.dayOffReason || (entry.status === WorkEntryStatus.Off ? entry.notes : null);
@@ -123,7 +119,7 @@ export class CalendarViewComponent {
         comp = (entry.compTimeMinutes || 0) / 60;
         if (status === WorkEntryStatus.Worked && entry.startTime && entry.endTime) {
           const split = MonthlyCalculations.splitOvertime(entry, expected, overtime, this.holidays);
-          worked = MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes) / 60;
+          worked = MinuteMath.workedForEntry(entry) / 60;
           ot = split.overtimeMinutes / 60;
         }
       }
@@ -137,14 +133,10 @@ export class CalendarViewComponent {
         holidayName,
         isScheduledWorkday: isScheduled,
         isMissing:
-          monthStarted &&
-          date < today &&
-          isScheduled &&
-          status === WorkEntryStatus.Incomplete,
+          monthStarted && date < today && isScheduled && status === WorkEntryStatus.Incomplete,
         entry,
         status,
-        startTime: start,
-        endTime: end,
+        periods,
         workedHours: worked,
         overtimeHours: ot,
         compTimeHours: comp,
@@ -170,8 +162,7 @@ export class CalendarViewComponent {
         isScheduledWorkday: false,
         isMissing: false,
         status: WorkEntryStatus.Incomplete,
-        startTime: null,
-        endTime: null,
+        periods: [],
         workedHours: 0,
         overtimeHours: 0,
         compTimeHours: 0,

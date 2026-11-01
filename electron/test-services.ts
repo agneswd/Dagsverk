@@ -55,6 +55,36 @@ async function runTests() {
     throw new Error('WorkEntry comp-time save/get failed');
   }
   console.log('✔ WorkEntry CRUD verified');
+
+  // A split shift is the span plus the unpaid gap between its two periods.
+  const splitShift = {
+    date: '2026-10-16',
+    status: 1,
+    startTime: '12:00',
+    endTime: '21:00',
+    lunchMinutes: 0,
+    breaks: [{ start: '15:00', end: '17:00' }],
+    projectName: 'General',
+    notes: null,
+    scheduledMinutesOverride: null,
+    compTimeMinutes: 0,
+  };
+  db.saveWorkEntry(splitShift);
+  if (
+    JSON.stringify(db.getWorkEntries(2026, 10)[0]?.breaks) !== JSON.stringify(splitShift.breaks)
+  ) {
+    throw new Error('Split-shift breaks did not survive save and load');
+  }
+  let invalidBreaksRejected = false;
+  try {
+    db.saveWorkEntry({ ...splitShift, breaks: [{ start: '25:00', end: '17:00' }] });
+  } catch {
+    invalidBreaksRejected = true;
+  }
+  if (!invalidBreaksRejected) {
+    throw new Error('Invalid split-shift breaks were saved');
+  }
+  console.log('✔ Split-shift breaks verified');
   const history = db.getBalanceHistory(2026, 9);
   if (history.length !== 1 || history[0].entries.length !== 1) {
     throw new Error('Balance history did not return the tracked month');
@@ -155,6 +185,7 @@ async function runTests() {
   const oldBackup = new Database(backupFile);
   oldBackup.exec('ALTER TABLE WorkEntries DROP COLUMN CompTimeMinutes');
   oldBackup.exec('ALTER TABLE WorkEntries DROP COLUMN DayOffReason');
+  oldBackup.exec('ALTER TABLE WorkEntries DROP COLUMN BreaksJson');
   oldBackup.close();
 
   db.saveWorkEntry({
@@ -182,6 +213,13 @@ async function runTests() {
     db.getWorkEntries(2026, 8)[0].dayOffReason !== 'Comp time'
   ) {
     throw new Error('Restored pre-comp-time backup did not migrate');
+  }
+  if (db.getWorkEntries(2026, 10)[0]?.breaks.length !== 0) {
+    throw new Error('Restored pre-split-shift backup did not migrate');
+  }
+  db.saveWorkEntry(splitShift);
+  if (db.getWorkEntries(2026, 10)[0]?.breaks.length !== 1) {
+    throw new Error('Migrated database did not store split-shift breaks');
   }
   console.log('✔ Valid backup restore verified');
 
@@ -403,6 +441,23 @@ async function runTests() {
     throw new Error('Export accepted comp time beyond the unworked scheduled time');
   }
   console.log('✔ Excel export validation verified');
+
+  // The Lunch column holds lunch plus split-shift gaps, so the hours formula stays correct.
+  const splitWorkbook = ExcelExportService.createWorkbook({
+    ...req,
+    month: 10,
+    entries: [{ ...splitShift, lunchMinutes: 15 }],
+    thresholdMinutesByDate: { '2026-10-16': 480 },
+    scheduledMinutesByDate: { '2026-10-16': 480 },
+  });
+  const splitRow = splitWorkbook.worksheets[0].getRow(4 + 16);
+  if (
+    splitRow.getCell(4).value !== 135 / 1440 ||
+    (splitRow.getCell(5).value as ExcelJS.CellFormulaValue).result !== 6.75
+  ) {
+    throw new Error('Split-shift export did not remove the gap from the worked hours');
+  }
+  console.log('✔ Split-shift export verified');
 
   // Clean up
   db.close();

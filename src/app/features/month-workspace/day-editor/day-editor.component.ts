@@ -16,6 +16,7 @@ import {
   HourlyPayBasis,
   OvertimeCompensationMode,
   SalaryType,
+  TimeRange,
   WorkEntry,
   WorkEntryStatus,
 } from '../../../core/models';
@@ -52,8 +53,8 @@ export class DayEditorComponent {
   public readonly WorkEntryStatus = WorkEntryStatus;
 
   public status = signal<WorkEntryStatus>(WorkEntryStatus.Incomplete);
-  public startTime = signal<string>('08:00');
-  public endTime = signal<string>('16:30');
+  // One period for a normal day, more for a split shift. Gaps become unpaid breaks.
+  public periods = signal<TimeRange[]>([{ start: '08:00', end: '16:30' }]);
   public lunchMinutes = signal<number>(30);
   public projectName = signal<string>('General');
   public dayOffReason = signal<string>('');
@@ -91,8 +92,11 @@ export class DayEditorComponent {
             ? WorkEntryStatus.Worked
             : e.status,
         );
-        this.startTime.set(e.startTime || s.defaultStartTime || '08:00');
-        this.endTime.set(e.endTime || s.defaultEndTime || '16:30');
+        this.periods.set(
+          e.startTime && e.endTime
+            ? MinuteMath.periods(e)
+            : [{ start: s.defaultStartTime || '08:00', end: s.defaultEndTime || '16:30' }],
+        );
         this.lunchMinutes.set(e.lunchMinutes ?? s.defaultLunchMinutes ?? 30);
         this.projectName.set(e.projectName || s.defaultProject || 'General');
         const legacyReason = this.dayOffReasons.includes(e.notes || '') ? e.notes || '' : '';
@@ -132,30 +136,15 @@ export class DayEditorComponent {
 
   public get workedHours(): number {
     if (this.status() !== WorkEntryStatus.Worked) return 0;
-    const mins = MinuteMath.worked(this.startTime(), this.endTime(), this.lunchMinutes());
-    return mins / 60;
+    return MinuteMath.workedForEntry(this.draftEntry()) / 60;
   }
 
   public get dailyPay(): { regularPay: number; overtimePay: number; obPay: number; total: number } {
     if (this.status() !== WorkEntryStatus.Worked) {
       return { regularPay: 0, overtimePay: 0, obPay: 0, total: 0 };
     }
-    const fakeEntry: WorkEntry = {
-      date: this.currentDateString,
-      status: this.status(),
-      startTime: this.startTime(),
-      endTime: this.endTime(),
-      lunchMinutes: this.lunchMinutes(),
-      projectName: this.projectName(),
-      dayOffReason: null,
-      notes: this.notes(),
-      compTimeMinutes: Math.round(this.compTimeHours() * 60),
-      scheduledMinutesOverride: this.useScheduledHoursOverride()
-        ? Math.round(this.scheduledHours() * 60)
-        : null,
-    };
     return MonthlyCalculations.calculateDailyPay(
-      fakeEntry,
+      this.draftEntry(),
       this.state.settings().expectedHours,
       this.state.settings().salary,
       this.state.settings().overtimeCompensation,
@@ -163,18 +152,48 @@ export class DayEditorComponent {
     );
   }
 
+  public isPresetSelected(preset: { start: string; end: string; lunch: number }): boolean {
+    const periods = this.periods();
+    return (
+      periods.length === 1 &&
+      periods[0].start === preset.start &&
+      periods[0].end === preset.end &&
+      this.lunchMinutes() === preset.lunch
+    );
+  }
+
   public applyPreset(preset: { start: string; end: string; lunch: number }): void {
     this.status.set(WorkEntryStatus.Worked);
-    this.startTime.set(preset.start);
-    this.endTime.set(preset.end);
+    this.periods.set([{ start: preset.start, end: preset.end }]);
     this.lunchMinutes.set(preset.lunch);
+  }
+
+  // Adds a period that starts one hour after the last one ends.
+  public addPeriod(): void {
+    const last = this.periods()[this.periods().length - 1];
+    const start = TimeInput.fromMinutes(TimeInput.toMinutes(last.end) + 60);
+    const end = TimeInput.fromMinutes(TimeInput.toMinutes(start) + 120);
+    this.periods.set([...this.periods(), { start, end }]);
+  }
+
+  public removePeriod(index: number): void {
+    this.periods.set(this.periods().filter((_, i) => i !== index));
+  }
+
+  public setPeriodTime(index: number, field: keyof TimeRange, value: string): void {
+    this.periods.set(
+      this.periods().map((period, i) => (i === index ? { ...period, [field]: value } : period)),
+    );
+  }
+
+  public onLunchInput(value: number | null): void {
+    this.lunchMinutes.set(Number.isFinite(value) ? Number(value) : 0);
   }
 
   public applyNormalDay(): void {
     const settings = this.state.settings();
     this.status.set(WorkEntryStatus.Worked);
-    this.startTime.set(settings.defaultStartTime);
-    this.endTime.set(settings.defaultEndTime);
+    this.periods.set([{ start: settings.defaultStartTime, end: settings.defaultEndTime }]);
     this.lunchMinutes.set(settings.defaultLunchMinutes);
     this.projectName.set(settings.defaultProject);
     this.dayOffReason.set('');
@@ -204,8 +223,11 @@ export class DayEditorComponent {
       return;
     }
     this.status.set(WorkEntryStatus.Worked);
-    this.startTime.set(entry.startTime || '08:00');
-    this.endTime.set(entry.endTime || '16:30');
+    this.periods.set(
+      entry.startTime && entry.endTime
+        ? MinuteMath.periods(entry)
+        : [{ start: '08:00', end: '16:30' }],
+    );
     this.lunchMinutes.set(entry.lunchMinutes);
     this.projectName.set(entry.projectName || this.state.settings().defaultProject);
     this.dayOffReason.set('');
@@ -222,12 +244,51 @@ export class DayEditorComponent {
     return `${year}-${month}-${day}`;
   }
 
-  public onTimeBlur(field: 'start' | 'end', val: string): void {
-    const norm = TimeInput.tryNormalize(val);
-    if (norm) {
-      if (field === 'start') this.startTime.set(norm);
-      else this.endTime.set(norm);
+  public onTimeBlur(index: number, field: keyof TimeRange): void {
+    const norm = TimeInput.tryNormalize(this.periods()[index][field]);
+    if (norm) this.setPeriodTime(index, field, norm);
+  }
+
+  // The form state as an entry, used for live hours, pay, and comp time.
+  private draftEntry(): WorkEntry {
+    const worked = this.status() === WorkEntryStatus.Worked;
+    const times = worked
+      ? MinuteMath.fromPeriods(this.periods())
+      : { startTime: null, endTime: null, breaks: [] };
+    return {
+      date: this.currentDateString,
+      status: this.status(),
+      ...times,
+      lunchMinutes: worked ? this.lunchMinutes() : 0,
+      projectName: worked ? this.projectName() : null,
+      dayOffReason: this.status() === WorkEntryStatus.Off ? this.dayOffReason() || null : null,
+      notes: this.notes() || null,
+      scheduledMinutesOverride: this.useScheduledHoursOverride()
+        ? Math.round(this.scheduledHours() * 60)
+        : null,
+      compTimeMinutes: Math.round(this.compTimeHours() * 60),
+    };
+  }
+
+  // Returns an error text when the times or the lunch cannot be saved.
+  private timesError(): string | null {
+    if (this.status() !== WorkEntryStatus.Worked) return null;
+    const periods = this.periods();
+    if (periods.some((p) => !TimeInput.tryNormalize(p.start) || !TimeInput.tryNormalize(p.end))) {
+      return 'Enter all times as HH:mm.';
     }
+    const periodsError = MinuteMath.validatePeriods(periods);
+    if (periodsError) return periodsError;
+    const lunch = this.lunchMinutes();
+    if (!Number.isInteger(lunch) || lunch < 0) return 'Lunch must be zero or more whole minutes.';
+    const paidMinutes = MinuteMath.worked(
+      periods[0].start,
+      periods[periods.length - 1].end,
+      0,
+      MinuteMath.fromPeriods(periods).breaks,
+    );
+    if (lunch >= paidMinutes) return 'Lunch must be shorter than the time worked.';
+    return null;
   }
 
   public usesMonthlyHourlyPayBasis(): boolean {
@@ -254,20 +315,7 @@ export class DayEditorComponent {
   }
 
   public availableCompTimeHours(): number {
-    const entry: WorkEntry = {
-      date: this.currentDateString,
-      status: this.status(),
-      startTime: this.status() === WorkEntryStatus.Worked ? this.startTime() : null,
-      endTime: this.status() === WorkEntryStatus.Worked ? this.endTime() : null,
-      lunchMinutes: this.status() === WorkEntryStatus.Worked ? this.lunchMinutes() : 0,
-      projectName: null,
-      dayOffReason: this.status() === WorkEntryStatus.Off ? this.dayOffReason() || null : null,
-      notes: null,
-      scheduledMinutesOverride: this.useScheduledHoursOverride()
-        ? Math.round(this.scheduledHours() * 60)
-        : null,
-      compTimeMinutes: 0,
-    };
+    const entry: WorkEntry = { ...this.draftEntry(), compTimeMinutes: 0 };
     return (
       MonthlyCalculations.availableCompTimeMinutes(
         entry,
@@ -280,6 +328,17 @@ export class DayEditorComponent {
   public async onSave(saveAndNext = false): Promise<void> {
     const e = this.state.selectedEntry();
     if (!e) return;
+    this.periods.set(
+      this.periods().map((period) => ({
+        start: TimeInput.tryNormalize(period.start) ?? period.start,
+        end: TimeInput.tryNormalize(period.end) ?? period.end,
+      })),
+    );
+    const timesError = this.timesError();
+    if (timesError) {
+      this.errorText.set(timesError);
+      return;
+    }
     if (
       this.useScheduledHoursOverride() &&
       (!Number.isFinite(this.scheduledHours()) || this.scheduledHours() < 0)
@@ -308,20 +367,7 @@ export class DayEditorComponent {
       this.errorText.set('Select Comp time as the day off type before using comp hours.');
       return;
     }
-    const updated: WorkEntry = {
-      ...e,
-      status: this.status(),
-      startTime: this.status() === WorkEntryStatus.Worked ? this.startTime() : null,
-      endTime: this.status() === WorkEntryStatus.Worked ? this.endTime() : null,
-      lunchMinutes: this.status() === WorkEntryStatus.Worked ? this.lunchMinutes() : 0,
-      projectName: this.status() === WorkEntryStatus.Worked ? this.projectName() : null,
-      dayOffReason: this.status() === WorkEntryStatus.Off ? this.dayOffReason() || null : null,
-      notes: this.notes() || null,
-      scheduledMinutesOverride: this.useScheduledHoursOverride()
-        ? Math.round(this.scheduledHours() * 60)
-        : null,
-      compTimeMinutes,
-    };
+    const updated: WorkEntry = { ...e, ...this.draftEntry(), compTimeMinutes };
     await this.state.saveEntry(updated);
     if (saveAndNext && this.state.isCatchUpOpen()) this.state.moveCatchUp(1);
     else this.state.closeEditor();
