@@ -169,6 +169,9 @@ export interface SalarySettings {
   monthlySalary: number;
   employmentPercent: number;
   hourlyPayBasis: HourlyPayBasis;
+  // Swedish holiday pay (semesterersättning) added on top of hourly pay. 0 means none,
+  // for example when the hourly rate already includes it.
+  holidayPayPercent: number;
 }
 
 export interface ExpectedHoursSettings {
@@ -260,6 +263,8 @@ export interface MonthlySummary {
   baseSalary: number;
   overtimeCompensation: number;
   obCompensation: number;
+  // Part of grossSalary. Only hourly pay earns it.
+  holidayPay: number;
   obMinutes: number;
   completedDayCount: number;
   missingPastDays: string[];
@@ -337,6 +342,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     monthlySalary: 40000,
     employmentPercent: 100,
     hourlyPayBasis: HourlyPayBasis.DailyRegularHours,
+    holidayPayPercent: 12,
   },
   expectedHours: {
     hoursPerWorkday: 8,

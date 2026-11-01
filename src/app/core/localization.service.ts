@@ -113,6 +113,7 @@ export class LocalizationService {
       [/^Active projects \((\d+)\)$/, (match) => `Aktiva projekt (${match[1]})`],
       [/^Catch up - (\d+) of (\d+)$/, (match) => `Kom ikapp - ${match[1]} av ${match[2]}`],
       [/^Gross: (.+)$/, (match) => `Brutto: ${match[1]}`],
+      [/^Includes (.+) holiday pay$/, (match) => `Inklusive ${match[1]} semesterersättning`],
       [/^Available for this day: (.+)h$/, (match) => `Tillgängligt för dagen: ${match[1]} h`],
       [
         /^Comp time used must be between 0 and (.+) hours\.$/,

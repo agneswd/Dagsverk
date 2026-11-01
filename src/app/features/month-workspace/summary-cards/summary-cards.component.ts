@@ -1,13 +1,14 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { AppStateService } from '../../../core/app-state.service';
 import { HourlyPayBasis, OvertimeCompensationMode, SalaryType } from '../../../core/models';
 
 @Component({
   selector: 'app-summary-cards',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, MatIconModule, MatTooltipModule],
   templateUrl: './summary-cards.component.html',
   styleUrls: ['./summary-cards.component.scss'],
 })
@@ -27,6 +28,11 @@ export class SummaryCardsComponent {
     return this.state.isMonthUnstarted()
       ? this.state.monthRecord().openingBalanceMinutes
       : this.state.summary().closingBalanceMinutes;
+  }
+
+  public holidayPayTooltip(): string {
+    const amount = Math.round(this.state.summary().holidayPay);
+    return `Includes ${amount} ${this.state.settings().currencyPreference} holiday pay`;
   }
 
   public usesMonthlyHourlyPayBasis(): boolean {

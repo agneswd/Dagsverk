@@ -212,6 +212,12 @@
         <mat-card appearance="outlined" class="m3-outlined-card">
           <mat-card-content class="card-content">
             <h3 class="card-title title-medium">Pay</h3>
+            @if (model.salary.type === SalaryType.Hourly) {
+              <p class="card-desc body-small">
+                Hourly staff get at least 12 % holiday pay on top of their pay. Your contract or
+                collective agreement can give more.
+              </p>
+            }
 
             <div class="form-grid-2">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -246,6 +252,9 @@
                   <span matTextSuffix>{{ model.currencyPreference }}</span>
                   <mat-icon matPrefix class="field-icon">payments</mat-icon>
                 </mat-form-field>
+              }
+              @if (model.salary.type === SalaryType.Hourly) {
+                <app-holiday-pay-field [(percent)]="model.salary.holidayPayPercent" />
               }
               @if (model.salary.type === SalaryType.Monthly) {
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">

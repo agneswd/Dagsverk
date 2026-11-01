@@ -18,6 +18,7 @@ import {
   WorkspaceType,
 } from '../../core/models';
 import { WEEKDAY_OPTIONS } from './weekdays';
+import { HolidayPayFieldComponent } from './holiday-pay-field.component';
 
 export interface ProfileFormDialogData {
   // 'setup' fills in the first profile on first start. 'create' adds a new profile.
@@ -41,6 +42,7 @@ const PROFILE_COLORS = ['#5F875F', '#00897B', '#039BE5', '#3F51B5', '#8E24AA', '
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    HolidayPayFieldComponent,
   ],
   template: `
     <h2 mat-dialog-title>{{ isSetup ? 'Welcome to Dagsverk' : 'New profile' }}</h2>
@@ -96,6 +98,9 @@ const PROFILE_COLORS = ['#5F875F', '#00897B', '#039BE5', '#3F51B5', '#8E24AA', '
             <input matInput type="number" min="0" [(ngModel)]="salaryValue" class="numeric" />
             <span matTextSuffix>{{ currency }}</span>
           </mat-form-field>
+          @if (salaryType === SalaryType.Hourly) {
+            <app-holiday-pay-field [(percent)]="holidayPayPercent" />
+          }
         </div>
       </section>
 
@@ -204,6 +209,8 @@ export class ProfileFormDialogComponent {
   public language = this.state.preferences().languagePreference;
   public salaryType = SalaryType.Hourly;
   public salaryValue = this.state.settings().salary.hourlyRate;
+  // Semesterlagen gives hourly staff at least 12 %.
+  public holidayPayPercent = 12;
   public fixedSchedule = true;
   public hoursPerDay = 8;
   public workdays = [1, 2, 3, 4, 5];
@@ -255,8 +262,12 @@ export class ProfileFormDialogComponent {
     settings.employerName = identity.organizationName ?? '';
     if (!this.isSetup) settings.defaultProject = name;
     settings.salary.type = this.salaryType;
-    if (this.salaryType === SalaryType.Hourly) settings.salary.hourlyRate = this.salaryValue;
-    else settings.salary.monthlySalary = this.salaryValue;
+    if (this.salaryType === SalaryType.Hourly) {
+      settings.salary.hourlyRate = this.salaryValue;
+      settings.salary.holidayPayPercent = this.holidayPayPercent;
+    } else {
+      settings.salary.monthlySalary = this.salaryValue;
+    }
     settings.expectedHours.workingWeekdays = this.fixedSchedule ? this.workdays : [];
     settings.expectedHours.hoursPerWorkday = this.fixedSchedule ? this.hoursPerDay : 0;
     // Comp time needs a time balance, and only a fixed schedule has one. Without a

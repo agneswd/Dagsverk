@@ -33,6 +33,7 @@ describe('MonthlyCalculations & Engine', () => {
     monthlySalary: 0,
     employmentPercent: 100,
     hourlyPayBasis: HourlyPayBasis.DailyRegularHours,
+    holidayPayPercent: 0,
   };
 
   const compTimeOvertime: OvertimeCompensationSettings = {

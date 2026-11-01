@@ -27,6 +27,7 @@ async function runTests() {
 
   settings.employeeName = 'Agnes Tester';
   settings.employerName = 'Dagsverk AB';
+  settings.salary.holidayPayPercent = 12.72;
   // A profile with no fixed schedule stores 0 hours, not the 8-hour default.
   settings.expectedHours.workingWeekdays = [];
   settings.expectedHours.hoursPerWorkday = 0;
@@ -34,6 +35,7 @@ async function runTests() {
   const updatedSettings = db.getSettings();
   if (
     updatedSettings.employeeName !== 'Agnes Tester' ||
+    updatedSettings.salary.holidayPayPercent !== 12.72 ||
     updatedSettings.expectedHours.hoursPerWorkday !== 0
   ) {
     throw new Error('Settings save failed');
@@ -192,6 +194,7 @@ async function runTests() {
   oldBackup.exec('ALTER TABLE WorkEntries DROP COLUMN CompTimeMinutes');
   oldBackup.exec('ALTER TABLE WorkEntries DROP COLUMN DayOffReason');
   oldBackup.exec('ALTER TABLE WorkEntries DROP COLUMN BreaksJson');
+  oldBackup.exec('ALTER TABLE WorkspaceSettings DROP COLUMN HolidayPayPercent');
   oldBackup.close();
 
   db.saveWorkEntry({
@@ -222,6 +225,9 @@ async function runTests() {
   }
   if (db.getWorkEntries(2026, 10)[0]?.breaks.length !== 0) {
     throw new Error('Restored pre-split-shift backup did not migrate');
+  }
+  if (db.getSettings().salary.holidayPayPercent !== 0) {
+    throw new Error('Restored pre-holiday-pay backup did not migrate');
   }
   db.saveWorkEntry(splitShift);
   if (db.getWorkEntries(2026, 10)[0]?.breaks.length !== 1) {
