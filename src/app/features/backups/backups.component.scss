@@ -1,10 +1,6 @@
+// Embedded in the Settings page, which owns the page padding and scrolling.
 .backups-page-container {
-  height: 100%;
   width: 100%;
-  padding: 24px 32px 48px;
-  overflow-y: auto;
-  max-width: 1088px;
-  margin: 0 auto;
 }
 
 .data-location {
@@ -144,10 +140,6 @@
 }
 
 @media (max-width: 640px) {
-  .backups-page-container {
-    padding: 24px 20px 48px;
-  }
-
   .actions-row {
     flex-direction: column;
     align-items: flex-start;

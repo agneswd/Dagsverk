@@ -22,6 +22,7 @@ export interface ReportEntry {
   startTime: string | null;
   endTime: string | null;
   lunchMinutes: number;
+  breaks?: Array<{ start: string; end: string }>; // Split-shift gaps; older callers omit it.
   projectName: string | null;
   dayOffReason?: string | null;
   notes?: string | null;
@@ -110,7 +111,7 @@ export class ExcelExportService {
         const endMinutes = timeToMinutes(entry.endTime);
         report.getCell(row, 2).value = startMinutes / 1440;
         report.getCell(row, 3).value = endMinutes / 1440;
-        report.getCell(row, 4).value = entry.lunchMinutes / 1440;
+        report.getCell(row, 4).value = unpaidMinutes(entry) / 1440;
         for (let column = 2; column <= 4; column++) report.getCell(row, column).numFmt = 'hh:mm';
 
         const workedHours = workedMinutes(entry) / 60;
@@ -297,6 +298,10 @@ export function validateReportRequest(request: ReportExportRequest): void {
       if (!Number.isInteger(entry.lunchMinutes) || entry.lunchMinutes < 0) {
         throw new Error(`The lunch duration for ${entry.date} is invalid.`);
       }
+      for (const gap of entry.breaks ?? []) {
+        timeToMinutes(gap.start);
+        timeToMinutes(gap.end);
+      }
     }
     if (!Number.isInteger(entry.compTimeMinutes) || entry.compTimeMinutes < 0) {
       throw new Error(`The comp time used for ${entry.date} is invalid.`);
@@ -359,7 +364,16 @@ export function workedMinutes(entry: ReportEntry): number {
   const start = timeToMinutes(entry.startTime);
   const end = timeToMinutes(entry.endTime);
   const elapsed = end > start ? end - start : end - start + 1440;
-  return Math.max(0, elapsed - entry.lunchMinutes);
+  return Math.max(0, elapsed - unpaidMinutes(entry));
+}
+
+// Lunch plus split-shift gaps. The report shows this in its Lunch column.
+export function unpaidMinutes(entry: ReportEntry): number {
+  const gaps = (entry.breaks ?? []).reduce((total, gap) => {
+    const elapsed = timeToMinutes(gap.end) - timeToMinutes(gap.start);
+    return total + (elapsed > 0 ? elapsed : elapsed + 1440);
+  }, 0);
+  return entry.lunchMinutes + gaps;
 }
 
 function thresholdMinutes(request: ReportExportRequest, entry: ReportEntry): number {

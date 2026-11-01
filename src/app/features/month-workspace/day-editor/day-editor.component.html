@@ -46,101 +46,86 @@
 
     <!-- WORKED STATUS FORM -->
     @if (status() === WorkEntryStatus.Worked) {
+      <!-- Work periods: more than one makes a split shift -->
       <div class="form-section">
-        <label class="section-label label-small">Reuse a day</label>
+        <label class="section-label label-small">Work periods</label>
+        @for (period of periods(); track $index; let i = $index) {
+          <div class="time-range-grid" [class.has-remove]="periods().length > 1">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Start Time</mat-label>
+              <input
+                matInput
+                [ngModel]="period.start"
+                (ngModelChange)="setPeriodTime(i, 'start', $event)"
+                (blur)="onTimeBlur(i, 'start')"
+                placeholder="08:00"
+                class="numeric"
+              />
+              <mat-icon matPrefix class="field-icon">schedule</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>End Time</mat-label>
+              <input
+                matInput
+                [ngModel]="period.end"
+                (ngModelChange)="setPeriodTime(i, 'end', $event)"
+                (blur)="onTimeBlur(i, 'end')"
+                placeholder="16:30"
+                class="numeric"
+              />
+              <mat-icon matPrefix class="field-icon">update</mat-icon>
+            </mat-form-field>
+
+            @if (periods().length > 1) {
+              <button
+                mat-icon-button
+                type="button"
+                (click)="removePeriod(i)"
+                aria-label="Remove work period"
+                matTooltip="Remove period"
+              >
+                <mat-icon>close</mat-icon>
+              </button>
+            }
+          </div>
+        }
         <div class="quick-action-row">
-          <button mat-button type="button" (click)="applyNormalDay()">Normal day</button>
-          <button mat-button type="button" (click)="copyPrevious()">Copy previous</button>
-          <button mat-button type="button" (click)="copyLastWeek()">Copy last week</button>
+          <button mat-button type="button" (click)="addPeriod()">
+            <mat-icon>add</mat-icon>
+            Add period
+          </button>
         </div>
       </div>
-      <!-- Presets Chips -->
-      <div class="form-section">
-        <label class="section-label label-small">Quick Presets</label>
-        <mat-chip-listbox aria-label="Quick time presets" class="presets-chips">
-          @for (preset of timePresets; track preset.label) {
-            <mat-chip-option
-              [selected]="
-                startTime() === preset.start &&
-                endTime() === preset.end &&
-                lunchMinutes() === preset.lunch
-              "
-              (click)="applyPreset(preset)"
-              class="preset-chip"
-            >
-              {{ preset.label }}
-            </mat-chip-option>
-          }
-        </mat-chip-listbox>
-      </div>
 
+      <!-- Lunch: presets or any number of minutes -->
       <div class="form-section">
-        <mat-slide-toggle
-          [ngModel]="useScheduledHoursOverride()"
-          (ngModelChange)="useScheduledHoursOverride.set($event)"
-        >
-          Override scheduled hours
-        </mat-slide-toggle>
-        @if (useScheduledHoursOverride()) {
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
-            <mat-label>Scheduled hours</mat-label>
+        <label class="section-label label-small">Lunch Break</label>
+        <div class="lunch-row">
+          <mat-chip-listbox aria-label="Lunch break duration" class="lunch-chips">
+            @for (mins of lunchOptions; track mins) {
+              <mat-chip-option
+                [selected]="lunchMinutes() === mins"
+                (click)="lunchMinutes.set(mins)"
+                class="lunch-chip"
+              >
+                {{ mins === 0 ? 'No Lunch' : mins + ' mins' }}
+              </mat-chip-option>
+            }
+          </mat-chip-listbox>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="lunch-input">
+            <mat-label>Minutes</mat-label>
             <input
               matInput
               type="number"
               min="0"
-              step="0.25"
-              [ngModel]="scheduledHours()"
-              (ngModelChange)="scheduledHours.set($event)"
+              step="5"
+              [ngModel]="lunchMinutes()"
+              (ngModelChange)="onLunchInput($event)"
               class="numeric"
             />
-            <span matTextSuffix>hours</span>
           </mat-form-field>
-        }
-      </div>
-
-      <!-- Time Range Inputs (12px gap) -->
-      <div class="time-range-grid">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Start Time</mat-label>
-          <input
-            matInput
-            [ngModel]="startTime()"
-            (ngModelChange)="startTime.set($event)"
-            (blur)="onTimeBlur('start', startTime())"
-            placeholder="08:00"
-            class="numeric"
-          />
-          <mat-icon matPrefix class="field-icon">schedule</mat-icon>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>End Time</mat-label>
-          <input
-            matInput
-            [ngModel]="endTime()"
-            (ngModelChange)="endTime.set($event)"
-            (blur)="onTimeBlur('end', endTime())"
-            placeholder="16:30"
-            class="numeric"
-          />
-          <mat-icon matPrefix class="field-icon">update</mat-icon>
-        </mat-form-field>
-      </div>
-
-      <!-- Lunch Duration Chips -->
-      <div class="form-section">
-        <label class="section-label label-small">Lunch Break</label>
-        <mat-chip-listbox aria-label="Lunch break duration" class="lunch-chips">
-          @for (mins of lunchOptions; track mins) {
-            <mat-chip-option
-              [selected]="lunchMinutes() === mins"
-              (click)="lunchMinutes.set(mins)"
-              class="lunch-chip"
-            >
-              {{ mins === 0 ? 'No Lunch' : mins + ' mins' }}
-            </mat-chip-option>
-          }
-        </mat-chip-listbox>
+        </div>
       </div>
 
       <!-- Project Selector -->
@@ -153,6 +138,40 @@
         </mat-select>
         <mat-icon matPrefix class="field-icon">folder</mat-icon>
       </mat-form-field>
+
+      <div class="form-section">
+        <label class="section-label label-small">Fill from</label>
+        <div class="quick-action-row">
+          <button mat-button type="button" (click)="applyNormalDay()">Normal day</button>
+          <button mat-button type="button" (click)="copyPrevious()">Copy previous</button>
+          <button mat-button type="button" (click)="copyLastWeek()">Copy last week</button>
+        </div>
+      </div>
+      @if (state.hasFixedSchedule()) {
+        <div class="form-section">
+          <mat-slide-toggle
+            [ngModel]="useScheduledHoursOverride()"
+            (ngModelChange)="useScheduledHoursOverride.set($event)"
+          >
+            Different scheduled hours this day
+          </mat-slide-toggle>
+          @if (useScheduledHoursOverride()) {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+              <mat-label>Scheduled hours</mat-label>
+              <input
+                matInput
+                type="number"
+                min="0"
+                step="0.25"
+                [ngModel]="scheduledHours()"
+                (ngModelChange)="scheduledHours.set($event)"
+                class="numeric"
+              />
+              <span matTextSuffix>hours</span>
+            </mat-form-field>
+          }
+        </div>
+      }
 
       <!-- Pay Breakdown Card -->
       <div class="pay-summary-card">

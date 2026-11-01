@@ -14,6 +14,7 @@ import {
   OvertimeThresholdMode,
   SalarySettings,
   SalaryType,
+  TimeRange,
   WorkEntry,
   WorkEntryStatus,
 } from './models';
@@ -81,11 +82,82 @@ export class MinuteMath {
     startTime: string | null,
     endTime: string | null,
     lunchMinutes: number,
+    breaks: TimeRange[] = [],
   ): number {
     if (!startTime || !endTime || startTime === endTime) {
       return 0;
     }
-    return Math.max(0, this.elapsed(startTime, endTime) - (lunchMinutes || 0));
+    return Math.max(
+      0,
+      this.elapsed(startTime, endTime) - (lunchMinutes || 0) - this.breakMinutes(breaks),
+    );
+  }
+
+  // Worked minutes for a saved entry, with lunch and split-shift breaks removed.
+  public static workedForEntry(entry: WorkEntry): number {
+    return this.worked(entry.startTime, entry.endTime, entry.lunchMinutes, entry.breaks);
+  }
+
+  public static breakMinutes(breaks: TimeRange[] = []): number {
+    return breaks.reduce((total, gap) => total + this.elapsed(gap.start, gap.end), 0);
+  }
+
+  // The work periods of an entry: one range, or one range per part of a split shift.
+  public static periods(entry: Pick<WorkEntry, 'startTime' | 'endTime' | 'breaks'>): TimeRange[] {
+    if (!entry.startTime || !entry.endTime) return [];
+    const periods: TimeRange[] = [];
+    let start = entry.startTime;
+    for (const gap of entry.breaks ?? []) {
+      periods.push({ start, end: gap.start });
+      start = gap.end;
+    }
+    periods.push({ start, end: entry.endTime });
+    return periods;
+  }
+
+  // Inverse of periods(): the span plus the gaps between the periods.
+  public static fromPeriods(periods: TimeRange[]): {
+    startTime: string;
+    endTime: string;
+    breaks: TimeRange[];
+  } {
+    return {
+      startTime: periods[0].start,
+      endTime: periods[periods.length - 1].end,
+      breaks: periods.slice(1).map((period, i) => ({ start: periods[i].end, end: period.start })),
+    };
+  }
+
+  // Returns an error text when the periods are not ordered, do not touch, and fit in 24 hours.
+  public static validatePeriods(periods: TimeRange[]): string | null {
+    if (periods.length === 0) return 'Add at least one work period.';
+    const origin = TimeInput.toMinutes(periods[0].start);
+    const offset = (time: string) => (TimeInput.toMinutes(time) - origin + 24 * 60) % (24 * 60);
+    let previousEnd = -1;
+    for (const [i, period] of periods.entries()) {
+      if (period.start === period.end) return `Work period ${i + 1} has no length.`;
+      const start = i === 0 ? 0 : offset(period.start);
+      const end = start + this.elapsed(period.start, period.end);
+      if (start <= previousEnd) {
+        return `Work period ${i + 1} must start after period ${i} ends.`;
+      }
+      if (end > 24 * 60) return 'All work periods must fit inside 24 hours.';
+      previousEnd = end;
+    }
+    return null;
+  }
+
+  // Minute offsets from startTime that are inside a work period, in clock order.
+  public static onClockOffsets(entry: WorkEntry): number[] {
+    if (!entry.startTime || !entry.endTime) return [];
+    const origin = TimeInput.toMinutes(entry.startTime);
+    const offsets: number[] = [];
+    for (const period of this.periods(entry)) {
+      const start = (TimeInput.toMinutes(period.start) - origin + 24 * 60) % (24 * 60);
+      const length = this.elapsed(period.start, period.end);
+      for (let minute = 0; minute < length; minute++) offsets.push(start + minute);
+    }
+    return offsets;
   }
 }
 
@@ -345,7 +417,7 @@ export class MonthlyCalculations {
     const scheduled = this.scheduledMinutesForEntry(entry, expectedHours, holidays);
     const worked =
       entry.status === WorkEntryStatus.Worked && entry.startTime && entry.endTime
-        ? MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes)
+        ? MinuteMath.workedForEntry(entry)
         : 0;
     return Math.max(0, scheduled - Math.min(worked, scheduled));
   }
@@ -369,7 +441,7 @@ export class MonthlyCalculations {
     overtimeCompensation: OvertimeCompensationSettings,
     holidays: SwedishHolidayService,
   ): { regularMinutes: number; overtimeMinutes: number } {
-    const workedMinutes = MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes);
+    const workedMinutes = MinuteMath.workedForEntry(entry);
     const threshold = this.thresholdForEntry(entry, expectedHours, overtimeCompensation, holidays);
     const regular = Math.min(workedMinutes, threshold);
     return {
@@ -419,9 +491,14 @@ export class MonthlyCalculations {
     let obPay = new Decimal(0);
     let obMinutes = 0;
 
+    // Lunch sits between regular and overtime minutes; split-shift breaks are skipped.
+    const onClock = MinuteMath.onClockOffsets(entry);
     for (let minute = 0; minute < regularMinutes + overtimeMinutes; minute++) {
       const isOvertimeMinute = minute >= regularMinutes;
-      const clock = this.clockAt(entry, isOvertimeMinute ? minute + entry.lunchMinutes : minute);
+      const clock = this.clockAt(
+        entry,
+        onClock[isOvertimeMinute ? minute + entry.lunchMinutes : minute],
+      );
       const isScheduled = this.isScheduledWorkday(clock.date, expectedHours, holidays);
       const isPublicHoliday = holidays.isPublicHoliday(clock.date);
       const isMajorHoliday = holidays.isMajorHolidayPeriod(clock.date, clock.time);
@@ -524,7 +601,7 @@ export class MonthlyCalculations {
       );
       if (entry.status === WorkEntryStatus.Worked && entry.startTime && entry.endTime) {
         completedDayCount++;
-        const worked = MinuteMath.worked(entry.startTime, entry.endTime, entry.lunchMinutes);
+        const worked = MinuteMath.workedForEntry(entry);
         const { regularMinutes, overtimeMinutes } = this.splitOvertime(
           entry,
           expectedHours,

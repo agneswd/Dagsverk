@@ -116,6 +116,22 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+    align-items: center;
+
+    &.has-remove {
+      grid-template-columns: 1fr 1fr auto;
+    }
+  }
+
+  .lunch-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+
+  .lunch-input {
+    width: 112px;
   }
 
   .full-width {
@@ -196,7 +212,8 @@
       }
     }
 
-    .time-range-grid {
+    .time-range-grid,
+    .time-range-grid.has-remove {
       grid-template-columns: 1fr;
     }
   }

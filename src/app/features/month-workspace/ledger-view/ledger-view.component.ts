@@ -7,7 +7,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { AppStateService } from '../../../core/app-state.service';
 import { SwedishHolidayService } from '../../../core/swedish-holiday.service';
 import { MinuteMath, MonthlyCalculations } from '../../../core/monthly-calculations';
-import { WorkEntry, WorkEntryStatus } from '../../../core/models';
+import { TimeRange, WorkEntry, WorkEntryStatus } from '../../../core/models';
 import { LocalizationService } from '../../../core/localization.service';
 
 export interface LedgerRow {
@@ -21,8 +21,7 @@ export interface LedgerRow {
   isMissing: boolean;
   status: WorkEntryStatus;
   entry?: WorkEntry;
-  startTime: string | null;
-  endTime: string | null;
+  periods: TimeRange[];
   lunchMinutes: number;
   workedHours: number;
   overtimeHours: number;
@@ -84,8 +83,7 @@ export class LedgerViewComponent {
       const entry = entriesMap.get(date);
 
       let status = WorkEntryStatus.Incomplete;
-      let start: string | null = null;
-      let end: string | null = null;
+      let periods: TimeRange[] = [];
       let lunch = 0;
       let worked = 0;
       let ot = 0;
@@ -96,8 +94,7 @@ export class LedgerViewComponent {
 
       if (entry) {
         status = entry.status;
-        start = entry.startTime;
-        end = entry.endTime;
+        periods = MinuteMath.periods(entry);
         lunch = entry.lunchMinutes;
         project = entry.projectName;
         dayOffReason =
@@ -105,9 +102,9 @@ export class LedgerViewComponent {
         notes = entry.notes;
         comp = (entry.compTimeMinutes || 0) / 60;
 
-        if (status === WorkEntryStatus.Worked && start && end) {
+        if (status === WorkEntryStatus.Worked && entry.startTime && entry.endTime) {
           const split = MonthlyCalculations.splitOvertime(entry, expected, overtime, this.holidays);
-          worked = MinuteMath.worked(start, end, lunch) / 60;
+          worked = MinuteMath.workedForEntry(entry) / 60;
           ot = split.overtimeMinutes / 60;
         }
       }
@@ -121,14 +118,10 @@ export class LedgerViewComponent {
         holidayName,
         isScheduledWorkday: isScheduled,
         isMissing:
-          monthStarted &&
-          date < today &&
-          isScheduled &&
-          status === WorkEntryStatus.Incomplete,
+          monthStarted && date < today && isScheduled && status === WorkEntryStatus.Incomplete,
         status,
         entry,
-        startTime: start,
-        endTime: end,
+        periods,
         lunchMinutes: lunch,
         workedHours: worked,
         overtimeHours: ot,
@@ -170,5 +163,9 @@ export class LedgerViewComponent {
     if (!name) return '#5F875F';
     const p = this.state.projects().find((item) => item.name.toLowerCase() === name.toLowerCase());
     return p?.color || '#5F875F';
+  }
+
+  public periodsLabel(periods: TimeRange[]): string {
+    return periods.map((period) => `${period.start}-${period.end}`).join(', ');
   }
 }

@@ -135,6 +135,12 @@ export class LocalizationService {
       [/^Downloading version (.+)\.\.\.$/, (match) => `Hämtar version ${match[1]}...`],
       [/^Workspace "(.+)" created$/, (match) => `Arbetsytan "${match[1]}" skapades`],
       [/^Workspace "(.+)" deleted$/, (match) => `Arbetsytan "${match[1]}" togs bort`],
+      [/^Profile "(.+)" deleted$/, (match) => `Profilen "${match[1]}" togs bort`],
+      [/^Work period (\d+) has no length\.$/, (match) => `Arbetspass ${match[1]} saknar längd.`],
+      [
+        /^Work period (\d+) must start after period (\d+) ends\.$/,
+        (match) => `Arbetspass ${match[1]} måste börja efter att pass ${match[2]} slutar.`,
+      ],
       [/^Backup saved: (.+)$/, (match) => `Säkerhetskopia sparad: ${match[1]}`],
       [/^Backup failed: (.+)$/, (match) => `Säkerhetskopiering misslyckades: ${match[1]}`],
       [/^Restore failed: (.+)$/, (match) => `Återställning misslyckades: ${match[1]}`],

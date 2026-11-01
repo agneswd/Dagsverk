@@ -1,6 +1,6 @@
 # Workspace ownership
 
-Dagsverk uses workspaces to separate employment contexts. A workspace can represent an employer, a client, or personal work.
+Dagsverk uses workspaces to separate employment contexts. A workspace can represent an employer, a client, or personal work. The interface calls a workspace a **profile**. The code and database keep the name workspace.
 
 ## Application scope
 
@@ -28,18 +28,19 @@ A workspace owns the rules and records for one work context.
 
 ### Identity
 
-- Workspace name
-- Workspace type: employment, contract, or personal
-- Organization name, optional
+- Profile name
+- Employer or client name, optional
 - Worker name, optional
-- Workspace color
+- Profile color
 
-The interface uses neutral labels. It shows organization and worker fields only when the selected workspace type needs them.
+The database also stores a workspace type. The interface does not show it, and new profiles use employment.
 
 ### Work rules
 
 - Working weekdays
 - Expected hours
+
+A profile has a fixed schedule when it has working weekdays and more than zero expected hours. A profile without a fixed schedule expects no hours. It has no time balance and no missing days, and its overtime is paid, because comp time needs a balance.
 - Default start, end, and lunch times
 - Public holiday handling
 - Overtime and unsocial-hours rules
@@ -78,13 +79,16 @@ A work entry owns values for one date in one workspace.
 - Status
 - Start and end time
 - Lunch duration
+- Breaks: unpaid gaps between the work periods of a split shift
 - Scheduled-hours override
 - Project
 - Notes
 
 ## Interface structure
 
-The Workspaces page manages identity, workspace type, and switching. Workspace settings contain Schedule, Compensation, Tax, Overtime, and Export sections. Application settings contain Appearance, Language, Updates, and Data sections.
+The profile menu in the sidebar switches profiles, makes new profiles, and opens the profile list. The first start and New profile use the same form: name, employer, pay, and schedule.
+
+The Profile page holds every workspace setting in four tabs: Details, Schedule, Pay and tax, and Overtime and OB. The Settings page holds only application settings: Appearance and language, Updates, and Data and backups. Application settings apply at once. Profile settings use Save changes.
 
 The active workspace controls every ledger, calendar, report, project, balance, and calculation query. A workspace switch reloads these values as one operation.
 

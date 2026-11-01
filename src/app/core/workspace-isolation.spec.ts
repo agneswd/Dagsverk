@@ -18,7 +18,7 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
       type: WorkspaceType.Employment,
       organizationName: 'Acme AB',
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
 
     const ws2: Workspace = {
@@ -28,7 +28,7 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
       type: WorkspaceType.Contract,
       organizationName: 'Beta AB',
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
 
     await bridge.saveWorkspace(ws1);
@@ -41,6 +41,7 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
       startTime: '08:00',
       endTime: '16:30',
       lunchMinutes: 30,
+      breaks: [],
       projectName: 'Acme-Core',
       dayOffReason: null,
       notes: 'Full-time work',
@@ -55,6 +56,7 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
       startTime: '18:00',
       endTime: '20:00',
       lunchMinutes: 0,
+      breaks: [],
       projectName: 'Consulting-Proj',
       dayOffReason: null,
       notes: 'Evening gig',
@@ -79,32 +81,38 @@ describe('Workspace Isolation & Multi-Tenancy', () => {
     const wsA = 'ws-test-a';
     const wsB = 'ws-test-b';
 
-    await bridge.saveProject({
-      workspaceId: wsA,
-      id: 'p-a',
-      name: 'Alpha Project',
-      color: '#0B57D0',
-      isActive: true,
-      isDefault: true
-    }, wsA);
+    await bridge.saveProject(
+      {
+        workspaceId: wsA,
+        id: 'p-a',
+        name: 'Alpha Project',
+        color: '#0B57D0',
+        isActive: true,
+        isDefault: true,
+      },
+      wsA,
+    );
 
-    await bridge.saveProject({
-      workspaceId: wsB,
-      id: 'p-b',
-      name: 'Beta Project',
-      color: '#EA4335',
-      isActive: true,
-      isDefault: true
-    }, wsB);
+    await bridge.saveProject(
+      {
+        workspaceId: wsB,
+        id: 'p-b',
+        name: 'Beta Project',
+        color: '#EA4335',
+        isActive: true,
+        isDefault: true,
+      },
+      wsB,
+    );
 
     const projsA = await bridge.getProjects(wsA);
     const projsB = await bridge.getProjects(wsB);
 
-    expect(projsA.some(p => p.name === 'Alpha Project')).toBe(true);
-    expect(projsA.some(p => p.name === 'Beta Project')).toBe(false);
+    expect(projsA.some((p) => p.name === 'Alpha Project')).toBe(true);
+    expect(projsA.some((p) => p.name === 'Beta Project')).toBe(false);
 
-    expect(projsB.some(p => p.name === 'Beta Project')).toBe(true);
-    expect(projsB.some(p => p.name === 'Alpha Project')).toBe(false);
+    expect(projsB.some((p) => p.name === 'Beta Project')).toBe(true);
+    expect(projsB.some((p) => p.name === 'Alpha Project')).toBe(false);
   });
 
   it('matches copied entries by weekday occurrence', () => {

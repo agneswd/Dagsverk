@@ -4,7 +4,8 @@ Dagsverk is an offline-first desktop app for timesheets, time balance, salary es
 
 ## Features
 
-- Separate workspaces for jobs, clients, contracts, or other work
+- Separate profiles for jobs, clients, contracts, or other work
+- Split shifts, with unpaid gaps between work periods
 - Monthly ledger and calendar views
 - Workday, day-off, lunch, project, and note tracking
 - Expected hours, public holidays, overtime, OB, and comp-time calculations

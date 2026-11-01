@@ -10,9 +10,11 @@
         <span class="metric-value title-medium numeric">{{
           state.summary().workedHours | number: '1.2-2'
         }}</span>
-        <span class="metric-qualifier body-small numeric"
-          >/ {{ state.summary().expectedHours | number: '1.2-2' }}h</span
-        >
+        @if (state.hasFixedSchedule()) {
+          <span class="metric-qualifier body-small numeric"
+            >/ {{ state.summary().expectedHours | number: '1.2-2' }}h</span
+          >
+        }
       </div>
     </div>
   </div>
@@ -51,31 +53,33 @@
     </div>
   </div>
 
-  <!-- 3. Time Balance -->
-  <div class="metric-item">
-    <div class="metric-icon-box">
-      <mat-icon>balance</mat-icon>
-    </div>
-    <div class="metric-data">
-      <span class="metric-label label-small">Time Balance</span>
-      <div class="metric-val-row">
-        <span
-          class="metric-value title-medium numeric"
-          [class.positive]="balanceMinutes() > 0"
-          [class.negative]="balanceMinutes() < 0"
-        >
-          {{ formatMinutes(balanceMinutes()) }}
-        </span>
-        @if (state.isMonthUnstarted()) {
-          <span class="metric-qualifier body-small">Opening balance</span>
-        } @else {
-          <span class="metric-qualifier body-small numeric"
-            >(Δ {{ formatMinutes(state.summary().monthlyDifferenceMinutes) }})</span
+  <!-- 3. Time Balance: only meaningful when hours are expected -->
+  @if (state.hasFixedSchedule()) {
+    <div class="metric-item">
+      <div class="metric-icon-box">
+        <mat-icon>balance</mat-icon>
+      </div>
+      <div class="metric-data">
+        <span class="metric-label label-small">Time Balance</span>
+        <div class="metric-val-row">
+          <span
+            class="metric-value title-medium numeric"
+            [class.positive]="balanceMinutes() > 0"
+            [class.negative]="balanceMinutes() < 0"
           >
-        }
+            {{ formatMinutes(balanceMinutes()) }}
+          </span>
+          @if (state.isMonthUnstarted()) {
+            <span class="metric-qualifier body-small">Opening balance</span>
+          } @else {
+            <span class="metric-qualifier body-small numeric"
+              >(Δ {{ formatMinutes(state.summary().monthlyDifferenceMinutes) }})</span
+            >
+          }
+        </div>
       </div>
     </div>
-  </div>
+  }
 
   <!-- 4. Estimated Net Pay -->
   <div class="metric-item">

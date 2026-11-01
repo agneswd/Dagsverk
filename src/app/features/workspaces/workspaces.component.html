@@ -1,18 +1,13 @@
 <div class="workspaces-page-container">
   <div class="dialog-title-row">
     <div>
-      <h2 class="dialog-title headline-small">Manage workspaces</h2>
+      <h2 class="dialog-title headline-small">Profiles</h2>
       <p class="dialog-desc body-medium">
-        Keep time, projects, and settings separate for each job or client.
+        Each profile keeps its own timesheet, projects, pay, and schedule.
       </p>
     </div>
     @if (dialogRef) {
-      <button
-        mat-icon-button
-        type="button"
-        aria-label="Close workspace manager"
-        (click)="dialogRef.close()"
-      >
+      <button mat-icon-button type="button" aria-label="Close profiles" (click)="dialogRef.close()">
         <mat-icon>close</mat-icon>
       </button>
     }
@@ -20,109 +15,15 @@
 
   <div class="page-header-block">
     <div></div>
-    <button
-      mat-flat-button
-      color="primary"
-      (click)="isAdding.set(!isAdding())"
-      class="add-ws-btn label-large"
-    >
-      <mat-icon>{{ isAdding() ? 'close' : 'add' }}</mat-icon>
-      <span>{{ isAdding() ? 'Cancel' : 'Add Workspace' }}</span>
+    <button mat-flat-button color="primary" (click)="onNewProfile()" class="add-ws-btn label-large">
+      <mat-icon>add</mat-icon>
+      <span>New profile</span>
     </button>
   </div>
 
-  <!-- ADD WORKSPACE FORM (Collapsible) -->
-  @if (isAdding()) {
-    <mat-card appearance="outlined" class="m3-outlined-card add-card">
-      <mat-card-content class="card-content">
-        <h2 class="card-title title-medium">Create workspace</h2>
-
-        <div class="form-grid-2">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Workspace name</mat-label>
-            <input
-              matInput
-              [ngModel]="newWorkspaceName()"
-              (ngModelChange)="newWorkspaceName.set($event)"
-              placeholder="e.g. Main job"
-            />
-            <mat-icon matPrefix class="field-icon">business</mat-icon>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Workspace type</mat-label>
-            <mat-select
-              [ngModel]="newWorkspaceType()"
-              (ngModelChange)="newWorkspaceType.set($event)"
-            >
-              <mat-option [value]="WorkspaceType.Employment">Employment</mat-option>
-              <mat-option [value]="WorkspaceType.Contract">Contract or client</mat-option>
-              <mat-option [value]="WorkspaceType.Personal">Personal</mat-option>
-            </mat-select>
-            <mat-icon matPrefix class="field-icon">category</mat-icon>
-          </mat-form-field>
-        </div>
-
-        <div class="form-grid-2">
-          @if (newWorkspaceType() !== WorkspaceType.Personal) {
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>{{
-                newWorkspaceType() === WorkspaceType.Employment ? 'Organization' : 'Client'
-              }}</mat-label>
-              <input
-                matInput
-                [ngModel]="newOrganizationName()"
-                (ngModelChange)="newOrganizationName.set($event)"
-                placeholder="e.g. Acme AB"
-              />
-              <mat-icon matPrefix class="field-icon">domain</mat-icon>
-            </mat-form-field>
-          }
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Worker name</mat-label>
-            <input
-              matInput
-              [ngModel]="newWorkerName()"
-              (ngModelChange)="newWorkerName.set($event)"
-              placeholder="Name used in reports"
-            />
-            <mat-icon matPrefix class="field-icon">badge</mat-icon>
-          </mat-form-field>
-        </div>
-
-        <div class="color-picker-row">
-          <label class="color-label label-small">COLOR ACCENT</label>
-          <app-color-picker
-            [color]="newWorkspaceColor()"
-            (colorChange)="newWorkspaceColor.set($event)"
-            label="Choose workspace color"
-          />
-        </div>
-
-        <div class="form-actions">
-          <button
-            mat-flat-button
-            color="primary"
-            class="save-btn label-large"
-            [disabled]="!newWorkspaceName().trim()"
-            (click)="onAddWorkspace()"
-          >
-            <mat-icon>check</mat-icon>
-            <span>Create Workspace</span>
-          </button>
-        </div>
-      </mat-card-content>
-    </mat-card>
-  }
-
-  <!-- WORKSPACES LIST (72px Rows) -->
+  <!-- PROFILE LIST -->
   <mat-card appearance="outlined" class="m3-outlined-card list-card">
     <mat-card-content class="card-content">
-      <h2 class="card-title title-medium">
-        {{ 'Available workspaces (' + state.workspaces().length + ')' }}
-      </h2>
-
       <div class="workspaces-list">
         @for (ws of state.workspaces(); track ws.id) {
           <div class="ws-row" [class.is-active]="ws.id === state.activeWorkspaceId()">
@@ -147,21 +48,15 @@
                   (click)="onSelectWorkspace(ws)"
                   class="switch-btn label-large"
                 >
-                  Switch To
+                  Switch
                 </button>
               }
 
-              <app-color-picker
-                [color]="ws.color || '#5F875F'"
-                (colorChange)="onWorkspaceColorChange(ws, $event)"
-                label="Change workspace color"
-              />
-
               <button
                 mat-icon-button
-                (click)="onRenameWorkspace(ws)"
-                matTooltip="Rename Workspace"
-                [attr.aria-label]="'Rename ' + ws.name"
+                (click)="onEditProfile(ws)"
+                matTooltip="Edit profile"
+                [attr.aria-label]="'Edit ' + ws.name"
               >
                 <mat-icon>edit</mat-icon>
               </button>
@@ -171,7 +66,7 @@
                   mat-icon-button
                   (click)="onDeleteWorkspace(ws)"
                   color="warn"
-                  matTooltip="Delete Workspace"
+                  matTooltip="Delete profile"
                   [attr.aria-label]="'Delete ' + ws.name"
                 >
                   <mat-icon>delete_outline</mat-icon>

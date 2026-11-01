@@ -129,6 +129,12 @@ export interface UpdateState {
   message?: string;
 }
 
+// A clock interval on one day. End before start means it ends after midnight.
+export interface TimeRange {
+  start: string; // HH:mm
+  end: string; // HH:mm
+}
+
 export interface WorkEntry {
   workspaceId?: string;
   date: string; // YYYY-MM-DD
@@ -136,6 +142,8 @@ export interface WorkEntry {
   startTime: string | null; // HH:mm
   endTime: string | null; // HH:mm
   lunchMinutes: number;
+  // Unpaid gaps between the work periods of a split shift, inside startTime-endTime.
+  breaks: TimeRange[];
   projectName: string | null;
   dayOffReason: string | null;
   notes: string | null;
