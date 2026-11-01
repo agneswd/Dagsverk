@@ -25,7 +25,7 @@
       matRipple
       class="workspace-switcher-btn"
       [matMenuTriggerFor]="workspaceMenu"
-      aria-label="Switch active workspace"
+      aria-label="Switch profile"
     >
       <div class="ws-avatar" [style.--workspace-color]="state.activeWorkspace().color || '#5F875F'">
         <mat-icon class="ws-avatar-icon">business</mat-icon>
@@ -36,7 +36,7 @@
         <span class="ws-employer body-small">{{
           state.activeWorkspace().organizationName ||
             state.activeWorkspace().workerName ||
-            'Personal workspace'
+            'Profile'
         }}</span>
       </div>
 
@@ -44,7 +44,7 @@
     </button>
 
     <mat-menu #workspaceMenu="matMenu" class="m3-workspace-menu" xPosition="after">
-      <div class="menu-heading label-small">Switch workspace</div>
+      <div class="menu-heading label-small">Switch profile</div>
       @for (ws of state.workspaces(); track ws.id) {
         <button
           mat-menu-item
@@ -64,11 +64,17 @@
         </button>
       }
 
+      <button mat-menu-item (click)="onNewProfile()" class="manage-ws-item">
+        <span class="ws-menu-leading">
+          <mat-icon class="manage-ws-icon">add</mat-icon>
+        </span>
+        <span class="body-medium">New profile</span>
+      </button>
       <button mat-menu-item (click)="onManageWorkspaces()" class="manage-ws-item">
         <span class="ws-menu-leading">
-          <mat-icon class="manage-ws-icon">settings</mat-icon>
+          <mat-icon class="manage-ws-icon">list</mat-icon>
         </span>
-        <span class="body-medium">Manage workspaces</span>
+        <span class="body-medium">Manage profiles</span>
       </button>
     </mat-menu>
   </div>

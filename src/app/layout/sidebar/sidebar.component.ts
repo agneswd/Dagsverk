@@ -12,6 +12,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { AppStateService } from '../../core/app-state.service';
 import { Workspace } from '../../core/models';
 import { WorkspacesComponent } from '../../features/workspaces/workspaces.component';
+import { ProfileFormDialogComponent } from '../../features/profiles/profile-form-dialog.component';
 import { ElectronBridgeService } from '../../core/electron-bridge.service';
 
 interface NavItem {
@@ -49,6 +50,7 @@ export class SidebarComponent {
   public navItems: NavItem[] = [
     { route: '/timesheet', label: 'Timesheet', icon: 'schedule' },
     { route: '/projects', label: 'Projects', icon: 'folder' },
+    { route: '/profile', label: 'Profile', icon: 'badge' },
   ];
   public settingsItem: NavItem = { route: '/settings', label: 'Settings', icon: 'settings' };
 
@@ -90,6 +92,14 @@ export class SidebarComponent {
 
   public onSelectWorkspace(ws: Workspace): void {
     this.state.switchWorkspace(ws.id);
+  }
+
+  public onNewProfile(): void {
+    this.dialog.open(ProfileFormDialogComponent, {
+      data: { mode: 'create' },
+      width: '640px',
+      maxWidth: 'calc(100vw - 32px)',
+    });
   }
 
   public onManageWorkspaces(): void {

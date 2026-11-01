@@ -102,7 +102,7 @@ export class BackupsComponent {
             data: {
               title: 'Import Tidverk data?',
               message:
-                'Dagsverk will create backups, then import the entries and settings into a workspace. The Tidverk database will not change.',
+                'Dagsverk will create backups, then import the entries and settings into a new profile. The Tidverk database will not change.',
               confirmLabel: 'Import data',
               destructive: false,
             },

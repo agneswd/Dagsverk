@@ -1,8 +1,4 @@
 <div class="backups-page-container">
-  <div class="page-header-block">
-    <p class="page-desc body-medium">Back up or restore your local Dagsverk database.</p>
-  </div>
-
   <div class="cards-stack">
     <!-- Privacy & Storage Info Card -->
     <mat-card appearance="outlined" class="m3-outlined-card">
@@ -41,7 +37,9 @@
         <div class="card-header-row">
           <div class="title-group">
             <h2 class="title-medium">Backup and restore</h2>
-            <p class="body-small">Create a portable copy or restore an earlier database.</p>
+            <p class="body-small">
+              One backup holds every profile. Restore replaces all profiles with the backup.
+            </p>
           </div>
         </div>
 
@@ -71,7 +69,7 @@
           <div class="backup-banner">
             <mat-icon class="banner-icon">check_circle</mat-icon>
             <div class="banner-text">
-              <span class="banner-label label-small">LATEST BACKUP CREATED:</span>
+              <span class="banner-label label-small">Latest backup</span>
               <span class="banner-path selectable-path numeric">{{ lastBackupPath() }}</span>
             </div>
           </div>
