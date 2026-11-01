@@ -717,7 +717,7 @@ export class DatabaseService {
         settings.salary?.monthlySalary || 0,
         settings.salary?.employmentPercent || 100,
         settings.salary?.hourlyPayBasis ?? 0,
-        settings.expectedHours?.hoursPerWorkday || 8,
+        settings.expectedHours?.hoursPerWorkday ?? 8,
         (settings.expectedHours?.workingWeekdays || [1, 2, 3, 4, 5]).join(','),
         settings.expectedHours?.excludePublicHolidays ? 1 : 0,
         settings.defaultStartTime || '08:00',

@@ -13,6 +13,7 @@ import {
   AppSettings,
   LanguagePreference,
   OvertimeCompensationMode,
+  OvertimeThresholdMode,
   SalaryType,
   WorkspaceType,
 } from '../../core/models';
@@ -258,8 +259,12 @@ export class ProfileFormDialogComponent {
     else settings.salary.monthlySalary = this.salaryValue;
     settings.expectedHours.workingWeekdays = this.fixedSchedule ? this.workdays : [];
     settings.expectedHours.hoursPerWorkday = this.fixedSchedule ? this.hoursPerDay : 0;
-    // Comp time needs a time balance, and only a fixed schedule has one.
-    if (!this.fixedSchedule) settings.overtimeCompensation.mode = OvertimeCompensationMode.Paid;
+    // Comp time needs a time balance, and only a fixed schedule has one. Without a
+    // schedule, overtime starts after a fixed number of hours per day.
+    if (!this.fixedSchedule) {
+      settings.overtimeCompensation.mode = OvertimeCompensationMode.Paid;
+      settings.overtimeCompensation.thresholdMode = OvertimeThresholdMode.FixedDailyHours;
+    }
     await this.state.updateSettings(settings);
 
     if (this.isSetup) {
