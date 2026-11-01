@@ -27,9 +27,15 @@ async function runTests() {
 
   settings.employeeName = 'Agnes Tester';
   settings.employerName = 'Dagsverk AB';
+  // A profile with no fixed schedule stores 0 hours, not the 8-hour default.
+  settings.expectedHours.workingWeekdays = [];
+  settings.expectedHours.hoursPerWorkday = 0;
   db.saveSettings(settings);
   const updatedSettings = db.getSettings();
-  if (updatedSettings.employeeName !== 'Agnes Tester') {
+  if (
+    updatedSettings.employeeName !== 'Agnes Tester' ||
+    updatedSettings.expectedHours.hoursPerWorkday !== 0
+  ) {
     throw new Error('Settings save failed');
   }
   console.log('✔ Settings save/load verified');

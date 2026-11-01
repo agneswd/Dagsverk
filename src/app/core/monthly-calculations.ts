@@ -398,7 +398,13 @@ export class MonthlyCalculations {
       return entry.scheduledMinutesOverride;
     }
 
-    if (overtimeCompensation.thresholdMode === OvertimeThresholdMode.ScheduledHours) {
+    // Without a fixed schedule there are no scheduled hours, so the daily limit applies.
+    const hasSchedule =
+      expectedHours.workingWeekdays.length > 0 && expectedHours.hoursPerWorkday > 0;
+    if (
+      overtimeCompensation.thresholdMode === OvertimeThresholdMode.ScheduledHours &&
+      hasSchedule
+    ) {
       return this.isScheduledWorkday(entry.date, expectedHours, holidays)
         ? Math.round(expectedHours.hoursPerWorkday * 60)
         : 0;

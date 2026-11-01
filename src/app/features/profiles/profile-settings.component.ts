@@ -133,7 +133,10 @@ export class ProfileSettingsComponent {
     this.model.expectedHours.workingWeekdays = fixed ? [1, 2, 3, 4, 5] : [];
     this.model.expectedHours.hoursPerWorkday = fixed ? 8 : 0;
     // Comp time needs a time balance, and only a fixed schedule has one.
-    if (!fixed) this.model.overtimeCompensation.mode = OvertimeCompensationMode.Paid;
+    if (!fixed) {
+      this.model.overtimeCompensation.mode = OvertimeCompensationMode.Paid;
+      this.model.overtimeCompensation.thresholdMode = OvertimeThresholdMode.FixedDailyHours;
+    }
   }
 
   public isWeekdaySelected(dayNum: number): boolean {
